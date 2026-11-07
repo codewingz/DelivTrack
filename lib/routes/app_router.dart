@@ -16,6 +16,7 @@ import '../features/parcels/domain/parcel.dart';
 import '../features/parcels/views/parcel_details_screen.dart';
 import '../features/parcels/views/parcel_form_screen.dart';
 import '../features/parcels/views/parcels_screen.dart';
+import '../features/reminders/data/reminder_scheduler.dart';
 import '../features/reminders/views/reminders_screen.dart';
 import '../features/products/data/product_repository.dart';
 import '../features/products/views/products_screen.dart';
@@ -56,8 +57,9 @@ GoRouter createRouter(
   AuthRepository repository,
   ProductRepository productRepository,
   CustomerRepository customerRepository,
-  ParcelRepository parcelRepository,
-) {
+  ParcelRepository parcelRepository, {
+  ReminderScheduler reminderScheduler = const NoReminderScheduler(),
+}) {
   return GoRouter(
     initialLocation: AppRoutes.splash,
     refreshListenable: StreamListenable(repository.signedInChanges),
@@ -109,6 +111,7 @@ GoRouter createRouter(
         name: 'reminders',
         builder: (context, state) => RemindersScreen(
           repository: parcelRepository,
+          scheduler: reminderScheduler,
           onOpen: (parcel) => context.push(AppRoutes.parcelPath(parcel.id)),
         ),
       ),
@@ -169,7 +172,9 @@ GoRouter createRouter(
                 DashboardScreen(
                   repository: repository,
                   parcelRepository: parcelRepository,
+                  reminderScheduler: reminderScheduler,
                   onOpenReminders: () => context.push(AppRoutes.reminders),
+                  onOpenParcel: (id) => context.push(AppRoutes.parcelPath(id)),
                 ),
               ),
             ),

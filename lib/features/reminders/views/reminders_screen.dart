@@ -4,19 +4,22 @@ import '../../../common_widgets/list_skeleton.dart';
 import '../../../constants/app_colors.dart';
 import '../../../core/money/money.dart';
 import '../../../core/time/pakistan_time.dart';
+import '../../../design_system/foundations/radius/app_radius.dart';
 import '../../../design_system/foundations/spacing/app_spacing.dart';
 import '../../parcels/data/parcel_repository.dart';
 import '../../parcels/domain/parcel.dart';
 import '../../parcels/views/parcel_action_sheets.dart';
 import '../../parcels/views/payment_sheet.dart';
+import '../data/reminder_scheduler.dart';
 import '../domain/reminder_rules.dart';
 import '../viewmodel/reminder_list_view_model.dart';
 
 /// Pay Later follow-ups: due today, overdue, upcoming and without a date. Works without notification
 /// permission: this list is always available inside the app.
 class RemindersScreen extends StatefulWidget {
-  const RemindersScreen({super.key, required this.repository, required this.onOpen, this.clock = const Clock()});
+  const RemindersScreen({super.key, required this.repository, required this.onOpen, this.scheduler = const NoReminderScheduler(), this.clock = const Clock()});
   final ParcelRepository repository;
+  final ReminderScheduler scheduler;
   final void Function(Parcel parcel) onOpen;
   final Clock clock;
 
@@ -26,6 +29,24 @@ class RemindersScreen extends StatefulWidget {
 
 class _RemindersScreenState extends State<RemindersScreen> {
   late final _viewModel = ReminderListViewModel(widget.repository, clock: widget.clock);
+
+  bool _notificationsOn = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshNotificationState();
+  }
+
+  Future<void> _refreshNotificationState() async {
+    final enabled = await widget.scheduler.areNotificationsEnabled();
+    if (mounted) setState(() => _notificationsOn = enabled);
+  }
+
+  Future<void> _turnOnNotifications() async {
+    if (!await widget.scheduler.requestPermission()) await widget.scheduler.openSettings();
+    await _refreshNotificationState();
+  }
 
   @override
   void dispose() {
@@ -74,8 +95,10 @@ class _RemindersScreenState extends State<RemindersScreen> {
       );
     }
     final today = _viewModel.today;
+    final hasDated = reminders[ReminderGroup.dueToday].isNotEmpty || reminders[ReminderGroup.upcoming].isNotEmpty;
     return CustomScrollView(
       slivers: [
+        if (!_notificationsOn && hasDated) SliverToBoxAdapter(child: _NotificationsOffBanner(onTurnOn: _turnOnNotifications)),
         for (final group in ReminderGroup.values)
           if (reminders[group].isNotEmpty) ...[
             SliverToBoxAdapter(child: _GroupHeader(group: group, count: reminders[group].length)),
@@ -185,6 +208,40 @@ class _ReminderTile extends StatelessWidget {
         ),
         const Divider(height: 1),
       ],
+    );
+  }
+}
+
+class _NotificationsOffBanner extends StatelessWidget {
+  const _NotificationsOffBanner({required this.onTurnOn});
+  final VoidCallback onTurnOn;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(start: AppSpacing.lg, top: AppSpacing.lg, end: AppSpacing.lg),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          border: Border.all(color: AppColors.border),
+          borderRadius: BorderRadius.circular(AppRadius.control),
+        ),
+        child: Padding(
+          padding: const EdgeInsetsDirectional.all(AppSpacing.lg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Phone notifications are off', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+              const SizedBox(height: AppSpacing.xs),
+              const Text(
+                'Turn them on to get a reminder at 9:00 AM on the day a payment is due. This list always works without them.',
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              ),
+              TextButton(onPressed: onTurnOn, child: const Text('Turn On Notifications')),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

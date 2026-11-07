@@ -18,12 +18,15 @@ val hasReleaseKey = keystoreProperties.containsKey("storeFile")
 
 android {
     namespace = "com.codewingz.delivtrack"
-    compileSdk = flutter.compileSdkVersion
+    // flutter_local_notifications 23 needs compileSdk 37 at least.
+    compileSdk = maxOf(flutter.compileSdkVersion, 37)
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // Scheduled notifications rely on desugaring (flutter_local_notifications README).
+        isCoreLibraryDesugaringEnabled = true
     }
 
     defaultConfig {
@@ -64,6 +67,10 @@ kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
 
 flutter {

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -10,6 +12,7 @@ import 'features/auth/data/auth_repository.dart';
 import 'features/customers/data/customer_repository.dart';
 import 'features/parcels/data/parcel_repository.dart';
 import 'features/products/data/product_repository.dart';
+import 'features/reminders/data/reminder_scheduler.dart';
 import 'firebase_options.dart';
 import 'routes/app_router.dart';
 
@@ -32,8 +35,12 @@ Future<void> main() async {
   // mistaken for a signed-out one at startup.
   await FirebaseAuth.instance.authStateChanges().first;
 
+  final reminderScheduler = LocalNotificationScheduler();
+  await reminderScheduler.init();
+
   runApp(
     DelivTrackApp(
+      reminderScheduler: reminderScheduler,
       repository: FirebaseAuthRepository(),
       productRepository: FirestoreProductRepository(),
       customerRepository: FirestoreCustomerRepository(),
@@ -49,11 +56,13 @@ class DelivTrackApp extends StatefulWidget {
     required this.productRepository,
     required this.customerRepository,
     required this.parcelRepository,
+    this.reminderScheduler = const NoReminderScheduler(),
   });
   final AuthRepository repository;
   final ProductRepository productRepository;
   final CustomerRepository customerRepository;
   final ParcelRepository parcelRepository;
+  final ReminderScheduler reminderScheduler;
 
   @override
   State<DelivTrackApp> createState() => _DelivTrackAppState();
@@ -66,13 +75,23 @@ class _DelivTrackAppState extends State<DelivTrackApp>
     widget.productRepository,
     widget.customerRepository,
     widget.parcelRepository,
+    reminderScheduler: widget.reminderScheduler,
   );
+  StreamSubscription<bool>? _signedIn;
+  StreamSubscription<String>? _notificationTaps;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     widget.repository.verifySession();
+    // Nothing scheduled for one user may show up for the next: sign-out clears the phone's reminders.
+    _signedIn = widget.repository.signedInChanges.listen((signedIn) {
+      if (!signedIn) widget.reminderScheduler.cancelAll();
+    });
+    _notificationTaps = widget.reminderScheduler.taps.listen((parcelId) {
+      if (widget.repository.isSignedIn) _router.push(AppRoutes.parcelPath(parcelId));
+    });
   }
 
   @override
@@ -83,6 +102,8 @@ class _DelivTrackAppState extends State<DelivTrackApp>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _signedIn?.cancel();
+    _notificationTaps?.cancel();
     _router.dispose();
     super.dispose();
   }

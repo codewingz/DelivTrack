@@ -1,6 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
 
+/// One document write inside [EmulatorClient.commit].
+class DocWrite {
+  const DocWrite(this.path, this.fields, {this.serverTimes = const []});
+  final String path;
+  final Map<String, Object?> fields;
+  final List<String> serverTimes;
+}
+
 /// Minimal REST client for the Firebase Auth + Firestore emulators.
 /// Requests carry real emulator ID tokens, so Firestore rules are fully enforced.
 class EmulatorClient {
@@ -23,20 +31,25 @@ class EmulatorClient {
   String _docName(String path) => 'projects/$project/databases/(default)/documents/$path';
 
   /// Writes one document. [serverTimes] fields are set to request time; [fields] are plain Dart values.
-  Future<int> set(String? token, String path, Map<String, Object?> fields, {List<String> serverTimes = const []}) async {
+  Future<int> set(String? token, String path, Map<String, Object?> fields, {List<String> serverTimes = const []}) =>
+      commit(token, [DocWrite(path, fields, serverTimes: serverTimes)]);
+
+  /// Writes several documents in ONE atomic commit (like a Firestore transaction/batch).
+  Future<int> commit(String? token, List<DocWrite> writes) async {
     final r = await _send(
       'POST',
       'http://$_fsHost/v1/projects/$project/databases/(default)/documents:commit',
       token: token,
       body: {
         'writes': [
-          {
-            'update': {'name': _docName(path), 'fields': fields.map((k, v) => MapEntry(k, _value(v)))},
-            if (serverTimes.isNotEmpty)
-              'updateTransforms': [
-                for (final f in serverTimes) {'fieldPath': f, 'setToServerValue': 'REQUEST_TIME'},
-              ],
-          },
+          for (final w in writes)
+            {
+              'update': {'name': _docName(w.path), 'fields': w.fields.map((k, v) => MapEntry(k, _value(v)))},
+              if (w.serverTimes.isNotEmpty)
+                'updateTransforms': [
+                  for (final f in w.serverTimes) {'fieldPath': f, 'setToServerValue': 'REQUEST_TIME'},
+                ],
+            },
         ],
       },
     );
@@ -75,6 +88,8 @@ class EmulatorClient {
         bool b => {'booleanValue': b},
         int i => {'integerValue': '$i'},
         DateTime d => {'timestampValue': d.toUtc().toIso8601String()},
+        List<Object?> l => {'arrayValue': {'values': [for (final e in l) _value(e)]}},
+        Map<String, Object?> m => {'mapValue': {'fields': m.map((k, e) => MapEntry(k, _value(e)))}},
         _ => throw ArgumentError('unsupported $v'),
       };
 

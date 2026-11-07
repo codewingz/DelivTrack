@@ -73,6 +73,112 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ---- Parcels -------------------------------------------------------------------------
+
+    // The Pakistan calendar date (UTC+5, no daylight saving) of a timestamp, as yyyy-MM-dd.
+    function pakistanDate(t) {
+      let p = t + duration.value(5, 'h');
+      return string(p.year()) + '-' + (p.month() < 10 ? '0' : '') + string(p.month()) + '-' + (p.day() < 10 ? '0' : '') + string(p.day());
+    }
+
+    function validDateString(value) {
+      return value is string && value.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+    }
+
+    function validParcelShape(data) {
+      return data.keys().hasAll(['orderNumber', 'orderSequence', 'customerId', 'customerSnapshot', 'items',
+          'collectionMethod', 'postalServiceType', 'postalReference', 'postalReferenceNormalized',
+          'productAmountExpectedPaisa', 'receivedPaisa', 'outstandingPaisa', 'paymentStatus', 'parcelStatus',
+          'sendingDateLocal', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['orderNumber', 'orderSequence', 'customerId', 'customerSnapshot', 'items',
+          'collectionMethod', 'postalServiceType', 'otherPostalServiceName', 'postalReference',
+          'postalReferenceNormalized', 'deliveryChargePaisa', 'actualPackedWeightGrams',
+          'estimatedPaymentDateLocal', 'productAmountExpectedPaisa', 'receivedPaisa', 'outstandingPaisa',
+          'paymentStatus', 'parcelStatus', 'sendingDateLocal', 'createdAt', 'updatedAt']);
+    }
+
+    // Field-level checks. Rules cannot loop over `items`, so the per-line maths is checked by the
+    // app; what matters for security (only the owner reaches this data) is enforced above.
+    function validParcel(data) {
+      return validParcelShape(data)
+        && data.orderNumber is string && data.orderNumber.matches('^ADT-[0-9]{6,}$')
+        && data.orderSequence is int && data.orderSequence >= 1
+        && int(data.orderNumber[4:]) == data.orderSequence
+        && data.customerId is string && data.customerId.size() > 0 && data.customerId.size() <= 40
+        && data.customerSnapshot is map
+        && data.customerSnapshot.keys().hasOnly(['name', 'phone', 'address'])
+        && trimmedText(data.customerSnapshot.name, 2, 60)
+        && trimmedText(data.customerSnapshot.phone, 10, 20)
+        && trimmedText(data.customerSnapshot.address, 5, 200)
+        && data.items is list && data.items.size() >= 1 && data.items.size() <= 20
+        && data.collectionMethod in ['postal_collection', 'advance', 'credit', 'free_gift']
+        && data.postalServiceType in ['VPP', 'VPL', 'VPR', 'Other']
+        && (data.postalServiceType == 'Other'
+            ? ('otherPostalServiceName' in data && trimmedText(data.otherPostalServiceName, 2, 40))
+            : !('otherPostalServiceName' in data))
+        && data.postalReference is string && data.postalReference.size() <= 40
+        && data.postalReferenceNormalized is string && data.postalReferenceNormalized.matches('^[A-Z0-9/-]{0,30}$')
+        && data.parcelStatus in ['draft', 'sent', 'returned']
+        && (data.parcelStatus == 'draft' || (data.postalReferenceNormalized.size() >= 5 && 'deliveryChargePaisa' in data))
+        && (!('deliveryChargePaisa' in data) || (data.deliveryChargePaisa is int && data.deliveryChargePaisa >= 0 && data.deliveryChargePaisa <= 9999999900))
+        && (!('actualPackedWeightGrams' in data) || (data.actualPackedWeightGrams is int && data.actualPackedWeightGrams > 0 && data.actualPackedWeightGrams <= 9999999))
+        && (!('estimatedPaymentDateLocal' in data) || (data.collectionMethod == 'credit' && validDateString(data.estimatedPaymentDateLocal)))
+        && data.productAmountExpectedPaisa is int && data.productAmountExpectedPaisa >= 0
+        && data.receivedPaisa is int && data.receivedPaisa >= 0
+        && data.outstandingPaisa is int && data.outstandingPaisa >= 0
+        && data.outstandingPaisa == (data.productAmountExpectedPaisa > data.receivedPaisa ? data.productAmountExpectedPaisa - data.receivedPaisa : 0)
+        && (data.collectionMethod != 'free_gift' || data.productAmountExpectedPaisa == 0)
+        && data.paymentStatus in ['not_required', 'pending', 'partial', 'received']
+        && validDateString(data.sendingDateLocal)
+        && data.createdAt is timestamp
+        && data.updatedAt == request.time;
+    }
+
+    // Order-number counter: only ever +1 (a parcel create writes it in the same commit).
+    match /users/{uid}/counters/orders {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid)
+        && request.resource.data.keys().hasOnly(['lastSequence'])
+        && request.resource.data.lastSequence == 1;
+      allow update: if isOwner(uid)
+        && request.resource.data.keys().hasOnly(['lastSequence'])
+        && request.resource.data.lastSequence == resource.data.lastSequence + 1;
+      allow delete: if false;
+    }
+
+    // Postal-reference guards (one doc per service + reference; keeps references unique per user).
+    match /users/{uid}/postal_refs/{refKey} {
+      allow read, delete: if isOwner(uid);
+      allow create: if isOwner(uid)
+        && request.resource.data.keys().hasOnly(['parcelId', 'orderNumber'])
+        && request.resource.data.parcelId is string
+        && request.resource.data.orderNumber is string;
+      allow update: if false;
+    }
+
+    // Parcels: created with the next order number, never deleted.
+    match /users/{uid}/parcels/{parcelId} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid)
+        && validParcel(request.resource.data)
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.sendingDateLocal == pakistanDate(request.time)
+        && request.resource.data.receivedPaisa == 0
+        && request.resource.data.paymentStatus in ['pending', 'not_required']
+        && request.resource.data.parcelStatus in ['draft', 'sent']
+        && getAfter(/databases/$(database)/documents/users/$(uid)/counters/orders).data.lastSequence == request.resource.data.orderSequence
+        && (exists(/databases/$(database)/documents/users/$(uid)/counters/orders)
+            ? get(/databases/$(database)/documents/users/$(uid)/counters/orders).data.lastSequence == request.resource.data.orderSequence - 1
+            : request.resource.data.orderSequence == 1);
+      allow update: if isOwner(uid)
+        && validParcel(request.resource.data)
+        && request.resource.data.orderNumber == resource.data.orderNumber
+        && request.resource.data.orderSequence == resource.data.orderSequence
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.sendingDateLocal == resource.data.sendingDateLocal;
+      allow delete: if false;
+    }
+
     // Everything else is closed.
     match /{document=**} {
       allow read, write: if false;

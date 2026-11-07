@@ -1,6 +1,7 @@
 // Firestore security-rules tests (REST against the Auth + Firestore emulators, real ID tokens).
 // Run:  firebase emulators:exec --only auth,firestore --project delivtrack-codewingz \
 //         "flutter test test/rules"
+import 'package:deliv_track/core/time/pakistan_time.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'emulator_client.dart';
 
@@ -25,6 +26,43 @@ Map<String, Object?> _customer({
       'phoneNormalized': phoneNormalized,
       'address': address,
     };
+
+
+String _today() => pakistanDate(DateTime.now().toUtc());
+
+/// A valid parcel document (without server-time fields). Override fields to make it invalid.
+Map<String, Object?> _parcel({
+  int seq = 1,
+  String? orderNumber,
+  Map<String, Object?> overrides = const {},
+  List<String> remove = const [],
+}) {
+  final base = <String, Object?>{
+    'orderNumber': orderNumber ?? 'ADT-${seq.toString().padLeft(6, '0')}',
+    'orderSequence': seq,
+    'customerId': 'cust1',
+    'customerSnapshot': {'name': 'Ali Raza', 'phone': '0300 1234567', 'address': 'House 5, Sahiwal'},
+    'items': [
+      {'productId': 'p1', 'productName': 'Mango Box', 'saleUnit': 'per_piece', 'quantity': 2, 'unitPricePaisa': 250000, 'lineTotalPaisa': 500000},
+    ],
+    'collectionMethod': 'postal_collection',
+    'postalServiceType': 'VPP',
+    'postalReference': 'VPP 12345',
+    'postalReferenceNormalized': 'VPP12345',
+    'deliveryChargePaisa': 15000,
+    'productAmountExpectedPaisa': 500000,
+    'receivedPaisa': 0,
+    'outstandingPaisa': 500000,
+    'paymentStatus': 'pending',
+    'parcelStatus': 'sent',
+    'sendingDateLocal': _today(),
+  };
+  base.addAll(overrides);
+  for (final key in remove) {
+    base.remove(key);
+  }
+  return base;
+}
 
 void main() {
   final emu = EmulatorClient();
@@ -226,6 +264,158 @@ void main() {
         200,
       );
       expect(await emu.delete(alice.token, 'users/${alice.uid}/customers/$cid'), 403);
+    }, skip: skip);
+  });
+
+  group('parcels', () {
+    String ppath(String uid, String id) => 'users/$uid/parcels/$id';
+    String cpath(String uid) => 'users/$uid/counters/orders';
+
+    /// Creates a parcel together with its counter, the way the app's transaction does.
+    Future<int> createParcel(({String uid, String token}) user, String id, Map<String, Object?> parcel,
+            {int? counterTo, String? asUid}) =>
+        emu.commit(user.token, [
+          DocWrite(cpath(asUid ?? user.uid), {'lastSequence': counterTo ?? parcel['orderSequence'] as int}),
+          DocWrite(ppath(asUid ?? user.uid, id), parcel, serverTimes: const ['createdAt', 'updatedAt']),
+        ]);
+
+    test('order numbers: only the next number is accepted, counter and parcel move together', () async {
+      final u = await emu.signUp('seq${DateTime.now().microsecondsSinceEpoch}@x.com');
+      expect(await createParcel(u, id(), _parcel(seq: 2)), 403, reason: 'first parcel must be number 1');
+      expect(await createParcel(u, id(), _parcel(seq: 1)), 200, reason: 'first parcel');
+      expect(await createParcel(u, id(), _parcel(seq: 1)), 403, reason: 'number 1 cannot be reused');
+      expect(await createParcel(u, id(), _parcel(seq: 3)), 403, reason: 'cannot skip ahead');
+      expect(await createParcel(u, id(), _parcel(seq: 2), counterTo: 3), 403, reason: 'counter must equal the parcel number');
+      expect(await createParcel(u, id(), _parcel(seq: 2)), 200, reason: 'second parcel');
+      expect(await createParcel(u, id(), _parcel(seq: 3)), 200, reason: 'third parcel');
+      // parcel without bumping the counter in the same commit
+      expect(await emu.set(u.token, ppath(u.uid, id()), _parcel(seq: 4), serverTimes: const ['createdAt', 'updatedAt']), 403);
+    }, skip: skip);
+
+    test('the counter can only grow by one and can never be deleted or rewritten', () async {
+      final u = await emu.signUp('cnt${DateTime.now().microsecondsSinceEpoch}@x.com');
+      expect(await emu.set(u.token, cpath(u.uid), {'lastSequence': 5}), 403, reason: 'starts at 1');
+      expect(await emu.set(u.token, cpath(u.uid), {'lastSequence': 1}), 200);
+      expect(await emu.set(u.token, cpath(u.uid), {'lastSequence': 3}), 403, reason: 'no jumps');
+      expect(await emu.set(u.token, cpath(u.uid), {'lastSequence': 1}), 403, reason: 'no going back / same');
+      expect(await emu.set(u.token, cpath(u.uid), {'lastSequence': 2}), 200, reason: 'gaps are allowed, +1 only');
+      expect(await emu.set(u.token, cpath(u.uid), {'lastSequence': 3, 'extra': 1}), 403);
+      expect(await emu.delete(u.token, cpath(u.uid)), 403);
+    }, skip: skip);
+
+    test('users are isolated: B cannot read or write A\'s parcels, counter or reference guards', () async {
+      final a = await emu.signUp('pa${DateTime.now().microsecondsSinceEpoch}@x.com');
+      final b = await emu.signUp('pb${DateTime.now().microsecondsSinceEpoch}@x.com');
+      final pid = id();
+      expect(await createParcel(a, pid, _parcel(seq: 1)), 200);
+      expect(await emu.set(a.token, 'users/${a.uid}/postal_refs/VPP__VPP12345', {'parcelId': pid, 'orderNumber': 'ADT-000001'}), 200);
+
+      expect(await emu.get(b.token, ppath(a.uid, pid)), 403, reason: 'read parcel');
+      expect((await emu.list(b.token, 'users/${a.uid}/parcels')).status, 403, reason: 'list parcels');
+      expect(await emu.get(b.token, cpath(a.uid)), 403, reason: 'read counter');
+      expect(await emu.get(b.token, 'users/${a.uid}/postal_refs/VPP__VPP12345'), 403, reason: 'read guard');
+      expect(await createParcel(b, id(), _parcel(seq: 2), asUid: a.uid), 403, reason: 'write into A\'s data');
+      expect(await emu.set(b.token, 'users/${a.uid}/postal_refs/VPP__OTHER', {'parcelId': 'x', 'orderNumber': 'ADT-000009'}), 403);
+      expect(await emu.delete(b.token, ppath(a.uid, pid)), 403);
+      expect(await emu.get(null, ppath(a.uid, pid)), 403, reason: 'signed out');
+      // B has their own, independent numbering starting at 1.
+      expect(await createParcel(b, id(), _parcel(seq: 1)), 200);
+    }, skip: skip);
+
+    test('sending date must be the server\'s Pakistan date', () async {
+      final u = await emu.signUp('date${DateTime.now().microsecondsSinceEpoch}@x.com');
+      final today = _today();
+      final other = today == '2026-01-01' ? '2026-01-02' : '2026-01-01';
+      expect(await createParcel(u, id(), _parcel(seq: 1, overrides: {'sendingDateLocal': other})), 403, reason: 'wrong day');
+      expect(await createParcel(u, id(), _parcel(seq: 1, overrides: {'sendingDateLocal': 'yesterday'})), 403, reason: 'bad format');
+      expect(await createParcel(u, id(), _parcel(seq: 1)), 200, reason: 'today');
+    }, skip: skip);
+
+    test('invalid parcels are rejected', () async {
+      final u = await emu.signUp('bad${DateTime.now().microsecondsSinceEpoch}@x.com');
+      var seq = 0;
+      Future<void> denied(String reason, Map<String, Object?> parcel) async =>
+          expect(await createParcel(u, id(), parcel), 403, reason: reason);
+
+      await denied('unknown method', _parcel(seq: 1, overrides: {'collectionMethod': 'barter'}));
+      await denied('unknown service', _parcel(seq: 1, overrides: {'postalServiceType': 'TCS'}));
+      await denied('Other needs a name', _parcel(seq: 1, overrides: {'postalServiceType': 'Other'}));
+      await denied('name only for Other', _parcel(seq: 1, overrides: {'otherPostalServiceName': 'Courier X'}));
+      await denied('sent needs a charge', _parcel(seq: 1, remove: ['deliveryChargePaisa']));
+      await denied('sent needs a reference', _parcel(seq: 1, overrides: {'postalReference': '', 'postalReferenceNormalized': ''}));
+      await denied('normalized reference malformed', _parcel(seq: 1, overrides: {'postalReferenceNormalized': 'vpp 123'}));
+      await denied('negative charge', _parcel(seq: 1, overrides: {'deliveryChargePaisa': -1}));
+      await denied('zero packed weight', _parcel(seq: 1, overrides: {'actualPackedWeightGrams': 0}));
+      await denied('payment date on a non Pay Later parcel', _parcel(seq: 1, overrides: {'estimatedPaymentDateLocal': '2030-01-01'}));
+      await denied('bad payment date', _parcel(seq: 1, overrides: {'collectionMethod': 'credit', 'estimatedPaymentDateLocal': 'soon'}));
+      await denied('outstanding does not match', _parcel(seq: 1, overrides: {'outstandingPaisa': 1}));
+      await denied('free parcel with an amount', _parcel(seq: 1, overrides: {'collectionMethod': 'free_gift'}));
+      await denied('already received on create', _parcel(seq: 1, overrides: {'receivedPaisa': 100, 'outstandingPaisa': 499900}));
+      await denied('returned on create', _parcel(seq: 1, overrides: {'parcelStatus': 'returned'}));
+      await denied('no items', _parcel(seq: 1, overrides: {'items': <Object?>[]}));
+      await denied('21 items', _parcel(seq: 1, overrides: {'items': List.generate(21, (i) => {'productId': 'p$i'})}));
+      await denied('order number does not match the sequence', _parcel(seq: 1, orderNumber: 'ADT-000002'));
+      await denied('order number malformed', _parcel(seq: 1, orderNumber: 'ADT-1'));
+      await denied('customer snapshot invalid', _parcel(seq: 1, overrides: {'customerSnapshot': {'name': 'A', 'phone': '1', 'address': 'x'}}));
+      await denied('customer snapshot with extra field', _parcel(seq: 1, overrides: {'customerSnapshot': {'name': 'Ali Raza', 'phone': '0300 1234567', 'address': 'House 5, Sahiwal', 'email': 'a@b.c'}}));
+      await denied('extra field', _parcel(seq: 1, overrides: {'discount': 5}));
+      await denied('missing field', _parcel(seq: 1, remove: ['paymentStatus']));
+      await denied('bad payment status', _parcel(seq: 1, overrides: {'paymentStatus': 'paid'}));
+      seq++;
+
+      // Valid variants are accepted: draft without a slip, Other service, free parcel, Pay Later with a date.
+      expect(
+        await createParcel(u, id(), _parcel(seq: 1, overrides: {'parcelStatus': 'draft', 'postalReference': '', 'postalReferenceNormalized': ''}, remove: ['deliveryChargePaisa'])),
+        200,
+        reason: 'draft',
+      );
+      expect(await createParcel(u, id(), _parcel(seq: 2, overrides: {'postalServiceType': 'Other', 'otherPostalServiceName': 'Fast Courier'})), 200, reason: 'Other');
+      expect(
+        await createParcel(u, id(), _parcel(seq: 3, overrides: {'collectionMethod': 'free_gift', 'productAmountExpectedPaisa': 0, 'outstandingPaisa': 0, 'paymentStatus': 'not_required'})),
+        200,
+        reason: 'free',
+      );
+      expect(
+        await createParcel(u, id(), _parcel(seq: 4, overrides: {'collectionMethod': 'credit', 'estimatedPaymentDateLocal': '2031-02-03', 'actualPackedWeightGrams': 1500})),
+        200,
+        reason: 'Pay Later with a date and packed weight',
+      );
+      expect(seq, 1);
+    }, skip: skip);
+
+    test('updates: mutable fields change; order number, number sequence, created and sending date are locked; no delete', () async {
+      final u = await emu.signUp('upd${DateTime.now().microsecondsSinceEpoch}@x.com');
+      final pid = id();
+      expect(
+        await createParcel(u, pid, _parcel(seq: 1, overrides: {'parcelStatus': 'draft', 'postalReference': '', 'postalReferenceNormalized': ''}, remove: ['deliveryChargePaisa'])),
+        200,
+      );
+      final created = await emu.createdAt(u.token, ppath(u.uid, pid));
+      Future<int> update(Map<String, Object?> parcel) =>
+          emu.set(u.token, ppath(u.uid, pid), {...parcel, 'createdAt': created}, serverTimes: const ['updatedAt']);
+
+      expect(await update(_parcel(seq: 1)), 200, reason: 'draft -> sent with a reference and charge');
+      expect(await update(_parcel(seq: 1, overrides: {'orderNumber': 'ADT-000009', 'orderSequence': 9})), 403, reason: 'order number locked');
+      expect(await update(_parcel(seq: 1, overrides: {'sendingDateLocal': '2020-01-01'})), 403, reason: 'sending date locked');
+      expect(
+        await emu.set(u.token, ppath(u.uid, pid), {..._parcel(seq: 1)}, serverTimes: const ['createdAt', 'updatedAt']),
+        403,
+        reason: 'created time locked',
+      );
+      expect(await update(_parcel(seq: 1, overrides: {'parcelStatus': 'returned'})), 200, reason: 'returned is allowed on update');
+      expect(await update(_parcel(seq: 1, overrides: {'outstandingPaisa': 5})), 403, reason: 'amounts must stay consistent');
+      expect(await emu.delete(u.token, ppath(u.uid, pid)), 403);
+    }, skip: skip);
+
+    test('postal reference guards: shape is enforced, no updates, owner can delete', () async {
+      final u = await emu.signUp('ref${DateTime.now().microsecondsSinceEpoch}@x.com');
+      final path = 'users/${u.uid}/postal_refs/VPP__ABC12';
+      expect(await emu.set(u.token, path, {'parcelId': 'p1', 'orderNumber': 'ADT-000001'}), 200);
+      expect(await emu.set(u.token, path, {'parcelId': 'p2', 'orderNumber': 'ADT-000002'}), 403, reason: 'no rewriting');
+      expect(await emu.set(u.token, '$path-2', {'parcelId': 'p1'}), 403, reason: 'missing field');
+      expect(await emu.set(u.token, '$path-3', {'parcelId': 'p1', 'orderNumber': 'ADT-000001', 'x': 1}), 403, reason: 'extra field');
+      expect(await emu.set(u.token, '$path-4', {'parcelId': 5, 'orderNumber': 'ADT-000001'}), 403, reason: 'wrong type');
+      expect(await emu.delete(u.token, path), 200, reason: 'released when a reference changes');
     }, skip: skip);
   });
 }

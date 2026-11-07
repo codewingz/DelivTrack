@@ -13,6 +13,7 @@ import '../features/customers/views/customers_screen.dart';
 import '../features/dashboard/views/dashboard_screen.dart';
 import '../features/parcels/data/parcel_repository.dart';
 import '../features/parcels/domain/parcel.dart';
+import '../features/parcels/domain/parcel_search.dart';
 import '../features/parcels/views/parcel_details_screen.dart';
 import '../features/parcels/views/parcel_form_screen.dart';
 import '../features/parcels/views/parcels_screen.dart';
@@ -177,6 +178,12 @@ GoRouter createRouter(
                   reminderScheduler: reminderScheduler,
                   onOpenReminders: () => context.push(AppRoutes.reminders),
                   onOpenParcel: (id) => context.push(AppRoutes.parcelPath(id)),
+                  onOpenParcels: (filters) => context.go(AppRoutes.parcels, extra: filters.copyWith()),
+                  onOpenPayments: () => context.go(AppRoutes.payments),
+                  onAddParcel: () async {
+                    final id = await context.push<String>(AppRoutes.parcelNew);
+                    if (id != null && context.mounted) unawaited(context.push(AppRoutes.parcelPath(id)));
+                  },
                 ),
               ),
             ),
@@ -188,6 +195,8 @@ GoRouter createRouter(
               builder: (context, state) => _tabPage(
                 ParcelsScreen(
                   repository: parcelRepository,
+                  // Home's figures open this list already narrowed (extra carries the filters).
+                  initialFilters: state.extra is ParcelFilters ? state.extra! as ParcelFilters : null,
                   // After saving, open the new parcel's details (the list stays underneath).
                   onAdd: () async {
                     final id = await context.push<String>(AppRoutes.parcelNew);

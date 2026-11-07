@@ -426,7 +426,9 @@ AT-10/23/44, each filter alone and combined, no-results empty state, debounce, p
 
 ---
 
-## 11. Feature: Dashboard (FR-11) — 🟡 Size M
+## 11. Feature: Dashboard (FR-11) — ✅ DONE 7 Nov 2026 (CLI; screenshots in the batched run)
+
+> **Built, [D21 decided]:** figures are computed **in memory from the parcels already loaded live** (no aggregation queries or summary document to keep in step), so a card's number always equals the list behind it. Cards: Total parcels, Sent, Returned, Gift / Free, Parcels with payment received, Parcels pending payment, Total received, Total outstanding, Pay Later balance, Advance amount, Reminders due today, Overdue, and Need payment review (only when there are any). Count cards open the Parcels list already filtered (`/parcels` with the filters as `extra`); money cards open Payments; reminder cards open Reminders. Quick actions: Add Parcel (then opens the new parcel) and Search. Recent parcels: the 5 newest. Rules: received counts are parcels, not transactions; Gift / Free never adds to outstanding; money received on a returned parcel stays in Total received while its unpaid balance is not outstanding, and the parcel is counted under Need payment review; Advance money counts once. The columns follow the width (1–4). Pull-to-refresh and a Retry on failure.
 
 Greeting (✅). Metric cards (tap opens the matching filtered list):
 Total parcels · Sent · Returned · Free/Gift · Payment received (count) · Pending-payment (count) · **Total received (Rs.)** · **Total outstanding (Rs.)** · **Pay Later balance** · **Advance amount** · Reminders due today · Overdue.

@@ -18,10 +18,13 @@ import 'parcel_status_chips.dart';
 /// All parcels, newest first, with search and filters. Add opens the full-screen form; the callbacks
 /// return the new parcel's id (or null when the user left without saving).
 class ParcelsScreen extends StatefulWidget {
-  const ParcelsScreen({super.key, required this.repository, required this.onAdd, required this.onOpen, this.clock = const Clock()});
+  const ParcelsScreen({super.key, required this.repository, required this.onAdd, required this.onOpen, this.initialFilters, this.clock = const Clock()});
   final ParcelRepository repository;
   final Future<void> Function() onAdd;
   final void Function(Parcel parcel) onOpen;
+
+  /// Filters to start with, or to switch to when Home opens the list from one of its figures.
+  final ParcelFilters? initialFilters;
   final Clock clock;
 
   @override
@@ -32,6 +35,24 @@ class _ParcelsScreenState extends State<ParcelsScreen> {
   late final _viewModel = ParcelListViewModel(widget.repository, clock: widget.clock);
   final _search = TextEditingController();
   Timer? _debounce;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialFilters != null) _viewModel.setFilters(widget.initialFilters!);
+  }
+
+  @override
+  void didUpdateWidget(ParcelsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final filters = widget.initialFilters;
+    if (filters != null && !identical(filters, oldWidget.initialFilters)) {
+      _debounce?.cancel();
+      _search.clear();
+      _viewModel.setQuery('');
+      _viewModel.setFilters(filters);
+    }
+  }
 
   @override
   void dispose() {

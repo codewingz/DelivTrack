@@ -341,7 +341,9 @@ Each action positive + negative; overpayment blocked (client **and** transaction
 
 ---
 
-## 8. Feature: Payments screen (FR-07, FR-12 view) — ⬜ Size M
+## 8. Feature: Payments screen (FR-07, FR-12 view) — ✅ DONE 7 Nov 2026 (CLI, emulator two-user flow; screenshots batched with M6)
+
+> **Built:** a Payments bottom tab (Home, Parcels, Payments, Customers, More). Header totals: Outstanding, Pay Later balance, Advance received (Gift / Free and returned parcels left out). Lists: Pending, Partially paid, Received, Advance, Pay Later, Overdue (a Pay Later parcel with a past date and money owed; no date is never overdue), Review (returned parcels that received or owe money). Gift / Free is never listed. Rows show expected, received, balance, status and the Pay Later date, with a Receive button that opens the same payment sheet. 20 rows per page with Show more (all parcels are already live in memory, so paging is on screen, not a separate query); pull-to-refresh re-subscribes.
 
 Tabs (scrollable): **Pending · Partially paid · Received · Advance · Pay Later · Overdue · Review (returned)**.
 Row: order number, customer, expected, received, **balance**, status chip, estimated date (Pay Later), tap → Details; trailing **Receive** quick action opens the same payment sheet.

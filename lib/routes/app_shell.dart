@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-/// Bottom-tab frame around the main sections (Home, Parcels, Customers, More).
+/// Bottom-tab frame around the main sections (Home, Parcels, Payments, Customers, More).
 ///
 /// Deliberately not a Scaffold: each tab page has its own Scaffold, and a second, outer one would
 /// make snackbars appear on the outer Scaffold, on top of the page's floating button.
@@ -25,6 +25,11 @@ class AppShell extends StatelessWidget {
               icon: Icon(Icons.local_shipping_outlined),
               selectedIcon: Icon(Icons.local_shipping),
               label: 'Parcels',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.payments_outlined),
+              selectedIcon: Icon(Icons.payments),
+              label: 'Payments',
             ),
             NavigationDestination(
               icon: Icon(Icons.people_outline_rounded),

@@ -36,6 +36,15 @@ void main() {
       expect(find.text('Welcome, Ali'), findsOneWidget);
     });
 
+    testWidgets('the Payments tab opens the Payments screen with its lists', (t) async {
+      await _launch(t, FakeAuthRepository(signedIn: true, name: 'Ali'));
+      await t.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('Payments')));
+      await t.pumpAndSettle();
+      expect(find.widgetWithText(AppBar, 'Payments'), findsOneWidget);
+      expect(find.widgetWithText(ChoiceChip, 'Pending'), findsOneWidget);
+      expect(find.byType(NavigationBar), findsOneWidget);
+    });
+
     testWidgets('signed-out screens have no bottom bar', (t) async {
       await _launch(t, FakeAuthRepository());
       expect(find.byType(NavigationBar), findsNothing);

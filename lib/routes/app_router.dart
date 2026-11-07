@@ -16,6 +16,7 @@ import '../features/parcels/domain/parcel.dart';
 import '../features/parcels/views/parcel_details_screen.dart';
 import '../features/parcels/views/parcel_form_screen.dart';
 import '../features/parcels/views/parcels_screen.dart';
+import '../features/payments/views/payments_screen.dart';
 import '../features/reminders/data/reminder_scheduler.dart';
 import '../features/reminders/views/reminders_screen.dart';
 import '../features/products/data/product_repository.dart';
@@ -34,6 +35,7 @@ class AppRoutes {
   static const String more = '/more';
   static const String customers = '/customers';
   static const String parcels = '/parcels';
+  static const String payments = '/payments';
   static const String parcelNew = '/parcels/new';
   static const String parcelDetails = '/parcels/:id';
   static const String parcelEdit = '/parcels/edit';
@@ -191,6 +193,18 @@ GoRouter createRouter(
                     final id = await context.push<String>(AppRoutes.parcelNew);
                     if (id != null && context.mounted) unawaited(context.push(AppRoutes.parcelPath(id)));
                   },
+                  onOpen: (parcel) => context.push(AppRoutes.parcelPath(parcel.id)),
+                ),
+              ),
+            ),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: AppRoutes.payments,
+              name: 'payments',
+              builder: (context, state) => _tabPage(
+                PaymentsScreen(
+                  repository: parcelRepository,
                   onOpen: (parcel) => context.push(AppRoutes.parcelPath(parcel.id)),
                 ),
               ),

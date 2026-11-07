@@ -71,6 +71,9 @@ Parcel testParcel({
 Parcel _changed(Parcel old, {int? received, ParcelStatus? status, String? notes, String? payDate, String? returnedDate, String? returnReason, bool? review}) => testParcel(
       id: old.id,
       sequence: old.orderSequence,
+      customerName: old.customerName,
+      customerPhone: old.customerPhone,
+      customerAddress: old.customerAddress,
       method: old.method,
       service: old.service,
       otherName: old.otherServiceName,

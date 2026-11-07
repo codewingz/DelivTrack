@@ -10,6 +10,7 @@ import 'package:deliv_track/features/parcels/data/parcel_repository.dart';
 import 'package:deliv_track/features/parcels/domain/parcel_enums.dart';
 import 'package:deliv_track/features/parcels/domain/parcel_input.dart';
 import 'package:deliv_track/features/parcels/domain/parcel_item.dart';
+import 'package:deliv_track/features/parcels/domain/payment.dart';
 import 'package:deliv_track/features/customers/domain/customer.dart';
 import 'package:deliv_track/features/products/data/product_repository.dart';
 import 'package:deliv_track/features/products/domain/product.dart';
@@ -482,5 +483,60 @@ void main() {
     await shot(t, '62_reminders_bottom');
     await t.tap(find.text('Set Date'));
     await shot(t, '63_set_date_sheet');
+  });
+
+  testWidgets('screenshots: payments', (t) async {
+    await FirebaseAuth.instance.signOut();
+    await binding.convertFlutterSurfaceToImage();
+    final auth = FirebaseAuthRepository();
+    await auth.signUp(
+      name: 'Muhammad Afzaal',
+      email: 'ptshots${DateTime.now().microsecondsSinceEpoch}@codewingz.com',
+      password: 'secret123',
+    );
+    final customers = FirestoreCustomerRepository();
+    final parcels = FirestoreParcelRepository();
+    final aliId = await customers.add(name: 'Ali Raza', phone: '+92 300 1111111', address: 'House 5, Street 2, Sahiwal');
+    final longId = await customers.add(name: 'Muhammad Afzaal Khan Niazi Son Of Abdul Rehman', phone: '0301 2222222', address: 'House 123, Street 45, Block C, Model Town, Sahiwal');
+    final ali = Customer(id: aliId, name: 'Ali Raza', phone: '+92 300 1111111', address: 'House 5, Street 2, Sahiwal');
+    final long = Customer(id: longId, name: 'Muhammad Afzaal Khan Niazi Son Of Abdul Rehman', phone: '0301 2222222', address: 'House 123, Street 45, Block C, Model Town, Sahiwal');
+    final today = pakistanDate(DateTime.now().toUtc());
+    Future<String> create(Customer customer, String reference, CollectionMethod method, int quantity, {String? date}) => parcels.create(ParcelInput(
+          customer: customer,
+          items: [ParcelItem.pieces(productId: 'p1', productName: 'Mango Box', quantity: quantity, unitPricePaisa: 250000)],
+          method: method,
+          service: PostalService.vpl,
+          postalReference: reference,
+          deliveryChargePaisa: 15000,
+          estimatedPaymentDate: date,
+          status: ParcelStatus.sent,
+        ));
+    await create(ali, 'VPL 11111', CollectionMethod.postalCollection, 2);
+    final part = await create(long, 'VPL 22222', CollectionMethod.postalCollection, 3);
+    await create(ali, 'VPL 33333', CollectionMethod.payLater, 4, date: today);
+    final adv = await create(long, 'VPL 44444', CollectionMethod.advance, 1);
+    await parcels.recordPayment(part, amountPaisa: 400000, type: PaymentType.customerPayment);
+    await parcels.recordPayment(adv, amountPaisa: 100000, type: PaymentType.advance);
+
+    await t.pumpWidget(DelivTrackApp(
+      repository: auth,
+      productRepository: FirestoreProductRepository(),
+      customerRepository: customers,
+      parcelRepository: parcels,
+    ));
+    await _settle(t);
+    await _settle(t);
+    await t.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('Payments')));
+    await shot(t, '70_payments_pending');
+    await t.drag(find.byType(CustomScrollView), const Offset(0, -6000));
+    await shot(t, '71_payments_pending_bottom');
+    await t.drag(find.byType(CustomScrollView), const Offset(0, 6000));
+    await t.ensureVisible(find.widgetWithText(ChoiceChip, 'Partially paid'));
+    await t.tap(find.widgetWithText(ChoiceChip, 'Partially paid'));
+    await shot(t, '72_payments_partial');
+    await t.ensureVisible(find.widgetWithText(ChoiceChip, 'Overdue'));
+    await t.pump();
+    await t.tap(find.widgetWithText(ChoiceChip, 'Overdue'));
+    await shot(t, '73_payments_overdue_empty');
   });
 }

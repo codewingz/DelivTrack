@@ -2,7 +2,7 @@ import '../../../core/time/pakistan_time.dart';
 import '../../customers/domain/customer.dart';
 import 'parcel_enums.dart';
 import 'parcel_item.dart';
-import 'postal_reference.dart';
+import '../../../utils/postal_reference.dart';
 
 const maxParcelItems = 20;
 

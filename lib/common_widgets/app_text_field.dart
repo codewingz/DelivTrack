@@ -11,6 +11,8 @@ import '../utils/app_validators.dart';
 /// Supports named constructors:
 /// - [AppTextField] (general text)
 /// - [AppTextField.name]
+/// - [AppTextField.integer]
+/// - [AppTextField.reference]
 /// - [AppTextField.search]
 /// - [AppTextField.email]
 /// - [AppTextField.password]
@@ -78,6 +80,62 @@ class AppTextField extends StatefulWidget {
     this.autovalidateMode,
     this.clearable = false,
   }) : assert(!clearable || controller != null, 'clearable needs a controller');
+
+  /// Whole-number quantity (pieces), 1-99,999.
+  factory AppTextField.integer({
+    Key? key,
+    TextEditingController? controller,
+    String label = 'Quantity (pieces)',
+    String hint = 'e.g. 2',
+    bool enabled = true,
+    TextInputAction textInputAction = TextInputAction.next,
+    ValueChanged<String>? onChanged,
+  }) {
+    return AppTextField(
+      key: key,
+      controller: controller,
+      label: label,
+      hint: hint,
+      isRequired: true,
+      enabled: enabled,
+      keyboardType: TextInputType.number,
+      textInputAction: textInputAction,
+      prefixIcon: const Icon(Icons.numbers_rounded, size: 20, color: AppColors.label),
+      inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(5)],
+      validator: AppValidators.quantity,
+      onChanged: onChanged,
+    );
+  }
+
+  /// Postal reference as printed on the slip: upper case letters, digits, spaces, - and /.
+  factory AppTextField.reference({
+    Key? key,
+    TextEditingController? controller,
+    String label = 'Postal reference number',
+    String hint = 'Enter VPP / VPL / VPR reference from slip',
+    bool isRequired = false,
+    bool enabled = true,
+    TextInputAction textInputAction = TextInputAction.next,
+    ValueChanged<String>? onChanged,
+  }) {
+    return AppTextField(
+      key: key,
+      controller: controller,
+      label: label,
+      hint: hint,
+      isRequired: isRequired,
+      enabled: enabled,
+      textCapitalization: TextCapitalization.characters,
+      textInputAction: textInputAction,
+      prefixIcon: const Icon(Icons.local_post_office_outlined, size: 20, color: AppColors.label),
+      inputFormatters: [
+        FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9 /-]')),
+        LengthLimitingTextInputFormatter(40),
+      ],
+      validator: (value) => AppValidators.postalReference(value, isRequired: isRequired),
+      onChanged: onChanged,
+    );
+  }
 
   /// Search box with a leading search icon and a clear button.
   factory AppTextField.search({

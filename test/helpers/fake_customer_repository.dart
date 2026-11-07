@@ -56,7 +56,7 @@ class FakeCustomerRepository implements CustomerRepository {
   Future<String> add({required String name, required String phone, required String address}) async {
     adds++;
     await _guardCall();
-    final id = 'c${_nextId++}';
+    final id = 'new-c${_nextId++}';
     _items.add(Customer(id: id, name: collapseSpaces(name), phone: phone.trim(), address: address.trim()));
     _controller.add(_sorted());
     return id;

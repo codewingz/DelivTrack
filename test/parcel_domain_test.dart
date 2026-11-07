@@ -2,7 +2,7 @@ import 'package:deliv_track/features/customers/domain/customer.dart';
 import 'package:deliv_track/features/parcels/domain/parcel_enums.dart';
 import 'package:deliv_track/features/parcels/domain/parcel_input.dart';
 import 'package:deliv_track/features/parcels/domain/parcel_item.dart';
-import 'package:deliv_track/features/parcels/domain/postal_reference.dart';
+import 'package:deliv_track/utils/postal_reference.dart';
 import 'package:deliv_track/features/products/domain/product.dart';
 import 'package:flutter_test/flutter_test.dart';
 

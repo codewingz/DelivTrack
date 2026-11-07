@@ -10,7 +10,7 @@ import '../../../utils/text.dart';
 import '../domain/parcel.dart';
 import '../domain/parcel_enums.dart';
 import '../domain/parcel_input.dart';
-import '../domain/postal_reference.dart';
+import '../../../utils/postal_reference.dart';
 
 abstract class ParcelRepository {
   /// All of the signed-in user's parcels, newest first.

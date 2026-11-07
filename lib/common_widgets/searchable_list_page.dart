@@ -20,8 +20,8 @@ class SearchableListPage<T> extends StatelessWidget {
     required this.onQueryChanged,
     required this.itemBuilder,
     required this.emptyBuilder,
-    required this.addLabel,
-    required this.onAdd,
+    this.addLabel,
+    this.onAdd,
     this.header,
   });
 
@@ -37,8 +37,9 @@ class SearchableListPage<T> extends StatelessWidget {
 
   /// Shown when [visible] is empty; the caller decides between "nothing yet" and "no matches".
   final Widget Function() emptyBuilder;
-  final String addLabel;
-  final VoidCallback onAdd;
+  /// The floating Add button is shown only when both are given.
+  final String? addLabel;
+  final VoidCallback? onAdd;
 
   /// Extra controls under the search box (e.g. segments).
   final Widget? header;
@@ -47,11 +48,9 @@ class SearchableListPage<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(title)),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: onAdd,
-        icon: const Icon(Icons.add),
-        label: Text(addLabel),
-      ),
+      floatingActionButton: addLabel == null || onAdd == null
+          ? null
+          : FloatingActionButton.extended(onPressed: onAdd, icon: const Icon(Icons.add), label: Text(addLabel!)),
       body: SafeArea(
         child: Align(
           alignment: Alignment.topCenter,

@@ -1,4 +1,5 @@
 import '../core/money/money.dart';
+import 'postal_reference.dart';
 import 'phone.dart';
 import 'text.dart';
 
@@ -87,6 +88,21 @@ class AppValidators {
     final grams = parseKgToGrams(trimmed);
     if (grams == null || grams <= 0) return 'Enter a valid weight in kg';
     return null;
+  }
+
+  /// Whole number of pieces: 1-99,999.
+  static String? quantity(String? value, {bool isRequired = true}) {
+    final trimmed = value?.trim() ?? '';
+    if (trimmed.isEmpty) return isRequired ? 'Enter the number of pieces' : null;
+    final pieces = RegExp(r'^[0-9]{1,5}$').hasMatch(trimmed) ? int.parse(trimmed) : 0;
+    return pieces >= 1 ? null : 'Enter a whole number of pieces (1–99,999)';
+  }
+
+  /// A postal reference as printed on the slip (see [isValidPostalReference]).
+  static String? postalReference(String? value, {bool isRequired = false}) {
+    final trimmed = value?.trim() ?? '';
+    if (trimmed.isEmpty) return isRequired ? 'Postal reference is required to mark as Sent' : null;
+    return isValidPostalReference(trimmed) ? null : 'Use 5–30 letters or numbers (also - and /)';
   }
 
   /// Validates a phone number (see [isValidPhone]).

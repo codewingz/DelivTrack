@@ -1,14 +1,21 @@
 import 'package:flutter/material.dart';
 import '../../../common_widgets/app_text_field.dart';
 import '../../../common_widgets/primary_button.dart';
+import '../../../constants/app_colors.dart';
 import '../data/auth_repository.dart';
 import '../viewmodel/auth_action_view_model.dart';
 import 'auth_scaffold.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key, required this.repository, required this.onSignUp});
+  const LoginScreen({
+    super.key,
+    required this.repository,
+    required this.onSignUp,
+    required this.onForgotPassword,
+  });
   final AuthRepository repository;
   final VoidCallback onSignUp;
+  final VoidCallback onForgotPassword;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -56,6 +63,17 @@ class _LoginScreenState extends State<LoginScreen> {
               enabled: !busy,
               minLength: 1,
               onFieldSubmitted: (_) => _submit(),
+            ),
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: TextButton(
+                onPressed: busy ? null : widget.onForgotPassword,
+                style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+                child: const Text(
+                  'Forgot password?',
+                  style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.primary),
+                ),
+              ),
             ),
           ],
           button: PrimaryButton(label: 'Log In', isLoading: busy, onPressed: _submit),

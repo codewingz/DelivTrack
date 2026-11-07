@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../common_widgets/app_logo.dart';
 import '../common_widgets/brand_loading_indicator.dart';
 import '../constants/app_colors.dart';
+import '../design_system/foundations/spacing/app_spacing.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key, this.onFinished});
@@ -72,7 +73,7 @@ class _SplashScreenState extends State<SplashScreen>
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           AppLogo(width: logoWidth),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: AppSpacing.md),
                           const Text(
                             'Parcel & Payment Manager',
                             textAlign: TextAlign.center,
@@ -89,12 +90,12 @@ class _SplashScreenState extends State<SplashScreen>
                   ),
                   const Spacer(),
                   const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 32),
+                    padding: EdgeInsets.symmetric(vertical: AppSpacing.x3l),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         BrandLoadingIndicator(size: 26, strokeWidth: 2.8),
-                        SizedBox(height: 16),
+                        SizedBox(height: AppSpacing.lg),
                         _VersionLabel(),
                       ],
                     ),

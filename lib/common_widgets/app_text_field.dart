@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../constants/app_colors.dart';
+import '../design_system/foundations/radius/app_radius.dart';
+import '../design_system/foundations/spacing/app_spacing.dart';
 import '../utils/app_validators.dart';
 
 /// Reusable input field adhering to DelivTrack design specifications.
@@ -408,7 +410,7 @@ class _AppTextFieldState extends State<AppTextField> {
               letterSpacing: 0.2,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: AppSpacing.sm),
         ],
         TextFormField(
           controller: widget.controller,
@@ -454,7 +456,10 @@ class _AppTextFieldState extends State<AppTextField> {
             filled: true,
             fillColor: widget.enabled ? AppColors.surface : AppColors.disabled,
             constraints: const BoxConstraints(minHeight: 52),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.md,
+            ),
             prefixIcon: widget.prefixIcon,
             prefixText: widget.prefixText,
             prefixStyle: const TextStyle(
@@ -483,27 +488,27 @@ class _AppTextFieldState extends State<AppTextField> {
                   )
                 : widget.suffixIcon,
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AppRadius.control),
               borderSide: const BorderSide(color: AppColors.border),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AppRadius.control),
               borderSide: const BorderSide(color: AppColors.border),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AppRadius.control),
               borderSide: const BorderSide(color: AppColors.primary, width: 1.8),
             ),
             errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AppRadius.control),
               borderSide: const BorderSide(color: AppColors.error),
             ),
             focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AppRadius.control),
               borderSide: const BorderSide(color: AppColors.error, width: 1.8),
             ),
             disabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AppRadius.control),
               borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
             ),
           ),

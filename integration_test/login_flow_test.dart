@@ -39,7 +39,7 @@ void main() {
   }
 
   Future<void> pumpScreen(WidgetTester t) => t.pumpWidget(
-        MaterialApp(home: LoginScreen(repository: FirebaseAuthRepository(), onSignUp: () {})),
+        MaterialApp(home: LoginScreen(repository: FirebaseAuthRepository(), onSignUp: () {}, onForgotPassword: () {})),
       );
 
   testWidgets('registered owner logs in with correct credentials', (t) async {

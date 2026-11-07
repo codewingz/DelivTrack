@@ -7,6 +7,7 @@ class FakeAuthRepository implements AuthRepository {
   Completer<void>? gate;
   final signUps = <({String name, String email, String password})>[];
   final signIns = <({String email, String password})>[];
+  final resets = <String>[];
 
   Future<void> _finish() async {
     await gate?.future;
@@ -22,6 +23,12 @@ class FakeAuthRepository implements AuthRepository {
   @override
   Future<void> signIn({required String email, required String password}) {
     signIns.add((email: email, password: password));
+    return _finish();
+  }
+
+  @override
+  Future<void> sendPasswordReset({required String email}) {
+    resets.add(email);
     return _finish();
   }
 }

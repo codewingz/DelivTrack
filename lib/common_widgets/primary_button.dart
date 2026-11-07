@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import 'brand_loading_indicator.dart';
+import '../design_system/foundations/radius/app_radius.dart';
 
 /// Full-width primary action (56 high). Disabled while [isLoading] to block double taps.
 class PrimaryButton extends StatelessWidget {
@@ -24,7 +25,7 @@ class PrimaryButton extends StatelessWidget {
         style: FilledButton.styleFrom(
           minimumSize: const Size.fromHeight(56),
           backgroundColor: AppColors.primary,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.control)),
         ),
         child: isLoading
             ? const BrandLoadingIndicator(size: 22, strokeWidth: 2.4, color: Colors.white)

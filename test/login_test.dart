@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'helpers/fake_auth_repository.dart';
 
 Future<void> _pump(WidgetTester t, FakeAuthRepository repo,
-    {Size size = const Size(393, 852), double scale = 1, VoidCallback? onSignUp}) async {
+    {Size size = const Size(393, 852), double scale = 1, VoidCallback? onSignUp, VoidCallback? onForgot}) async {
   t.view.physicalSize = size;
   t.view.devicePixelRatio = 1;
   addTearDown(t.view.reset);
@@ -15,7 +15,7 @@ Future<void> _pump(WidgetTester t, FakeAuthRepository repo,
       data: MediaQuery.of(c).copyWith(textScaler: TextScaler.linear(scale)),
       child: child!,
     ),
-    home: LoginScreen(repository: repo, onSignUp: onSignUp ?? () {}),
+    home: LoginScreen(repository: repo, onSignUp: onSignUp ?? () {}, onForgotPassword: onForgot ?? () {}),
   ));
 }
 
@@ -95,6 +95,13 @@ void main() {
       repo.gate!.complete();
       await t.pump();
       await t.pump();
+    });
+
+    testWidgets('"Forgot password?" link calls onForgotPassword', (t) async {
+      var tapped = false;
+      await _pump(t, FakeAuthRepository(), onForgot: () => tapped = true);
+      await t.tap(find.text('Forgot password?'));
+      expect(tapped, isTrue);
     });
 
     testWidgets('"Sign up" link calls onSignUp', (t) async {

@@ -103,6 +103,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
         PaymentTab.pending => 'Parcels that have not received anything yet appear here.',
         PaymentTab.partial => 'Parcels with part of the money received appear here.',
         PaymentTab.received => 'Parcels paid in full appear here.',
+        PaymentTab.postOffice => 'Post office collection parcels appear here.',
         PaymentTab.advance => 'Advance parcels appear here.',
         PaymentTab.payLater => 'Pay Later parcels that still owe money appear here.',
         PaymentTab.overdue => 'Pay Later payments past their date appear here.',

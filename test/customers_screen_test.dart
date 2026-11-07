@@ -4,7 +4,9 @@ import 'package:deliv_track/features/customers/domain/customer.dart';
 import 'package:deliv_track/features/customers/views/customers_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:deliv_track/features/parcels/domain/parcel_enums.dart';
 import 'helpers/fake_customer_repository.dart';
+import 'helpers/fake_parcel_repository.dart';
 
 Customer _c(String id, String name, String phone, [String address = 'House 1, Sahiwal']) =>
     Customer(id: id, name: name, phone: phone, address: address);
@@ -15,7 +17,7 @@ class _Calls {
   String? addResult;
 }
 
-Future<_Calls> _pump(WidgetTester t, FakeCustomerRepository repo, {Size size = const Size(393, 852), double scale = 1}) async {
+Future<_Calls> _pump(WidgetTester t, FakeCustomerRepository repo, {Size size = const Size(393, 852), double scale = 1, FakeParcelRepository? parcels}) async {
   t.view.physicalSize = size;
   t.view.devicePixelRatio = 1;
   addTearDown(t.view.reset);
@@ -25,6 +27,7 @@ Future<_Calls> _pump(WidgetTester t, FakeCustomerRepository repo, {Size size = c
   await t.pumpWidget(MaterialApp(
     home: CustomersScreen(
       repository: repo,
+      parcelRepository: parcels ?? FakeParcelRepository(),
       onAdd: () async {
         calls.adds++;
         return calls.addResult;
@@ -47,7 +50,7 @@ void main() {
       t.view.physicalSize = const Size(393, 852);
       t.view.devicePixelRatio = 1;
       addTearDown(t.view.reset);
-      await t.pumpWidget(MaterialApp(home: CustomersScreen(repository: repo, onAdd: () async => null, onOpen: (_) {})));
+      await t.pumpWidget(MaterialApp(home: CustomersScreen(repository: repo, parcelRepository: FakeParcelRepository(), onAdd: () async => null, onOpen: (_) {})));
       expect(find.byType(ListSkeleton), findsOneWidget);
       await t.pump();
       await t.pump();
@@ -125,6 +128,20 @@ void main() {
       await t.pump();
       expect(calls.adds, 2);
       expect(find.text('Customer added.'), findsOneWidget);
+    });
+
+    testWidgets('each row shows the customer\'s parcel count and outstanding balance', (t) async {
+      final parcels = FakeParcelRepository(initial: [
+        testParcel(id: 'a', sequence: 1, customerId: '1'), // owes 5,000
+        testParcel(id: 'b', sequence: 2, customerId: '1', received: 200000), // owes 3,000
+        testParcel(id: 'c', sequence: 3, customerId: '2', method: CollectionMethod.giftFree),
+        testParcel(id: 'd', sequence: 4, customerId: '2', status: ParcelStatus.returned, paymentReviewRequired: true),
+        testParcel(id: 'e', sequence: 5, customerId: '1', received: 500000, isArchived: true),
+      ]);
+      await _pump(t, FakeCustomerRepository(initial: [_c('1', 'Ali Raza', '03001111111'), _c('2', 'Sara Khan', '03002222222'), _c('3', 'New Person', '03003333333')]), parcels: parcels);
+      expect(find.textContaining('2 parcels · Outstanding Rs. 8,000'), findsOneWidget, reason: 'the archived parcel is not counted');
+      expect(find.textContaining('2 parcels · Outstanding Rs. 0'), findsOneWidget, reason: 'Gift / Free and returned owe nothing');
+      expect(find.textContaining('0 parcels · Outstanding Rs. 0'), findsOneWidget);
     });
 
     testWidgets('tapping a customer opens that customer\'s details', (t) async {

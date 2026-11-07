@@ -7,6 +7,7 @@ enum PaymentTab {
   pending('Pending'),
   partial('Partially paid'),
   received('Received'),
+  postOffice('Post office'),
   advance('Advance'),
   payLater('Pay Later'),
   overdue('Overdue'),
@@ -23,6 +24,7 @@ enum PaymentTab {
       pending => parcel.paymentStatus == PaymentStatus.pending,
       partial => parcel.paymentStatus == PaymentStatus.partial,
       received => parcel.paymentStatus == PaymentStatus.received,
+      postOffice => parcel.method == CollectionMethod.postalCollection,
       advance => parcel.method == CollectionMethod.advance,
       payLater => parcel.method == CollectionMethod.payLater && parcel.outstandingPaisa > 0,
       // No date: unpaid, but never overdue.

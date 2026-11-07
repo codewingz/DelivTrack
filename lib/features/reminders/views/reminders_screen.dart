@@ -160,19 +160,6 @@ class _ReminderTile extends StatelessWidget {
   final VoidCallback onReceive;
   final VoidCallback onChangeDate;
 
-  String get _dateText {
-    final date = parcel.estimatedPaymentDate;
-    return switch (group) {
-      ReminderGroup.noDate => 'No date set',
-      ReminderGroup.dueToday => 'Due today',
-      ReminderGroup.overdue => () {
-          final days = daysBetween(date!, today);
-          return 'Overdue by $days ${days == 1 ? 'day' : 'days'} · ${formatDate(date)}';
-        }(),
-      ReminderGroup.upcoming => 'Due ${formatDate(date!)}',
-    };
-  }
-
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -192,7 +179,7 @@ class _ReminderTile extends StatelessWidget {
                   'Outstanding ${formatRupees(parcel.outstandingPaisa)}',
                   style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                 ),
-                Text(_dateText, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: group == ReminderGroup.overdue ? AppColors.error : AppColors.textSecondary)),
+                Text(reminderDateText(parcel, group, today), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: group == ReminderGroup.overdue ? AppColors.error : AppColors.textSecondary)),
               ],
             ),
           ),

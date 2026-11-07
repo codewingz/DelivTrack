@@ -10,13 +10,13 @@ Set<PaymentTab> tabsOf(Parcel p) => {for (final tab in PaymentTab.values) if (ta
 
 void main() {
   group('which lists a parcel belongs to', () {
-    test('unpaid Post office collection: Pending only', () {
-      expect(tabsOf(testParcel()), {PaymentTab.pending});
+    test('unpaid Post office collection: Pending and Post office', () {
+      expect(tabsOf(testParcel()), {PaymentTab.pending, PaymentTab.postOffice});
     });
 
     test('part paid: Partially paid; paid in full: Received', () {
-      expect(tabsOf(testParcel(received: 100000)), {PaymentTab.partial});
-      expect(tabsOf(testParcel(received: 500000)), {PaymentTab.received});
+      expect(tabsOf(testParcel(received: 100000)), {PaymentTab.partial, PaymentTab.postOffice});
+      expect(tabsOf(testParcel(received: 500000)), {PaymentTab.received, PaymentTab.postOffice});
     });
 
     test('Advance parcels are also listed under Advance whatever their payment state', () {
@@ -32,6 +32,12 @@ void main() {
       expect(tabsOf(testParcel(method: CollectionMethod.payLater)), {PaymentTab.pending, pl}, reason: 'no date: unpaid, never overdue');
       expect(tabsOf(testParcel(method: CollectionMethod.payLater, payDate: '2026-11-01', received: 100000)), {PaymentTab.partial, pl, PaymentTab.overdue});
       expect(tabsOf(testParcel(method: CollectionMethod.payLater, payDate: '2026-11-01', received: 500000)), {PaymentTab.received}, reason: 'paid in full leaves Pay Later and Overdue');
+    });
+
+    test('Post office lists every collection parcel except returned ones (which are under Review)', () {
+      expect(PaymentTab.postOffice.includes(testParcel(method: CollectionMethod.advance), _today), isFalse);
+      expect(PaymentTab.postOffice.includes(testParcel(method: CollectionMethod.payLater), _today), isFalse);
+      expect(PaymentTab.postOffice.includes(testParcel(status: ParcelStatus.returned, paymentReviewRequired: true), _today), isFalse);
     });
 
     test('Gift / Free is never listed', () {

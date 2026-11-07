@@ -73,6 +73,7 @@ void main() {
 
     await show('Partially paid', ['Part Two', 'Advance Five'], ['Pending One']);
     await show('Received', ['Paid Three'], ['Part Two']);
+    await show('Post office', ['Pending One', 'Part Two', 'Paid Three'], ['Advance Five', 'Later Four']);
     await show('Advance', ['Advance Five'], ['Paid Three']);
     await show('Pay Later', ['Later Four'], ['Advance Five']);
     await show('Overdue', ['Later Four'], ['Pending One']);

@@ -1,3 +1,4 @@
+import '../../../core/time/pakistan_time.dart';
 import '../../parcels/domain/parcel.dart';
 import '../../parcels/domain/parcel_enums.dart';
 
@@ -21,6 +22,21 @@ ReminderGroup? reminderGroupFor(Parcel parcel, String today) {
   final order = date.compareTo(today);
   if (order < 0) return ReminderGroup.overdue;
   return order == 0 ? ReminderGroup.dueToday : ReminderGroup.upcoming;
+}
+
+/// How a reminder's date reads: "Due today", "Overdue by 3 days · 7 Nov 2026", "Due 25 Dec 2026" or
+/// "No date set". [today] is a Pakistan date.
+String reminderDateText(Parcel parcel, ReminderGroup group, String today) {
+  final date = parcel.estimatedPaymentDate;
+  return switch (group) {
+    ReminderGroup.noDate => 'No date set',
+    ReminderGroup.dueToday => 'Due today',
+    ReminderGroup.overdue => () {
+        final days = daysBetween(date!, today);
+        return 'Overdue by $days ${days == 1 ? 'day' : 'days'} · ${formatDate(date)}';
+      }(),
+    ReminderGroup.upcoming => 'Due ${formatDate(date!)}',
+  };
 }
 
 /// Whole days between two "yyyy-MM-dd" dates ([later] minus [earlier]).

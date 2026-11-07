@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+
 import '../../../common_widgets/empty_state.dart';
 import '../../../common_widgets/searchable_list_page.dart';
+import '../../../core/money/money.dart';
+import '../../parcels/data/parcel_repository.dart';
 import '../data/customer_repository.dart';
 import '../domain/customer.dart';
 import '../viewmodel/customer_list_view_model.dart';
@@ -8,8 +11,15 @@ import '../viewmodel/customer_list_view_model.dart';
 /// Customers list. Add opens its own full screen (the callback returns the saved customer's id, or
 /// null when the user left without saving); a row opens that customer's details.
 class CustomersScreen extends StatefulWidget {
-  const CustomersScreen({super.key, required this.repository, required this.onAdd, required this.onOpen});
+  const CustomersScreen({
+    super.key,
+    required this.repository,
+    required this.parcelRepository,
+    required this.onAdd,
+    required this.onOpen,
+  });
   final CustomerRepository repository;
+  final ParcelRepository parcelRepository;
   final Future<String?> Function() onAdd;
   final void Function(Customer customer) onOpen;
 
@@ -19,7 +29,10 @@ class CustomersScreen extends StatefulWidget {
 
 class _CustomersScreenState extends State<CustomersScreen> {
   final _search = TextEditingController();
-  late final _viewModel = CustomerListViewModel(widget.repository);
+  late final _viewModel = CustomerListViewModel(
+    widget.repository,
+    widget.parcelRepository,
+  );
 
   @override
   void dispose() {
@@ -28,7 +41,9 @@ class _CustomersScreenState extends State<CustomersScreen> {
     super.dispose();
   }
 
-  void _showMessage(String message) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  void _showMessage(String message) =>
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
 
   Future<void> _add() async {
     final savedId = await widget.onAdd();
@@ -50,14 +65,25 @@ class _CustomersScreenState extends State<CustomersScreen> {
         addLabel: 'Add Customer',
         onAdd: _add,
         emptyBuilder: _emptyState,
-        itemBuilder: (context, customer) => ListTile(
-          minTileHeight: 64,
-          title: Text(customer.name, maxLines: 2, overflow: TextOverflow.ellipsis),
-          subtitle: Text('${customer.phone}\n${customer.address}', maxLines: 3, overflow: TextOverflow.ellipsis),
-          isThreeLine: true,
-          trailing: const Icon(Icons.chevron_right_rounded),
-          onTap: () => widget.onOpen(customer),
-        ),
+        itemBuilder: (context, customer) {
+          final figures = _viewModel.figuresOf(customer.id);
+          return ListTile(
+            minTileHeight: 64,
+            title: Text(
+              customer.name,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: Text(
+              '${customer.phone}\n${customer.address}\n${figures.parcels} ${figures.parcels == 1 ? 'parcel' : 'parcels'} · Outstanding ${formatRupees(figures.outstandingPaisa)}',
+              maxLines: 4,
+              overflow: TextOverflow.ellipsis,
+            ),
+            isThreeLine: true,
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => widget.onOpen(customer),
+          );
+        },
       ),
     );
   }
@@ -72,6 +98,9 @@ class _CustomersScreenState extends State<CustomersScreen> {
         onAction: _add,
       );
     }
-    return EmptyState(icon: Icons.search_off_rounded, title: 'No customers match "${_viewModel.query.trim()}"');
+    return EmptyState(
+      icon: Icons.search_off_rounded,
+      title: 'No customers match "${_viewModel.query.trim()}"',
+    );
   }
 }

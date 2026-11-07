@@ -82,7 +82,7 @@ void main() {
     expect(find.bySemanticsLabel('Outstanding: Rs. 10,000'), findsOneWidget);
     expect(find.bySemanticsLabel('Pay Later balance: Rs. 3,000'), findsOneWidget);
     expect(find.bySemanticsLabel('Advance received: Rs. 3,000'), findsOneWidget);
-    final orders = t.widgetList<Text>(find.textContaining('ADT-')).map((w) => w.data).toList();
+    final orders = t.widgetList<Text>(find.textContaining('ADT-')).map((w) => w.data).where((text) => !text!.contains('to collect')).toList();
     expect(orders, ['ADT-000003', 'ADT-000002', 'ADT-000001']);
   });
 
@@ -93,6 +93,35 @@ void main() {
     expect(find.text('ADT-000001'), findsOneWidget);
     expect(find.text('ADT-000002'), findsNothing);
     expect(find.text('ADT-000003'), findsNothing);
+  });
+
+  testWidgets('Pay Later reminders: this customer\'s open Pay Later parcels with their own dates (overdue flagged, none for paid or other types)', (t) async {
+    await _open(
+      t,
+      FakeParcelRepository(initial: [
+        testParcel(id: 'a', sequence: 1, method: CollectionMethod.payLater, payDate: '2000-01-01'),
+        testParcel(id: 'b', sequence: 2, method: CollectionMethod.payLater, payDate: '2999-01-01', received: 100000),
+        testParcel(id: 'c', sequence: 3, method: CollectionMethod.payLater),
+        testParcel(id: 'd', sequence: 4, method: CollectionMethod.payLater, received: 500000),
+        testParcel(id: 'e', sequence: 5),
+        testParcel(id: 'f', sequence: 6, customerId: 'c2', method: CollectionMethod.payLater, payDate: '2999-01-01'),
+      ]),
+    );
+    expect(find.text('Pay Later reminders'), findsOneWidget);
+    expect(find.text('ADT-000001 · Rs. 5,000 to collect'), findsOneWidget);
+    expect(find.textContaining('Overdue by'), findsOneWidget);
+    expect(find.text('ADT-000002 · Rs. 4,000 to collect'), findsOneWidget);
+    expect(find.text('Due 1 Jan 2999'), findsOneWidget);
+    expect(find.text('ADT-000003 · Rs. 5,000 to collect'), findsOneWidget);
+    expect(find.text('No date set'), findsOneWidget);
+    expect(find.textContaining('ADT-000004 ·'), findsNothing, reason: 'paid');
+    expect(find.textContaining('ADT-000005 ·'), findsNothing, reason: 'not Pay Later');
+    expect(find.textContaining('ADT-000006 ·'), findsNothing, reason: "another customer's");
+  });
+
+  testWidgets('no Pay Later section for a customer without open Pay Later parcels', (t) async {
+    await _open(t, FakeParcelRepository(initial: [_p('a', 1)]));
+    expect(find.text('Pay Later reminders'), findsNothing);
   });
 
   testWidgets('a customer without parcels says so, with zero totals', (t) async {

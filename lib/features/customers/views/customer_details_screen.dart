@@ -5,7 +5,9 @@ import '../../../constants/app_colors.dart';
 import '../../../core/money/money.dart';
 import '../../../design_system/foundations/radius/app_radius.dart';
 import '../../../design_system/foundations/spacing/app_spacing.dart';
+import '../../../core/time/pakistan_time.dart';
 import '../../parcels/data/parcel_repository.dart';
+import '../../reminders/domain/reminder_rules.dart';
 import '../../parcels/domain/parcel.dart';
 import '../../parcels/views/parcels_screen.dart';
 import '../../payments/domain/payment_tabs.dart';
@@ -23,6 +25,7 @@ class CustomerDetailsScreen extends StatefulWidget {
     required this.onEdit,
     required this.onOpenParcel,
     this.dialer = const UrlLauncherDialer(),
+    this.clock = const Clock(),
   });
   final CustomerRepository customerRepository;
   final ParcelRepository parcelRepository;
@@ -30,6 +33,7 @@ class CustomerDetailsScreen extends StatefulWidget {
   final Future<String?> Function(Customer customer) onEdit;
   final void Function(Parcel parcel) onOpenParcel;
   final PhoneDialer dialer;
+  final Clock clock;
 
   @override
   State<CustomerDetailsScreen> createState() => _CustomerDetailsScreenState();
@@ -97,6 +101,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
               const SliverToBoxAdapter(child: ListSkeleton())
             else ...[
               SliverToBoxAdapter(child: _Totals(parcels: parcels)),
+              SliverToBoxAdapter(child: _PayLaterReminders(parcels: parcels, today: pakistanDate(widget.clock.nowUtc()), onOpen: widget.onOpenParcel)),
               const SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsetsDirectional.fromSTEB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.sm),
@@ -215,6 +220,54 @@ class _Stat extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// This customer's Pay Later payments still to collect, each with its own (optional) date.
+class _PayLaterReminders extends StatelessWidget {
+  const _PayLaterReminders({required this.parcels, required this.today, required this.onOpen});
+  final List<Parcel> parcels;
+  final String today;
+  final void Function(Parcel parcel) onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final reminders = Reminders.from(parcels, today);
+    final rows = [
+      for (final group in ReminderGroup.values)
+        for (final parcel in reminders[group]) (parcel: parcel, group: group),
+    ];
+    if (rows.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(start: AppSpacing.lg, top: AppSpacing.lg, end: AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Pay Later reminders', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+          const SizedBox(height: AppSpacing.sm),
+          for (final (:parcel, :group) in rows)
+            InkWell(
+              onTap: () => onOpen(parcel),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 48),
+                child: Padding(
+                  padding: const EdgeInsetsDirectional.symmetric(vertical: AppSpacing.xs),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('${parcel.orderNumber} · ${formatRupees(parcel.outstandingPaisa)} to collect', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                      Text(
+                        reminderDateText(parcel, group, today),
+                        style: TextStyle(fontSize: 13, color: group == ReminderGroup.overdue ? AppColors.error : AppColors.textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

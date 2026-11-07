@@ -284,6 +284,7 @@ GoRouter createRouter(
               builder: (context, state) => _tabPage(
                 CustomersScreen(
                   repository: customerRepository,
+                  parcelRepository: parcelRepository,
                   onAdd: () => context.push<String>(AppRoutes.customerNew),
                   onOpen: (customer) => context.push(AppRoutes.customerPath(customer.id)),
                 ),

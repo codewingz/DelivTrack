@@ -285,9 +285,9 @@ AT-01…05, 07, 09, 11, 28, 33…40; unit tests for money math; validation for e
 
 ---
 
-## 7. Feature: Parcel Details (FR-05, FR-06, FR-07) — 🟡 in progress (M4)
+## 7. Feature: Parcel Details (FR-05, FR-06, FR-07) — ✅ DONE 7 Nov 2026 (phases F1–F4 verified: CLI, rules with mutation checks, emulator, screenshots at 4 sizes) — except tap-to-call and copy button
 
-> **Phases:** F1 record a payment — data layer, rules, tests ✅ (7 Nov 2026; payments live at `users/{uid}/parcels/{id}/payments`, append-only, the parcel's received/outstanding move in the same transaction, `receivedAt` is server time so no backdating yet [D16 not built]) · F2 payment sheet + payment details/history on Parcel Details · F3 Mark Returned, notes, Pay Later date · F4 correct a payment (reversal).
+> **Built as planned, with these decisions:** payments live at `users/{uid}/parcels/{id}/payments`, append-only; the parcel's received/outstanding/status move in the same transaction and the rules check that the parcel moved by exactly the payment. **Backdating [D16] built:** "Entered late?" → "Received on" (not in the future, not before the sending date). **Corrections:** a negative twin (`rev_<id>`, one per payment) plus an optional replacement (`cor_<id>`) in one commit; reason 5–200 required; a reversal is final; no corrections on returned parcels; audit-logged. **Returns:** Sent → Returned only; the parcel is then locked except for notes; `paymentReviewRequired` is set when money was received or is owed (nothing refunded automatically). **Notes** 1–500 characters. **Pay Later date** today-or-later, clearable. Not built: tap-to-call (needs `url_launcher`, awaiting approval) and the postal-reference copy button. Reminders/notifications for the Pay Later date are §9.
 
 **Read-only sections**
 1. Header: order number, sending date (Karachi), parcel status chip, payment status chip, overdue / review flags.

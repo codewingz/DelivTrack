@@ -25,6 +25,13 @@ import 'package:integration_test/integration_test.dart';
 
 const _tag = String.fromEnvironment('SHOT_TAG', defaultValue: 'shot');
 
+/// Scrolls a button into view first (at large text a sheet is taller than the screen), then taps it.
+Future<void> _tapButton(WidgetTester t, Finder button) async {
+  await t.ensureVisible(button);
+  await t.pump();
+  await t.tap(button);
+}
+
 Future<void> _settle(WidgetTester t) async {
   for (var i = 0; i < 30; i++) {
     await t.pump(const Duration(milliseconds: 100));
@@ -352,16 +359,78 @@ void main() {
     await t.pump();
     await t.tap(receive);
     await shot(t, '39_payment_sheet');
-    await t.tap(find.widgetWithText(FilledButton, 'Confirm Payment'));
+    await _tapButton(t, find.widgetWithText(FilledButton, 'Confirm Payment'));
     await shot(t, '40_payment_sheet_errors');
     await t.tap(find.widgetWithText(ChoiceChip, 'Advance'));
     await t.enterText(find.byType(TextFormField).first, '2000');
     await t.enterText(find.byType(TextFormField).last, 'First part');
     await t.pump();
     await shot(t, '41_payment_sheet_filled');
-    await t.tap(find.widgetWithText(FilledButton, 'Confirm Payment'));
+    await _tapButton(t, find.widgetWithText(FilledButton, 'Confirm Payment'));
     await _settle(t);
     await t.drag(find.byType(SingleChildScrollView).first, const Offset(0, -6000));
     await shot(t, '42_details_after_payment');
+
+    // --- correct the payment
+    await _settle(t);
+    await _settle(t);
+    await t.ensureVisible(find.text('Correct'));
+    await t.pump();
+    await t.tap(find.text('Correct'));
+    await shot(t, '43_correct_sheet');
+    await _tapButton(t, find.widgetWithText(FilledButton, 'Save Correction'));
+    await shot(t, '44_correct_sheet_errors');
+    await t.enterText(find.byType(TextFormField).first, '3000');
+    await t.enterText(find.byType(TextFormField).last, 'Wrong amount entered');
+    await t.pump();
+    await _tapButton(t, find.widgetWithText(FilledButton, 'Save Correction'));
+    await _settle(t);
+    await t.drag(find.byType(SingleChildScrollView).first, const Offset(0, -6000));
+    await shot(t, '45_history_after_correction');
+
+    // --- notes, then return
+    final addNotes = find.widgetWithText(OutlinedButton, 'Add Notes');
+    await t.ensureVisible(addNotes);
+    await t.pump();
+    await t.tap(addNotes);
+    await shot(t, '46_notes_sheet');
+    await t.enterText(find.byType(TextFormField).first, 'Call before delivery');
+    await t.pump();
+    await _tapButton(t, find.widgetWithText(FilledButton, 'Save Notes'));
+    await _settle(t);
+    final markReturned = find.widgetWithText(OutlinedButton, 'Mark Returned');
+    await t.ensureVisible(markReturned);
+    await t.pump();
+    await t.tap(markReturned);
+    await shot(t, '47_return_sheet');
+    await t.enterText(find.byType(TextFormField).last, 'Customer refused');
+    await t.pump();
+    await _tapButton(t, find.widgetWithText(FilledButton, 'Mark Returned'));
+    await _settle(t);
+    await shot(t, '48_returned_top');
+    await t.drag(find.byType(SingleChildScrollView).first, const Offset(0, -6000));
+    await shot(t, '49_returned_bottom');
+    await t.pageBack();
+    await _settle(t);
+
+    // --- Pay Later parcel: date sheet and the late-payment toggle
+    await t.tap(find.text('ADT-000002'));
+    await _settle(t);
+    final changeDate = find.widgetWithText(OutlinedButton, 'Change Pay Later Date');
+    await t.ensureVisible(changeDate);
+    await t.pump();
+    await t.tap(changeDate);
+    await shot(t, '50_pay_later_date_sheet');
+    await t.tap(find.byTooltip('Clear date'));
+    await shot(t, '51_pay_later_date_cleared');
+    await _tapButton(t, find.widgetWithText(FilledButton, 'Clear Date'));
+    await _settle(t);
+    final receiveLate = find.widgetWithText(FilledButton, 'Mark Payment Received');
+    await t.ensureVisible(receiveLate);
+    await t.pump();
+    await t.tap(receiveLate);
+    await _settle(t);
+    await t.tap(find.byType(Switch));
+    await shot(t, '52_payment_sheet_entered_late');
   });
 }

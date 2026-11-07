@@ -5,9 +5,12 @@ import '../domain/parcel_enums.dart';
 
 /// Parcel status and payment status as chips (shared by the list and the details screen).
 class ParcelStatusChips extends StatelessWidget {
-  const ParcelStatusChips({super.key, required this.status, required this.payment});
+  const ParcelStatusChips({super.key, required this.status, required this.payment, this.reviewRequired = false});
   final ParcelStatus status;
   final PaymentStatus payment;
+
+  /// A returned parcel with money received or owed.
+  final bool reviewRequired;
 
   static Color _statusColor(ParcelStatus s) => switch (s) {
         ParcelStatus.draft => AppColors.pending,
@@ -30,6 +33,7 @@ class ParcelStatusChips extends StatelessWidget {
       children: [
         StatusChip(label: status.label, color: _statusColor(status)),
         StatusChip(label: payment.label, color: _paymentColor(payment)),
+        if (reviewRequired) const StatusChip(label: 'Requires payment review', color: AppColors.error),
       ],
     );
   }

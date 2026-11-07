@@ -7,6 +7,7 @@ import 'package:deliv_track/features/parcels/domain/parcel.dart';
 import 'package:deliv_track/features/parcels/domain/parcel_enums.dart';
 import 'package:deliv_track/features/parcels/domain/parcel_item.dart';
 import 'package:deliv_track/features/parcels/domain/parcel_input.dart';
+import 'package:deliv_track/features/parcels/domain/payment.dart';
 import 'package:deliv_track/features/parcels/views/parcel_details_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -220,6 +221,95 @@ void main() {
       expect(find.text('No payments received yet'), findsNothing);
       expect(find.text('Partially paid'), findsOneWidget);
     });
+  });
+
+  group('actions', () {
+    Finder button(String label) => find.widgetWithText(OutlinedButton, label);
+
+    testWidgets('a sent parcel offers Add Notes and Mark Returned (not the Pay Later date)', (t) async {
+      await _open(t, FakeParcelRepository(initial: [testParcel(id: 'a')]), 'a');
+      expect(find.text('No notes yet'), findsOneWidget);
+      expect(button('Add Notes'), findsOneWidget);
+      expect(button('Mark Returned'), findsOneWidget);
+      expect(button('Change Pay Later Date'), findsNothing);
+    });
+
+    testWidgets('Pay Later with something outstanding offers the date change; with notes the button says Edit Notes', (t) async {
+      await _open(
+        t,
+        FakeParcelRepository(initial: [testParcel(id: 'a', method: CollectionMethod.payLater, service: PostalService.vpl, payDate: '2031-02-03', notes: 'Call first')]),
+        'a',
+      );
+      expect(button('Change Pay Later Date'), findsOneWidget);
+      expect(button('Edit Notes'), findsOneWidget);
+      expect(find.text('Call first'), findsOneWidget);
+    });
+
+    testWidgets('a draft cannot be returned', (t) async {
+      await _open(t, FakeParcelRepository(initial: [testParcel(id: 'a', status: ParcelStatus.draft, reference: '', charge: null)]), 'a');
+      expect(button('Mark Returned'), findsNothing);
+    });
+
+    testWidgets('Mark Returned: confirms, shows the Return section and the review flag, and removes the actions', (t) async {
+      await _open(t, FakeParcelRepository(initial: [testParcel(id: 'a', received: 100000)]), 'a');
+      await t.ensureVisible(button('Mark Returned'));
+      await t.pump();
+      await t.tap(button('Mark Returned'));
+      await t.pumpAndSettle();
+      await t.enterText(find.byType(TextFormField).last, 'Customer refused');
+      await t.pump();
+      await t.tap(find.widgetWithText(FilledButton, 'Mark Returned'));
+      await t.pumpAndSettle();
+      expect(find.text('Parcel marked as returned.'), findsOneWidget);
+      expect(find.text('Returned'), findsOneWidget);
+      expect(find.text('Requires payment review'), findsOneWidget);
+      expect(find.text('Customer refused'), findsOneWidget);
+      expect(button('Mark Returned'), findsNothing);
+      expect(find.widgetWithText(FilledButton, 'Mark Payment Received'), findsNothing);
+      expect(find.text('Correct'), findsNothing);
+    });
+
+    testWidgets('a payment can be corrected: the row is marked Corrected and a Reversal row appears', (t) async {
+      final payment = Payment(id: 'pay-1', amountPaisa: 200000, type: PaymentType.advance, note: null, receivedAt: DateTime.utc(2026, 11, 8, 6));
+      final repo = FakeParcelRepository(initial: [testParcel(id: 'a', received: 200000)])..payments['a'] = [payment];
+      await _open(t, repo, 'a');
+      await t.ensureVisible(find.text('Correct'));
+      await t.pump();
+      await t.tap(find.text('Correct'));
+      await t.pumpAndSettle();
+      await t.enterText(find.byType(TextFormField).first, '3000');
+      await t.enterText(find.byType(TextFormField).last, 'Wrong amount entered');
+      await t.pump();
+      await t.tap(find.widgetWithText(FilledButton, 'Save Correction'));
+      await t.pumpAndSettle();
+      expect(find.text('Payment corrected.'), findsOneWidget);
+      expect(find.textContaining('Corrected'), findsOneWidget);
+      expect(find.textContaining('Reversal'), findsOneWidget);
+      expect(find.textContaining('Wrong amount entered'), findsOneWidget);
+      expect(find.text('Rs. 2,000 cancelled — Wrong amount entered'), findsOneWidget);
+      expect(find.text('Correct'), findsOneWidget, reason: 'only the replacement can be corrected again');
+    });
+  });
+
+  group('responsive with every section', () {
+    final payment = Payment(id: 'pay-1', amountPaisa: 200000, type: PaymentType.advance, note: 'First part of the money', receivedAt: DateTime.utc(2026, 11, 8, 6));
+    for (final size in const [Size(320, 568), Size(393, 852), Size(700, 900), Size(1100, 800), Size(640, 300)]) {
+      for (final scale in [1.0, 1.3, 2.0]) {
+        testWidgets('no overflow at $size text x$scale (returned, with notes, payments and a reversal)', (t) async {
+          final reversal = Payment(
+              id: 'rev_pay-1', amountPaisa: -200000, type: PaymentType.advance, note: null, receivedAt: DateTime.utc(2026, 11, 9, 6), reversalOfPaymentId: 'pay-1', correctionReason: 'Entered the wrong amount by mistake');
+          final repo = FakeParcelRepository(initial: [
+            testParcel(id: 'a', status: ParcelStatus.returned, received: 0, notes: 'Customer asked us to call before delivery. ' * 3, returnedDate: '2026-11-09', returnReason: 'Refused at the door', paymentReviewRequired: true),
+          ])
+            ..payments['a'] = [reversal, payment];
+          await _open(t, repo, 'a', size: size, scale: scale);
+          expect(t.takeException(), isNull);
+          await t.drag(find.byType(SingleChildScrollView), const Offset(0, -3000));
+          await t.pump();
+          expect(t.takeException(), isNull);
+        });
+      }
+    }
   });
 }
 

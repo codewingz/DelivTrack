@@ -11,6 +11,7 @@ import '../data/parcel_repository.dart';
 import '../domain/parcel.dart';
 import '../domain/parcel_enums.dart';
 import '../domain/payment.dart';
+import 'parcel_action_sheets.dart';
 import 'payment_sheet.dart';
 import 'parcel_status_chips.dart';
 
@@ -36,11 +37,10 @@ class _ParcelDetailsScreenState extends State<ParcelDetailsScreen> {
     if (saved != null) messenger.showSnackBar(const SnackBar(content: Text('Parcel updated.')));
   }
 
-  Future<void> _receivePayment(Parcel parcel) async {
+  /// Opens one of the action sheets; a snackbar confirms when it was submitted.
+  Future<void> _act(Future<bool> Function() open, String done) async {
     final messenger = ScaffoldMessenger.of(context);
-    if (await showPaymentSheet(context, widget.repository, parcel)) {
-      messenger.showSnackBar(const SnackBar(content: Text('Payment recorded.')));
-    }
+    if (await open()) messenger.showSnackBar(SnackBar(content: Text(done)));
   }
 
   void _retry() => setState(() => _stream = widget.repository.watch(widget.parcelId));
@@ -85,27 +85,29 @@ class _ParcelDetailsScreenState extends State<ParcelDetailsScreen> {
     }
     if (snapshot.connectionState == ConnectionState.waiting) return const SingleChildScrollView(child: ListSkeleton());
     if (parcel == null) return const EmptyState(icon: Icons.search_off_rounded, title: 'This parcel was not found');
-    return _ParcelView(parcel: parcel, repository: widget.repository, onReceivePayment: () => _receivePayment(parcel));
+    return _ParcelView(parcel: parcel, repository: widget.repository, onAction: _act);
   }
 }
 
 class _ParcelView extends StatelessWidget {
-  const _ParcelView({required this.parcel, required this.repository, required this.onReceivePayment});
+  const _ParcelView({required this.parcel, required this.repository, required this.onAction});
   final Parcel parcel;
   final ParcelRepository repository;
-  final VoidCallback onReceivePayment;
+  final Future<void> Function(Future<bool> Function() open, String done) onAction;
 
   @override
   Widget build(BuildContext context) {
     final isFree = parcel.method == CollectionMethod.giftFree;
-    final canReceive = !isFree && parcel.status != ParcelStatus.returned && parcel.outstandingPaisa > 0;
+    final isReturned = parcel.status == ParcelStatus.returned;
+    final canReceive = !isFree && !isReturned && parcel.outstandingPaisa > 0;
+    final canChangeDate = parcel.method == CollectionMethod.payLater && !isReturned && parcel.outstandingPaisa > 0;
     return SingleChildScrollView(
       padding: const EdgeInsetsDirectional.all(AppSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _Section(title: 'Parcel', children: [
-            ParcelStatusChips(status: parcel.status, payment: parcel.paymentStatus),
+            ParcelStatusChips(status: parcel.status, payment: parcel.paymentStatus, reviewRequired: parcel.paymentReviewRequired),
             _Info('Order number', parcel.orderNumber),
             _Info('Sending date', parcel.sendingDateLabel),
             _Info('Parcel type', parcel.method.label),
@@ -133,9 +135,37 @@ class _ParcelView extends StatelessWidget {
             _Info('Received', formatRupees(parcel.receivedPaisa)),
             _Info('Outstanding', formatRupees(parcel.outstandingPaisa)),
             if (parcel.estimatedPaymentDate != null) _Info('Estimated payment date', formatDate(parcel.estimatedPaymentDate!)),
-            if (canReceive) PrimaryButton(label: 'Mark Payment Received', onPressed: onReceivePayment),
+            if (canReceive)
+              PrimaryButton(
+                label: 'Mark Payment Received',
+                onPressed: () => onAction(() => showPaymentSheet(context, repository, parcel), 'Payment recorded.'),
+              ),
           ]),
-          if (!isFree) _PaymentHistory(repository: repository, parcelId: parcel.id),
+          if (!isFree) _PaymentHistory(repository: repository, parcel: parcel, onAction: onAction),
+          if (isReturned)
+            _Section(title: 'Return', children: [
+              if (parcel.returnedDate != null) _Info('Returned on', formatDate(parcel.returnedDate!)),
+              _Info('Reason', parcel.returnReason ?? 'Not given'),
+              if (parcel.paymentReviewRequired)
+                const _Info('Payment review', 'Requires payment review: money was received or is still owed. Nothing is refunded automatically.'),
+            ]),
+          _Section(title: 'Notes', children: [_Info('Notes', parcel.notes ?? 'No notes yet')]),
+          _Section(title: 'Actions', children: [
+            OutlinedButton(
+              onPressed: () => onAction(() => showNotesSheet(context, repository, parcel), 'Notes saved.'),
+              child: Text(parcel.notes == null ? 'Add Notes' : 'Edit Notes'),
+            ),
+            if (canChangeDate)
+              OutlinedButton(
+                onPressed: () => onAction(() => showPayLaterDateSheet(context, repository, parcel), 'Pay Later date saved.'),
+                child: const Text('Change Pay Later Date'),
+              ),
+            if (parcel.status == ParcelStatus.sent)
+              OutlinedButton(
+                onPressed: () => onAction(() => showReturnSheet(context, repository, parcel), 'Parcel marked as returned.'),
+                child: const Text('Mark Returned'),
+              ),
+          ]),
         ],
       ),
     );
@@ -190,23 +220,26 @@ class _Info extends StatelessWidget {
 }
 
 class _PaymentHistory extends StatefulWidget {
-  const _PaymentHistory({required this.repository, required this.parcelId});
+  const _PaymentHistory({required this.repository, required this.parcel, required this.onAction});
   final ParcelRepository repository;
-  final String parcelId;
+  final Parcel parcel;
+  final Future<void> Function(Future<bool> Function() open, String done) onAction;
 
   @override
   State<_PaymentHistory> createState() => _PaymentHistoryState();
 }
 
 class _PaymentHistoryState extends State<_PaymentHistory> {
-  late final Stream<List<Payment>> _payments = widget.repository.watchPayments(widget.parcelId);
+  late final Stream<List<Payment>> _payments = widget.repository.watchPayments(widget.parcel.id);
 
   @override
   Widget build(BuildContext context) {
+    final parcel = widget.parcel;
     return StreamBuilder<List<Payment>>(
       stream: _payments,
       builder: (context, snapshot) {
         final payments = snapshot.data ?? const <Payment>[];
+        final reversed = {for (final p in payments) ?p.reversalOfPaymentId};
         return _Section(title: 'Payment history', children: [
           if (snapshot.hasError)
             const _Info('Payments', "Couldn't load the payments.")
@@ -214,12 +247,39 @@ class _PaymentHistoryState extends State<_PaymentHistory> {
             const _Info('Payments', 'No payments received yet')
           else
             for (final payment in payments)
-              _Info(
-                '${formatDate(pakistanDate(payment.receivedAt))} · ${payment.type.label}',
-                '${formatRupees(payment.amountPaisa)}${payment.note == null ? '' : ' — ${payment.note}'}',
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: _PaymentRow(payment: payment, corrected: reversed.contains(payment.id))),
+                  if (payment.amountPaisa > 0 && !reversed.contains(payment.id) && parcel.status != ParcelStatus.returned)
+                    TextButton(
+                      onPressed: () => widget.onAction(
+                        () => showCorrectPaymentSheet(context, widget.repository, parcel, payment),
+                        'Payment corrected.',
+                      ),
+                      child: const Text('Correct'),
+                    ),
+                ],
               ),
         ]);
       },
     );
+  }
+}
+
+class _PaymentRow extends StatelessWidget {
+  const _PaymentRow({required this.payment, required this.corrected});
+  final Payment payment;
+  final bool corrected;
+
+  @override
+  Widget build(BuildContext context) {
+    final date = formatDate(pakistanDate(payment.receivedAt));
+    if (payment.isReversal) {
+      return _Info('$date · Reversal', '${formatRupees(payment.amountPaisa.abs())} cancelled — ${payment.correctionReason}');
+    }
+    final replacement = payment.correctionOfPaymentId != null ? ' · Correction' : '';
+    final note = payment.note == null ? '' : ' — ${payment.note}';
+    return _Info('$date · ${payment.type.label}$replacement${corrected ? ' · Corrected' : ''}', '${formatRupees(payment.amountPaisa)}$note');
   }
 }

@@ -184,7 +184,6 @@ class FakeParcelRepository implements ParcelRepository {
     if (problem != null) throw AppFailure(problem);
     final index = _index(parcelId);
     final old = _parcels[index];
-    if (receivedOn != null && receivedOn.compareTo(_today) > 0) throw const AppFailure('The received date cannot be in the future.');
     if (receivedOn != null && receivedOn.compareTo(old.sendingDate) < 0) throw const AppFailure('The received date cannot be before the sending date.');
     if (old.method == CollectionMethod.giftFree) throw const AppFailure('A Gift / Free parcel has no payment to receive.');
     if (old.status == ParcelStatus.returned) throw const AppFailure("A returned parcel can't take payments.");
@@ -207,7 +206,6 @@ class FakeParcelRepository implements ParcelRepository {
     final index = _index(parcelId);
     final old = _parcels[index];
     if (old.status != ParcelStatus.sent) throw const AppFailure('Only a Sent parcel can be marked as returned.');
-    if (date.compareTo(_today) > 0) throw const AppFailure('The returned date cannot be in the future.');
     if (date.compareTo(old.sendingDate) < 0) throw const AppFailure('The returned date cannot be before the sending date.');
     final clean = collapseSpaces(reason ?? '');
     returns.add((id: parcelId, date: date, reason: clean.isEmpty ? null : clean));

@@ -133,6 +133,21 @@ void main() {
     expect(env.results, isEmpty);
   });
 
+  testWidgets('Entered late? reveals Received on; submitting without a day is refused', (t) async {
+    final env = await _open(t);
+    expect(find.text('Received on'), findsNothing);
+    await t.tap(find.byType(Switch));
+    await t.pump();
+    expect(find.text('Received on'), findsOneWidget);
+    await t.tap(find.widgetWithText(ChoiceChip, 'Advance'));
+    await t.pump();
+    await t.ensureVisible(_confirm);
+    await t.tap(_confirm);
+    await t.pump();
+    expect(find.text('Select the day it was received.'), findsOneWidget);
+    expect(env.repo.paymentRecords, 0);
+  });
+
   group('responsive', () {
     for (final size in const [Size(320, 568), Size(393, 852), Size(700, 900), Size(640, 300)]) {
       for (final scale in [1.0, 1.3, 2.0]) {

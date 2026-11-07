@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../common_widgets/empty_state.dart';
 import '../../../common_widgets/list_skeleton.dart';
+import '../../../common_widgets/primary_button.dart';
 import '../../../constants/app_colors.dart';
 import '../../../core/money/money.dart';
 import '../../../core/time/pakistan_time.dart';
@@ -9,6 +10,8 @@ import '../../../design_system/foundations/spacing/app_spacing.dart';
 import '../data/parcel_repository.dart';
 import '../domain/parcel.dart';
 import '../domain/parcel_enums.dart';
+import '../domain/payment.dart';
+import 'payment_sheet.dart';
 import 'parcel_status_chips.dart';
 
 /// One parcel's details with an Edit action. Payment and return actions are added by their own features.
@@ -31,6 +34,13 @@ class _ParcelDetailsScreenState extends State<ParcelDetailsScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final saved = await widget.onEdit(parcel);
     if (saved != null) messenger.showSnackBar(const SnackBar(content: Text('Parcel updated.')));
+  }
+
+  Future<void> _receivePayment(Parcel parcel) async {
+    final messenger = ScaffoldMessenger.of(context);
+    if (await showPaymentSheet(context, widget.repository, parcel)) {
+      messenger.showSnackBar(const SnackBar(content: Text('Payment recorded.')));
+    }
   }
 
   void _retry() => setState(() => _stream = widget.repository.watch(widget.parcelId));
@@ -75,17 +85,20 @@ class _ParcelDetailsScreenState extends State<ParcelDetailsScreen> {
     }
     if (snapshot.connectionState == ConnectionState.waiting) return const SingleChildScrollView(child: ListSkeleton());
     if (parcel == null) return const EmptyState(icon: Icons.search_off_rounded, title: 'This parcel was not found');
-    return _ParcelView(parcel: parcel);
+    return _ParcelView(parcel: parcel, repository: widget.repository, onReceivePayment: () => _receivePayment(parcel));
   }
 }
 
 class _ParcelView extends StatelessWidget {
-  const _ParcelView({required this.parcel});
+  const _ParcelView({required this.parcel, required this.repository, required this.onReceivePayment});
   final Parcel parcel;
+  final ParcelRepository repository;
+  final VoidCallback onReceivePayment;
 
   @override
   Widget build(BuildContext context) {
     final isFree = parcel.method == CollectionMethod.giftFree;
+    final canReceive = !isFree && parcel.status != ParcelStatus.returned && parcel.outstandingPaisa > 0;
     return SingleChildScrollView(
       padding: const EdgeInsetsDirectional.all(AppSpacing.lg),
       child: Column(
@@ -120,7 +133,9 @@ class _ParcelView extends StatelessWidget {
             _Info('Received', formatRupees(parcel.receivedPaisa)),
             _Info('Outstanding', formatRupees(parcel.outstandingPaisa)),
             if (parcel.estimatedPaymentDate != null) _Info('Estimated payment date', formatDate(parcel.estimatedPaymentDate!)),
+            if (canReceive) PrimaryButton(label: 'Mark Payment Received', onPressed: onReceivePayment),
           ]),
+          if (!isFree) _PaymentHistory(repository: repository, parcelId: parcel.id),
         ],
       ),
     );
@@ -170,6 +185,41 @@ class _Info extends StatelessWidget {
         Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textSecondary)),
         Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
       ],
+    );
+  }
+}
+
+class _PaymentHistory extends StatefulWidget {
+  const _PaymentHistory({required this.repository, required this.parcelId});
+  final ParcelRepository repository;
+  final String parcelId;
+
+  @override
+  State<_PaymentHistory> createState() => _PaymentHistoryState();
+}
+
+class _PaymentHistoryState extends State<_PaymentHistory> {
+  late final Stream<List<Payment>> _payments = widget.repository.watchPayments(widget.parcelId);
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<Payment>>(
+      stream: _payments,
+      builder: (context, snapshot) {
+        final payments = snapshot.data ?? const <Payment>[];
+        return _Section(title: 'Payment history', children: [
+          if (snapshot.hasError)
+            const _Info('Payments', "Couldn't load the payments.")
+          else if (payments.isEmpty)
+            const _Info('Payments', 'No payments received yet')
+          else
+            for (final payment in payments)
+              _Info(
+                '${formatDate(pakistanDate(payment.receivedAt))} · ${payment.type.label}',
+                '${formatRupees(payment.amountPaisa)}${payment.note == null ? '' : ' — ${payment.note}'}',
+              ),
+        ]);
+      },
     );
   }
 }

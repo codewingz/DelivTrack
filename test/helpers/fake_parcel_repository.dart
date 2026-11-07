@@ -7,6 +7,7 @@ import 'package:deliv_track/features/parcels/domain/parcel_enums.dart';
 import 'package:deliv_track/features/parcels/domain/parcel_input.dart';
 import 'package:deliv_track/features/parcels/domain/parcel_item.dart';
 import 'package:deliv_track/features/parcels/domain/payment.dart';
+import 'package:deliv_track/utils/text.dart';
 import 'package:deliv_track/features/parcels/domain/payment_rules.dart';
 
 /// A saved parcel for tests (override what a test cares about).
@@ -140,7 +141,7 @@ class FakeParcelRepository implements ParcelRepository {
     paymentRecords++;
     await gate?.future;
     if (failure != null) throw failure!;
-    final cleanNote = (note ?? '').trim();
+    final cleanNote = collapseSpaces(note ?? '');
     final problem = paymentProblem(amountPaisa: amountPaisa, note: cleanNote);
     if (problem != null) throw AppFailure(problem);
     final index = _parcels.indexWhere((p) => p.id == parcelId);

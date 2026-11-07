@@ -343,5 +343,25 @@ void main() {
     await _settle(t);
     await t.tap(find.byTooltip('Edit parcel'));
     await shot(t, '38_edit_sent_top');
+
+    // --- receive a payment
+    await t.pageBack();
+    await _settle(t);
+    final receive = find.widgetWithText(FilledButton, 'Mark Payment Received');
+    await t.ensureVisible(receive);
+    await t.pump();
+    await t.tap(receive);
+    await shot(t, '39_payment_sheet');
+    await t.tap(find.widgetWithText(FilledButton, 'Confirm Payment'));
+    await shot(t, '40_payment_sheet_errors');
+    await t.tap(find.widgetWithText(ChoiceChip, 'Advance'));
+    await t.enterText(find.byType(TextFormField).first, '2000');
+    await t.enterText(find.byType(TextFormField).last, 'First part');
+    await t.pump();
+    await shot(t, '41_payment_sheet_filled');
+    await t.tap(find.widgetWithText(FilledButton, 'Confirm Payment'));
+    await _settle(t);
+    await t.drag(find.byType(SingleChildScrollView).first, const Offset(0, -6000));
+    await shot(t, '42_details_after_payment');
   });
 }

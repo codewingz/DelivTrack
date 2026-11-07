@@ -179,6 +179,48 @@ void main() {
     await _open(t, FakeParcelRepository(initial: [testParcel(id: 'b', status: ParcelStatus.returned)]), 'b');
     expect(find.byTooltip('Edit parcel'), findsNothing);
   });
+
+  group('payments', () {
+    Finder receive = find.widgetWithText(FilledButton, 'Mark Payment Received');
+
+    testWidgets('an unpaid sent parcel offers Mark Payment Received and shows no payments yet', (t) async {
+      await _open(t, FakeParcelRepository(initial: [testParcel(id: 'a')]), 'a');
+      expect(receive, findsOneWidget);
+      expect(find.text('Payment history'), findsOneWidget);
+      expect(find.text('No payments received yet'), findsOneWidget);
+    });
+
+    testWidgets('no button for a Gift / Free, a returned or a fully paid parcel; Gift / Free has no history', (t) async {
+      for (final parcel in [
+        testParcel(id: 'a', method: CollectionMethod.giftFree),
+        testParcel(id: 'a', status: ParcelStatus.returned),
+        testParcel(id: 'a', received: 500000),
+      ]) {
+        await _open(t, FakeParcelRepository(initial: [parcel]), 'a');
+        expect(receive, findsNothing, reason: '${parcel.method} ${parcel.status} ${parcel.receivedPaisa}');
+        if (parcel.method == CollectionMethod.giftFree) expect(find.text('Payment history'), findsNothing);
+        await t.pumpWidget(const SizedBox());
+      }
+    });
+
+    testWidgets('recording a payment updates the amounts, adds a history row and confirms with a snackbar', (t) async {
+      await _open(t, FakeParcelRepository(initial: [testParcel(id: 'a')]), 'a');
+      await t.ensureVisible(receive);
+      await t.tap(receive);
+      await t.pumpAndSettle();
+      await t.tap(find.widgetWithText(ChoiceChip, 'Advance'));
+      await t.enterText(find.byType(TextFormField).first, '2000');
+      await t.pump();
+      await t.tap(find.widgetWithText(FilledButton, 'Confirm Payment'));
+      await t.pumpAndSettle();
+      expect(find.text('Payment recorded.'), findsOneWidget);
+      expect(find.text('Rs. 2,000 — '), findsNothing);
+      expect(find.text('Rs. 2,000'), findsWidgets);
+      expect(find.text('Rs. 3,000'), findsWidgets, reason: 'outstanding after the payment');
+      expect(find.text('No payments received yet'), findsNothing);
+      expect(find.text('Partially paid'), findsOneWidget);
+    });
+  });
 }
 
 /// First load fails, the next one works.

@@ -440,7 +440,9 @@ Tests: metric math from fixtures (every rule above), empty database, large numbe
 
 ---
 
-## 12. Feature: Reports (FR-12) — ⬜ Size M
+## 12. Feature: Reports (FR-12) — ✅ DONE 7 Nov 2026 (CLI + real-Firestore flow; screenshots in the batched run)
+
+> **Built:** More → Reports lists seven on-screen reports (nothing is exported): Outstanding payments, Payment received history, Returned parcels, Gift / Free parcels, Pay Later balances, Product-wise parcels, Date-wise parcels. Each has From / To dates (applied to the sending date, received date, returned date or Pay Later date as appropriate), loading / empty / error states, totals pinned at the bottom, and a row opens its parcel. The Outstanding report's total equals the Payments screen's Outstanding (AT-24, tested); Free is excluded; the history lists reversals as negative amounts and its total is net. The payment history reads the payments of the user's non-free parcels, 10 at a time.
 
 One **Reports** screen listing report types → `/reports/:type`. All are on-screen (CSV/PDF export is **not approved**, §14.1 of spec).
 | Report | Columns | Totals |

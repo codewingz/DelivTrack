@@ -187,6 +187,13 @@ class FakeParcelRepository implements ParcelRepository {
   int paymentDateLookups = 0;
 
   @override
+  Future<Map<String, List<Payment>>> paymentsFor(Iterable<String> parcelIds) async {
+    await gate?.future;
+    if (failure != null) throw failure!;
+    return {for (final id in parcelIds) if ((payments[id] ?? const []).isNotEmpty) id: List.of(payments[id]!)};
+  }
+
+  @override
   Future<Map<String, Set<String>>> paymentDates(Iterable<String> parcelIds) async {
     paymentDateLookups++;
     await gate?.future;

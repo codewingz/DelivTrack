@@ -39,6 +39,9 @@ abstract class ParcelRepository {
   /// reversed by a correction do not count. Parcels without payments are left out of the result.
   Future<Map<String, Set<String>>> paymentDates(Iterable<String> parcelIds);
 
+  /// Every payment (and reversal) of each parcel, newest first. Parcels without payments are left out.
+  Future<Map<String, List<Payment>>> paymentsFor(Iterable<String> parcelIds);
+
   /// Records a payment and moves the parcel's received / outstanding / payment status in one
   /// transaction. Throws [AppFailure] (amount not above 0 or above the outstanding balance, Gift / Free
   /// or returned parcel, note too long, no connection...).
@@ -229,37 +232,20 @@ class FirestoreParcelRepository implements ParcelRepository {
       .collection('payments')
       .orderBy('receivedAt', descending: true)
       .snapshots()
-      .map((snapshot) => [
-            for (final doc in snapshot.docs)
-              Payment(
-                id: doc.id,
-                amountPaisa: doc['amountPaisa'] as int,
-                type: PaymentType.fromValue(doc['paymentType'] as String),
-                note: doc.data()['note'] as String?,
-                receivedAt: (doc['receivedAt'] as Timestamp).toDate(),
-                reversalOfPaymentId: doc.data()['reversalOfPaymentId'] as String?,
-                correctionReason: doc.data()['correctionReason'] as String?,
-                correctionOfPaymentId: doc.data()['correctionOfPaymentId'] as String?,
-              ),
-          ])
+      .map((snapshot) => [for (final doc in snapshot.docs) _paymentFrom(doc)])
       .withFirestoreFailures();
 
   @override
-  Future<Map<String, Set<String>>> paymentDates(Iterable<String> parcelIds) async {
+  Future<Map<String, List<Payment>>> paymentsFor(Iterable<String> parcelIds) async {
     final ids = parcelIds.toList();
-    final result = <String, Set<String>>{};
+    final result = <String, List<Payment>>{};
     try {
       // A few parcels at a time, so a long list does not open hundreds of requests at once.
       for (var start = 0; start < ids.length; start += 10) {
-        final batch = ids.skip(start).take(10);
-        final snapshots = await Future.wait([for (final id in batch) _parcels.doc(id).collection('payments').get()]);
+        final batch = ids.skip(start).take(10).toList();
+        final snapshots = await Future.wait([for (final id in batch) _parcels.doc(id).collection('payments').orderBy('receivedAt', descending: true).get()]);
         for (final (index, snapshot) in snapshots.indexed) {
-          final reversed = {for (final doc in snapshot.docs) ?(doc.data()['reversalOfPaymentId'] as String?)};
-          final dates = {
-            for (final doc in snapshot.docs)
-              if ((doc['amountPaisa'] as int) > 0 && !reversed.contains(doc.id)) pakistanDate((doc['receivedAt'] as Timestamp).toDate()),
-          };
-          if (dates.isNotEmpty) result[batch.elementAt(index)] = dates;
+          if (snapshot.docs.isNotEmpty) result[batch[index]] = [for (final doc in snapshot.docs) _paymentFrom(doc)];
         }
       }
     } on FirebaseException catch (e) {
@@ -267,6 +253,32 @@ class FirestoreParcelRepository implements ParcelRepository {
     }
     return result;
   }
+
+  @override
+  Future<Map<String, Set<String>>> paymentDates(Iterable<String> parcelIds) async {
+    final payments = await paymentsFor(parcelIds);
+    return {
+      for (final entry in payments.entries)
+        if (_receivedDates(entry.value).isNotEmpty) entry.key: _receivedDates(entry.value),
+    };
+  }
+
+  /// Pakistan dates of the payments that still count (a reversed payment does not).
+  static Set<String> _receivedDates(List<Payment> payments) {
+    final reversed = {for (final payment in payments) ?payment.reversalOfPaymentId};
+    return {for (final payment in payments) if (payment.amountPaisa > 0 && !reversed.contains(payment.id)) pakistanDate(payment.receivedAt)};
+  }
+
+  static Payment _paymentFrom(QueryDocumentSnapshot<Map<String, dynamic>> doc) => Payment(
+        id: doc.id,
+        amountPaisa: doc['amountPaisa'] as int,
+        type: PaymentType.fromValue(doc['paymentType'] as String),
+        note: doc.data()['note'] as String?,
+        receivedAt: (doc['receivedAt'] as Timestamp).toDate(),
+        reversalOfPaymentId: doc.data()['reversalOfPaymentId'] as String?,
+        correctionReason: doc.data()['correctionReason'] as String?,
+        correctionOfPaymentId: doc.data()['correctionOfPaymentId'] as String?,
+      );
 
   @override
   Future<void> recordPayment(String parcelId, {required int amountPaisa, required PaymentType type, String? note, String? receivedOn}) async {

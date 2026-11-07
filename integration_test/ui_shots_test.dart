@@ -594,4 +594,68 @@ void main() {
     await t.pump(const Duration(milliseconds: 400));
     await shot(t, '85_no_matches');
   });
+
+  testWidgets('screenshots: dashboard and reports', (t) async {
+    await FirebaseAuth.instance.signOut();
+    await binding.convertFlutterSurfaceToImage();
+    final auth = FirebaseAuthRepository();
+    await auth.signUp(
+      name: 'Muhammad Afzaal',
+      email: 'dbshots${DateTime.now().microsecondsSinceEpoch}@codewingz.com',
+      password: 'secret123',
+    );
+    final customers = FirestoreCustomerRepository();
+    final parcels = FirestoreParcelRepository();
+    final aliId = await customers.add(name: 'Ali Raza', phone: '+92 300 1111111', address: 'House 5, Street 2, Sahiwal');
+    final longId = await customers.add(name: 'Muhammad Afzaal Khan Niazi Son Of Abdul Rehman', phone: '0301 2222222', address: 'House 123, Street 45, Block C, Model Town, Sahiwal');
+    final ali = Customer(id: aliId, name: 'Ali Raza', phone: '+92 300 1111111', address: 'House 5, Street 2, Sahiwal');
+    final long = Customer(id: longId, name: 'Muhammad Afzaal Khan Niazi Son Of Abdul Rehman', phone: '0301 2222222', address: 'House 123, Street 45, Block C, Model Town, Sahiwal');
+    final today = pakistanDate(DateTime.now().toUtc());
+    Future<String> create(Customer customer, String reference, CollectionMethod method, int quantity, {String? date}) => parcels.create(ParcelInput(
+          customer: customer,
+          items: [ParcelItem.pieces(productId: 'p1', productName: 'Mango Box', quantity: quantity, unitPricePaisa: 250000)],
+          method: method,
+          service: PostalService.vpl,
+          postalReference: reference,
+          deliveryChargePaisa: 15000,
+          estimatedPaymentDate: date,
+          status: ParcelStatus.sent,
+        ));
+    await create(ali, 'VPL 11111', CollectionMethod.postalCollection, 2);
+    final part = await create(long, 'VPL 22222', CollectionMethod.postalCollection, 3);
+    await create(ali, 'VPL 33333', CollectionMethod.payLater, 4, date: today);
+    final adv = await create(long, 'VPL 44444', CollectionMethod.advance, 1);
+    final back = await create(ali, 'VPL 55555', CollectionMethod.postalCollection, 2);
+    await create(long, 'VPL 66666', CollectionMethod.giftFree, 1);
+    await parcels.recordPayment(part, amountPaisa: 400000, type: PaymentType.customerPayment);
+    await parcels.recordPayment(adv, amountPaisa: 100000, type: PaymentType.advance);
+    await parcels.recordPayment(back, amountPaisa: 100000, type: PaymentType.advance);
+    await parcels.markReturned(back, date: today, reason: 'Customer refused');
+
+    await t.pumpWidget(DelivTrackApp(
+      repository: auth,
+      productRepository: FirestoreProductRepository(),
+      customerRepository: customers,
+      parcelRepository: parcels,
+    ));
+    await _settle(t);
+    await _settle(t);
+    await shot(t, '90_dashboard_top');
+    await t.drag(find.byType(SingleChildScrollView).first, const Offset(0, -6000));
+    await shot(t, '91_dashboard_bottom');
+    await t.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('More')));
+    await _settle(t);
+    await t.tap(find.widgetWithText(ListTile, 'Reports'));
+    await shot(t, '92_reports_list');
+    await t.tap(find.text('Outstanding payments'));
+    await shot(t, '93_report_outstanding');
+    await t.pageBack();
+    await _settle(t);
+    await t.tap(find.text('Payment received history'));
+    await shot(t, '94_report_payment_history');
+    await t.pageBack();
+    await _settle(t);
+    await t.tap(find.text('Returned parcels'));
+    await shot(t, '95_report_returned');
+  });
 }

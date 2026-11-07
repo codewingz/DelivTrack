@@ -19,6 +19,8 @@ import '../features/parcels/views/parcel_form_screen.dart';
 import '../features/parcels/views/parcels_screen.dart';
 import '../features/payments/views/payments_screen.dart';
 import '../features/reminders/data/reminder_scheduler.dart';
+import '../features/reports/domain/reports.dart';
+import '../features/reports/views/reports_screens.dart';
 import '../features/reminders/views/reminders_screen.dart';
 import '../features/products/data/product_repository.dart';
 import '../features/products/views/products_screen.dart';
@@ -43,6 +45,10 @@ class AppRoutes {
 
   static String parcelPath(String id) => '/parcels/$id';
   static const String reminders = '/reminders';
+  static const String reports = '/reports';
+  static const String reportDetails = '/reports/:type';
+
+  static String reportPath(String type) => '/reports/$type';
   static const String products = '/products';
   static const String customerNew = '/customers/new';
   static const String customerEdit = '/customers/edit';
@@ -108,6 +114,22 @@ GoRouter createRouter(
         path: AppRoutes.products,
         name: 'products',
         builder: (context, state) => ProductsScreen(repository: productRepository),
+      ),
+      GoRoute(
+        path: AppRoutes.reports,
+        name: 'reports',
+        builder: (context, state) => ReportsScreen(onOpen: (type) => context.push(AppRoutes.reportPath(type.name))),
+      ),
+      GoRoute(
+        path: AppRoutes.reportDetails,
+        name: 'reportDetails',
+        // An unknown report name leads back to the list instead of a broken screen.
+        redirect: (context, state) => ReportType.byName(state.pathParameters['type']!) == null ? AppRoutes.reports : null,
+        builder: (context, state) => ReportScreen(
+          repository: parcelRepository,
+          type: ReportType.byName(state.pathParameters['type']!)!,
+          onOpenParcel: (id) => context.push(AppRoutes.parcelPath(id)),
+        ),
       ),
       GoRoute(
         path: AppRoutes.reminders,
@@ -240,6 +262,7 @@ GoRouter createRouter(
                 MoreScreen(
                   repository: repository,
                   onOpenProducts: () => context.push(AppRoutes.products),
+                  onOpenReports: () => context.push(AppRoutes.reports),
                 ),
               ),
             ),

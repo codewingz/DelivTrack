@@ -39,6 +39,13 @@ class AppValidators {
     return null;
   }
 
+  /// Validates that a confirmation field equals [original].
+  static String? confirmPassword(String? value, String original) {
+    if ((value ?? '').isEmpty) return 'Please confirm your password';
+    if (value != original) return 'Passwords do not match';
+    return null;
+  }
+
   /// Validates numeric currency / payment amounts.
   static String? amount(
     String? value, {

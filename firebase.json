@@ -1,1 +1,31 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"delivtrack-codewingz","appId":"1:891535895885:android:31a4490d4d3e901dbb5b04","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"delivtrack-codewingz","configurations":{"android":"1:891535895885:android:31a4490d4d3e901dbb5b04"}}}}}}
+{
+    "flutter": {
+        "platforms": {
+            "android": {
+                "default": {
+                    "projectId": "delivtrack-codewingz",
+                    "appId": "1:891535895885:android:31a4490d4d3e901dbb5b04",
+                    "fileOutput": "android/app/google-services.json"
+                }
+            },
+            "dart": {
+                "lib/firebase_options.dart": {
+                    "projectId": "delivtrack-codewingz",
+                    "configurations": {
+                        "android": "1:891535895885:android:31a4490d4d3e901dbb5b04"
+                    }
+                }
+            }
+        }
+    },
+    "emulators": {
+        "auth": {
+            "port": 9099,
+            "host": "0.0.0.0"
+        },
+        "ui": {
+            "enabled": false
+        },
+        "singleProjectMode": true
+    }
+}

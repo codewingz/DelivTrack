@@ -4,7 +4,10 @@ import '../common_widgets/brand_loading_indicator.dart';
 import '../constants/app_colors.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
+  const SplashScreen({super.key, this.onFinished});
+
+  /// Called once the entrance animation completes.
+  final VoidCallback? onFinished;
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -36,7 +39,9 @@ class _SplashScreenState extends State<SplashScreen>
       ),
     );
 
-    _animController.forward();
+    _animController.forward().then((_) {
+      if (mounted) widget.onFinished?.call();
+    });
   }
 
   @override

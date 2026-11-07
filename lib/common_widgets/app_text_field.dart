@@ -6,8 +6,10 @@ import '../utils/app_validators.dart';
 /// Reusable input field adhering to DelivTrack design specifications.
 /// Supports named constructors:
 /// - [AppTextField] (general text)
+/// - [AppTextField.name]
 /// - [AppTextField.email]
 /// - [AppTextField.password]
+/// - [AppTextField.confirmPassword]
 /// - [AppTextField.amount]
 /// - [AppTextField.weight]
 /// - [AppTextField.phone]
@@ -67,6 +69,34 @@ class AppTextField extends StatefulWidget {
     this.focusNode,
     this.autovalidateMode,
   });
+
+  /// Person name field: word capitalization, required by default.
+  factory AppTextField.name({
+    Key? key,
+    TextEditingController? controller,
+    String label = 'Full Name',
+    String hint = 'e.g. Muhammad Afzaal',
+    bool isRequired = true,
+    bool enabled = true,
+    TextInputAction textInputAction = TextInputAction.next,
+    ValueChanged<String>? onFieldSubmitted,
+    FocusNode? focusNode,
+  }) {
+    return AppTextField(
+      key: key,
+      controller: controller,
+      label: label,
+      hint: hint,
+      isRequired: isRequired,
+      enabled: enabled,
+      textCapitalization: TextCapitalization.words,
+      textInputAction: textInputAction,
+      prefixIcon: const Icon(Icons.person_outline_rounded, size: 20, color: AppColors.label),
+      validator: isRequired ? (value) => AppValidators.required(value, fieldName: label) : null,
+      onFieldSubmitted: onFieldSubmitted,
+      focusNode: focusNode,
+    );
+  }
 
   /// Email field with email keyboard, lowercase formatting, and email validation.
   factory AppTextField.email({
@@ -141,6 +171,36 @@ class AppTextField extends StatefulWidget {
         return validator?.call(value);
       },
       onChanged: onChanged,
+      onFieldSubmitted: onFieldSubmitted,
+      focusNode: focusNode,
+    );
+  }
+
+  /// Password confirmation: visibility toggle, must equal [passwordController]'s text.
+  factory AppTextField.confirmPassword({
+    Key? key,
+    required TextEditingController passwordController,
+    TextEditingController? controller,
+    String label = 'Confirm Password',
+    String hint = 'Re-enter password',
+    bool enabled = true,
+    TextInputAction textInputAction = TextInputAction.done,
+    ValueChanged<String>? onFieldSubmitted,
+    FocusNode? focusNode,
+  }) {
+    return AppTextField(
+      key: key,
+      controller: controller,
+      label: label,
+      hint: hint,
+      isRequired: true,
+      enabled: enabled,
+      isPassword: true,
+      textCapitalization: TextCapitalization.none,
+      keyboardType: TextInputType.visiblePassword,
+      textInputAction: textInputAction,
+      prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20, color: AppColors.label),
+      validator: (value) => AppValidators.confirmPassword(value, passwordController.text),
       onFieldSubmitted: onFieldSubmitted,
       focusNode: focusNode,
     );

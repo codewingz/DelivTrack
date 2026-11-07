@@ -3,11 +3,12 @@ import 'package:deliv_track/main.dart';
 import 'package:deliv_track/common_widgets/app_logo.dart';
 import 'package:deliv_track/common_widgets/brand_loading_indicator.dart';
 import 'helpers/fake_auth_repository.dart';
+import 'helpers/fake_customer_repository.dart';
 import 'helpers/fake_product_repository.dart';
 
 void main() {
   testWidgets('DelivTrackApp Splash Screen smoke test', (WidgetTester tester) async {
-    await tester.pumpWidget(DelivTrackApp(repository: FakeAuthRepository(), productRepository: FakeProductRepository()));
+    await tester.pumpWidget(DelivTrackApp(repository: FakeAuthRepository(), productRepository: FakeProductRepository(), customerRepository: FakeCustomerRepository()));
     await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.byType(AppLogo), findsOneWidget);

@@ -4,6 +4,7 @@
 //     -d emulator-5554 --dart-define=SHOT_TAG=phone
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:deliv_track/features/auth/data/auth_repository.dart';
+import 'package:deliv_track/features/customers/data/customer_repository.dart';
 import 'package:deliv_track/features/products/data/product_repository.dart';
 import 'package:deliv_track/features/products/domain/product.dart';
 import 'package:deliv_track/features/products/views/product_form_sheet.dart';
@@ -41,7 +42,7 @@ void main() {
     await FirebaseAuth.instance.signOut();
     await binding.convertFlutterSurfaceToImage();
     final repo = FirebaseAuthRepository();
-    await t.pumpWidget(DelivTrackApp(repository: repo, productRepository: FirestoreProductRepository()));
+    await t.pumpWidget(DelivTrackApp(repository: repo, productRepository: FirestoreProductRepository(), customerRepository: FirestoreCustomerRepository()));
     await _settle(t);
     await _settle(t);
     await shot(t, '01_login');

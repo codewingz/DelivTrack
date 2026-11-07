@@ -3,6 +3,9 @@ import '../features/auth/data/auth_repository.dart';
 import '../features/auth/views/forgot_password_screen.dart';
 import '../features/auth/views/login_screen.dart';
 import '../features/auth/views/sign_up_screen.dart';
+import '../features/customers/data/customer_repository.dart';
+import '../features/customers/domain/customer.dart';
+import '../features/customers/views/customer_form_screen.dart';
 import '../features/dashboard/views/dashboard_screen.dart';
 import '../features/products/data/product_repository.dart';
 import '../features/products/views/products_screen.dart';
@@ -19,13 +22,19 @@ class AppRoutes {
   static const String home = '/home';
   static const String more = '/more';
   static const String products = '/products';
+  static const String customerNew = '/customers/new';
+  static const String customerEdit = '/customers/edit';
 
   static const _public = {login, signUp, forgotPassword};
 }
 
 /// Signed-in users never see the auth screens; signed-out users never see the app.
 /// Re-evaluated on every sign-in / sign-out, including a remote password reset.
-GoRouter createRouter(AuthRepository repository, ProductRepository productRepository) {
+GoRouter createRouter(
+  AuthRepository repository,
+  ProductRepository productRepository,
+  CustomerRepository customerRepository,
+) {
   return GoRouter(
     initialLocation: AppRoutes.splash,
     refreshListenable: StreamListenable(repository.signedInChanges),
@@ -71,6 +80,19 @@ GoRouter createRouter(AuthRepository repository, ProductRepository productReposi
         path: AppRoutes.products,
         name: 'products',
         builder: (context, state) => ProductsScreen(repository: productRepository),
+      ),
+      GoRoute(
+        path: AppRoutes.customerNew,
+        name: 'customerNew',
+        builder: (context, state) => CustomerFormScreen(repository: customerRepository),
+      ),
+      GoRoute(
+        path: AppRoutes.customerEdit,
+        name: 'customerEdit',
+        // The customer to edit travels as `extra`; without it there is nothing to edit.
+        redirect: (context, state) => state.extra is Customer ? null : AppRoutes.home,
+        builder: (context, state) =>
+            CustomerFormScreen(repository: customerRepository, customer: state.extra! as Customer),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) => AppShell(navigationShell: navigationShell),

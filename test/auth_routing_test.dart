@@ -4,10 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'helpers/fake_auth_repository.dart';
+import 'helpers/fake_customer_repository.dart';
 import 'helpers/fake_product_repository.dart';
 
 Future<void> _launch(WidgetTester t, FakeAuthRepository repo) async {
-  await t.pumpWidget(DelivTrackApp(repository: repo, productRepository: FakeProductRepository()));
+  await t.pumpWidget(DelivTrackApp(repository: repo, productRepository: FakeProductRepository(), customerRepository: FakeCustomerRepository()));
   await t.pump(const Duration(milliseconds: 2000)); // splash animation
   await t.pump();
   await t.pump();

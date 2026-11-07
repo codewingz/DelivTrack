@@ -2,6 +2,7 @@ import 'package:deliv_track/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'helpers/fake_auth_repository.dart';
+import 'helpers/fake_customer_repository.dart';
 import 'helpers/fake_product_repository.dart';
 
 Future<void> _launch(WidgetTester t, FakeAuthRepository repo, {Size size = const Size(393, 852), double scale = 1}) async {
@@ -10,7 +11,7 @@ Future<void> _launch(WidgetTester t, FakeAuthRepository repo, {Size size = const
   addTearDown(t.view.reset);
   t.platformDispatcher.textScaleFactorTestValue = scale;
   addTearDown(t.platformDispatcher.clearTextScaleFactorTestValue);
-  await t.pumpWidget(DelivTrackApp(repository: repo, productRepository: FakeProductRepository()));
+  await t.pumpWidget(DelivTrackApp(repository: repo, productRepository: FakeProductRepository(), customerRepository: FakeCustomerRepository()));
   await t.pump(const Duration(milliseconds: 2000));
   await t.pumpAndSettle();
 }

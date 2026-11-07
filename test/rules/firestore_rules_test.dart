@@ -418,6 +418,92 @@ void main() {
       expect(await emu.delete(u.token, path), 200, reason: 'released when a reference changes');
     }, skip: skip);
   });
+
+  group('audit log', () {
+    String apath(String uid, String id) => 'users/$uid/audit_logs/$id';
+    Map<String, Object?> entry({Map<String, Object?> overrides = const {}, List<String> remove = const []}) {
+      final base = <String, Object?>{
+        'entityType': 'parcel',
+        'entityId': 'p1',
+        'action': 'update',
+        'orderNumber': 'ADT-000001',
+        'changedFields': ['postalReference', 'parcelStatus'],
+      };
+      base.addAll(overrides);
+      for (final k in remove) {
+        base.remove(k);
+      }
+      return base;
+    }
+
+    test('owner can append entries and read them; nobody else can; entries never change', () async {
+      final a = await emu.signUp('au${DateTime.now().microsecondsSinceEpoch}@x.com');
+      final b = await emu.signUp('av${DateTime.now().microsecondsSinceEpoch}@x.com');
+      final lid = id();
+      expect(await emu.set(a.token, apath(a.uid, lid), entry(), serverTimes: const ['createdAt']), 200);
+      expect(await emu.get(a.token, apath(a.uid, lid)), 200);
+
+      expect(await emu.get(b.token, apath(a.uid, lid)), 403, reason: 'read');
+      expect((await emu.list(b.token, 'users/${a.uid}/audit_logs')).status, 403, reason: 'list');
+      expect(await emu.set(b.token, apath(a.uid, id()), entry(), serverTimes: const ['createdAt']), 403, reason: 'write into A');
+      expect(await emu.set(a.token, apath(a.uid, lid), entry(overrides: {'changedFields': ['x']}), serverTimes: const ['createdAt']), 403, reason: 'no rewriting');
+      expect(await emu.delete(a.token, apath(a.uid, lid)), 403, reason: 'no deleting');
+      expect(await emu.get(null, apath(a.uid, lid)), 403, reason: 'signed out');
+    }, skip: skip);
+
+    test('malformed entries are refused', () async {
+      final u = await emu.signUp('aw${DateTime.now().microsecondsSinceEpoch}@x.com');
+      Future<void> denied(String why, Map<String, Object?> data, {List<String> times = const ['createdAt']}) async =>
+          expect(await emu.set(u.token, apath(u.uid, id()), data, serverTimes: times), 403, reason: why);
+      await denied('unknown entity', entry(overrides: {'entityType': 'customer'}));
+      await denied('unknown action', entry(overrides: {'action': 'delete'}));
+      await denied('no changed fields', entry(overrides: {'changedFields': <Object?>[]}));
+      await denied('31 changed fields', entry(overrides: {'changedFields': List.generate(31, (i) => 'f$i')}));
+      await denied('changedFields not a list', entry(overrides: {'changedFields': 'postalReference'}));
+      await denied('missing entityId', entry(remove: ['entityId']));
+      await denied('empty entityId', entry(overrides: {'entityId': ''}));
+      await denied('bad order number', entry(overrides: {'orderNumber': 'order 1'}));
+      await denied('extra field', entry(overrides: {'note': 'hi'}));
+      await denied('client-supplied time', {...entry(), 'createdAt': DateTime.utc(2000)}, times: const []);
+      await denied('no time', entry(), times: const []);
+      expect(await emu.set(u.token, apath(u.uid, id()), entry(remove: ['orderNumber']), serverTimes: const ['createdAt']), 200, reason: 'order number is optional');
+    }, skip: skip);
+  });
+
+  group('parcel edits', () {
+    String ppath(String uid, String id) => 'users/$uid/parcels/$id';
+
+    test('an edit may remove optional fields and change status; amounts must stay consistent', () async {
+      final u = await emu.signUp('pe${DateTime.now().microsecondsSinceEpoch}@x.com');
+      final pid = id();
+      expect(
+        await emu.commit(u.token, [
+          DocWrite('users/${u.uid}/counters/orders', {'lastSequence': 1}),
+          DocWrite(ppath(u.uid, pid), _parcel(seq: 1, overrides: {'actualPackedWeightGrams': 1500}), serverTimes: const ['createdAt', 'updatedAt']),
+        ]),
+        200,
+      );
+      final created = await emu.createdAt(u.token, ppath(u.uid, pid));
+      Future<int> replace(Map<String, Object?> parcel) =>
+          emu.set(u.token, ppath(u.uid, pid), {...parcel, 'createdAt': created}, serverTimes: const ['updatedAt']);
+
+      // back to a draft: no reference, no charge, no packed weight
+      expect(
+        await replace(_parcel(seq: 1, overrides: {'parcelStatus': 'draft', 'postalReference': '', 'postalReferenceNormalized': ''}, remove: ['deliveryChargePaisa', 'actualPackedWeightGrams'])),
+        200,
+      );
+      // bigger order: expected and outstanding move together
+      expect(
+        await replace(_parcel(seq: 1, overrides: {'productAmountExpectedPaisa': 900000, 'outstandingPaisa': 900000})),
+        200,
+      );
+      expect(await replace(_parcel(seq: 1, overrides: {'productAmountExpectedPaisa': 900000, 'outstandingPaisa': 100})), 403);
+      // switching to a Pay Later parcel with a date
+      expect(await replace(_parcel(seq: 1, overrides: {'collectionMethod': 'credit', 'estimatedPaymentDateLocal': '2031-02-03'})), 200);
+      // ... but a date on a non Pay Later parcel is refused
+      expect(await replace(_parcel(seq: 1, overrides: {'estimatedPaymentDateLocal': '2031-02-03'})), 403);
+    }, skip: skip);
+  });
 }
 
 Future<DateTime> _readCreatedAt(EmulatorClient emu, String token, String uid, String pid) async =>

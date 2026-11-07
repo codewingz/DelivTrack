@@ -60,7 +60,9 @@ class FakeParcelRepository implements ParcelRepository {
   AppFailure? failure;
   Completer<void>? gate;
   final created = <ParcelInput>[];
+  final updated = <({String id, ParcelInput input})>[];
   int creates = 0;
+  int updates = 0;
   int watchAllCalls = 0;
   final List<Parcel> _parcels;
   final _changes = StreamController<void>.broadcast();
@@ -96,6 +98,35 @@ class FakeParcelRepository implements ParcelRepository {
     ));
     _changes.add(null);
     return 'parcel-$sequence';
+  }
+
+  @override
+  Future<void> update(String id, ParcelInput input) async {
+    updates++;
+    await gate?.future;
+    if (failure != null) throw failure!;
+    final index = _parcels.indexWhere((p) => p.id == id);
+    if (index < 0) throw const AppFailure('This parcel no longer exists.');
+    final old = _parcels[index];
+    updated.add((id: id, input: input));
+    _parcels[index] = testParcel(
+      id: id,
+      sequence: old.orderSequence,
+      customerName: input.customer.name,
+      customerPhone: input.customer.phone,
+      customerAddress: input.customer.address,
+      method: input.method,
+      service: input.service,
+      otherName: input.otherServiceName,
+      reference: input.postalReference.trim(),
+      charge: input.deliveryChargePaisa,
+      packedGrams: input.packedWeightGrams,
+      sendingDate: old.sendingDate,
+      payDate: input.estimatedPaymentDate,
+      status: input.status,
+      items: input.items,
+    );
+    _changes.add(null);
   }
 
   @override

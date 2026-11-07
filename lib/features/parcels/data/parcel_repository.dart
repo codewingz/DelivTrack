@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/errors/app_failure.dart';
+import '../../../core/data/changed_keys.dart';
 import '../../../core/errors/firestore_failure.dart';
 import '../../../core/ids/order_number.dart';
 import '../../../core/time/pakistan_time.dart';
@@ -10,6 +11,7 @@ import '../../../utils/text.dart';
 import '../domain/parcel.dart';
 import '../domain/parcel_enums.dart';
 import '../domain/parcel_input.dart';
+import '../domain/payment_rules.dart';
 import '../../../utils/postal_reference.dart';
 
 abstract class ParcelRepository {
@@ -22,6 +24,11 @@ abstract class ParcelRepository {
   /// Creates the parcel with the next order number. Returns the new parcel's id.
   /// Throws [AppFailure] (invalid input, reference already used, no connection...).
   Future<String> create(ParcelInput input);
+
+  /// Edits an existing parcel. The order number, sending date and creation time never change;
+  /// payments already received are kept. Writes an audit-log entry with the changed fields.
+  /// Throws [AppFailure] (not found, reference already used, no connection...).
+  Future<void> update(String id, ParcelInput input);
 }
 
 /// Data lives under `users/{uid}/parcels`; Firestore rules allow only that user.
@@ -117,6 +124,92 @@ class FirestoreParcelRepository implements ParcelRepository {
 
   static const _maxCreateAttempts = 5;
   static final _jitter = Random();
+
+  @override
+  Future<void> update(String id, ParcelInput input) async {
+    final problems = input.problems();
+    if (problems.isNotEmpty) throw AppFailure(problems.first);
+
+    try {
+      final parcelRef = _parcels.doc(id);
+      final auditRef = _userDoc.collection('audit_logs').doc();
+      final normalizedReference = normalizePostalReference(input.postalReference);
+      final newGuard = normalizedReference.isEmpty ? null : _guard(input.service, input.otherServiceName, normalizedReference);
+
+      await _firestore.runTransaction((tx) async {
+        final snapshot = await tx.get(parcelRef);
+        if (!snapshot.exists) throw const AppFailure('This parcel no longer exists.');
+        final before = snapshot.data()!;
+
+        if (before['parcelStatus'] == ParcelStatus.returned.value) {
+          throw const AppFailure("A returned parcel can't be edited.");
+        }
+        final received = before['receivedPaisa'] as int;
+        final wasFree = before['collectionMethod'] == CollectionMethod.giftFree.value;
+        final isFree = input.method == CollectionMethod.giftFree;
+        if (received > 0 && wasFree != isFree) {
+          throw const AppFailure("The parcel type can't change between Gift / Free and a paid type after a payment was received.");
+        }
+
+        final oldReference = before['postalReferenceNormalized'] as String;
+        final oldGuard = oldReference.isEmpty
+            ? null
+            : _guard(PostalService.fromValue(before['postalServiceType'] as String), before['otherPostalServiceName'] as String?, oldReference);
+
+        if (newGuard != null && newGuard.path != oldGuard?.path) {
+          final existing = await tx.get(newGuard);
+          if (existing.exists) throw AppFailure('This postal reference is already used on ${existing['orderNumber']}.');
+        }
+
+        final expected = input.expectedPaisa;
+        final updated = _editableFields(input, normalizedReference, expected, received, isFree);
+        final changed = changedKeys(before, {...before, ...updated}..removeWhere((key, value) => value == null));
+        if (changed.isEmpty) return;
+
+        if (oldGuard != null && oldGuard.path != newGuard?.path) tx.delete(oldGuard);
+        if (newGuard != null && newGuard.path != oldGuard?.path) {
+          tx.set(newGuard, {'parcelId': id, 'orderNumber': before['orderNumber']});
+        }
+        tx.update(parcelRef, {
+          for (final entry in updated.entries) entry.key: entry.value ?? FieldValue.delete(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        tx.set(auditRef, {
+          'entityType': 'parcel',
+          'entityId': id,
+          'action': 'update',
+          'orderNumber': before['orderNumber'],
+          'changedFields': changed,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      });
+    } on FirebaseException catch (e) {
+      throw firestoreFailure(e);
+    }
+  }
+
+  /// The fields an edit may change. A null value means "remove this optional field".
+  Map<String, Object?> _editableFields(ParcelInput input, String normalizedReference, int expected, int received, bool isFree) => {
+        'customerId': input.customer.id,
+        'customerSnapshot': {
+          'name': input.customer.name,
+          'phone': input.customer.phone,
+          'address': input.customer.address,
+        },
+        'items': [for (final item in input.items) item.toMap()],
+        'collectionMethod': input.method.value,
+        'postalServiceType': input.service.value,
+        'otherPostalServiceName': input.service == PostalService.other ? collapseSpaces(input.otherServiceName ?? '') : null,
+        'postalReference': input.postalReference.trim(),
+        'postalReferenceNormalized': normalizedReference,
+        'deliveryChargePaisa': input.deliveryChargePaisa,
+        'actualPackedWeightGrams': input.packedWeightGrams,
+        'estimatedPaymentDateLocal': input.estimatedPaymentDate,
+        'productAmountExpectedPaisa': expected,
+        'outstandingPaisa': outstandingFor(expectedPaisa: expected, receivedPaisa: received),
+        'paymentStatus': paymentStatusFor(isFree: isFree, expectedPaisa: expected, receivedPaisa: received).value,
+        'parcelStatus': input.status.value,
+      };
 
   Map<String, Object> _newParcelFields(ParcelInput input, String orderNumber, int sequence, String normalizedReference) {
     final isFree = input.method == CollectionMethod.giftFree;

@@ -56,3 +56,18 @@ int pieceLineTotalPaisa({required int quantity, required int unitPricePaisa}) =>
 /// Price of [grams] at [pricePerKgPaisa] per kg, rounded half up to a whole paisa.
 int weightLineTotalPaisa({required int grams, required int pricePerKgPaisa}) =>
     (grams * pricePerKgPaisa + 500) ~/ 1000;
+
+/// Paisa as text for an input field: 250000 -> "2500", 250050 -> "2500.50" (no "Rs.", no commas).
+String plainRupees(int paisa) {
+  final whole = paisa ~/ 100;
+  final fraction = paisa % 100;
+  return fraction == 0 ? '$whole' : '$whole.${fraction.toString().padLeft(2, '0')}';
+}
+
+/// Grams as text for an input field: 1250 -> "1.25", 2000 -> "2", 5 -> "0.005".
+String plainKg(int grams) {
+  final whole = grams ~/ 1000;
+  final fraction = grams % 1000;
+  if (fraction == 0) return '$whole';
+  return '$whole.${fraction.toString().padLeft(3, '0').replaceFirst(RegExp(r'0+$'), '')}';
+}

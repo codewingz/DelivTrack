@@ -196,4 +196,168 @@ void main() {
     await FirebaseAuth.instance.signOut();
     await expectLater(repo.create(_input()), throwsA(isA<AppFailure>()));
   });
+
+  group('editing', () {
+    Future<List<Map<String, dynamic>>> auditEntries() async {
+      final uid = FirebaseAuth.instance.currentUser!.uid;
+      final snapshot = await FirebaseFirestore.instance.collection('users/$uid/audit_logs').get();
+      return [for (final d in snapshot.docs) d.data()];
+    }
+
+    Future<Map<String, dynamic>> rawParcel(String id) async {
+      final uid = FirebaseAuth.instance.currentUser!.uid;
+      return (await FirebaseFirestore.instance.doc('users/$uid/parcels/$id').get()).data()!;
+    }
+
+    Future<Parcel> waitFor(String id, bool Function(Parcel) test) => repo
+        .watch(id)
+        .firstWhere((p) => p != null && test(p))
+        .timeout(const Duration(seconds: 10), onTimeout: () => throw StateError('parcel never reached the expected state'))
+        .then((p) => p!);
+
+    testWidgets('a draft becomes Sent: slip details saved, reference reserved, number/date/created time untouched, audit entry written', (t) async {
+      await signUpNewUser('edraft');
+      final id = await repo.create(_input(status: ParcelStatus.draft, reference: '', charge: null));
+      final before = await rawParcel(id);
+
+      await repo.update(id, _input(reference: 'vpp 77777', charge: 20000, packedGrams: 2500));
+      final after = await waitFor(id, (p) => p.status == ParcelStatus.sent);
+      expect(after.postalReference, 'vpp 77777');
+      expect(after.deliveryChargePaisa, 20000);
+      expect(after.packedWeightGrams, 2500);
+      expect(after.orderNumber, 'ADT-000001');
+
+      final raw = await rawParcel(id);
+      for (final locked in ['orderNumber', 'orderSequence', 'sendingDateLocal', 'createdAt']) {
+        expect(raw[locked], before[locked], reason: '$locked must never change');
+      }
+      expect(raw['postalReferenceNormalized'], 'VPP77777');
+
+      // the reference is now taken
+      await expectLater(
+        repo.create(_input(reference: 'VPP 77777')),
+        throwsA(isA<AppFailure>().having((e) => e.message, 'message', 'This postal reference is already used on ADT-000001.')),
+      );
+
+      final audit = await auditEntries();
+      expect(audit, hasLength(1));
+      expect(audit.single['entityType'], 'parcel');
+      expect(audit.single['entityId'], id);
+      expect(audit.single['orderNumber'], 'ADT-000001');
+      expect(audit.single['changedFields'], containsAll(['parcelStatus', 'postalReference', 'postalReferenceNormalized', 'deliveryChargePaisa', 'actualPackedWeightGrams']));
+    });
+
+    testWidgets('changing the reference frees the old one and reserves the new one; a taken reference is refused and changes nothing', (t) async {
+      await signUpNewUser('eref');
+      final a = await repo.create(_input(reference: 'VPP 11111'));
+      final b = await repo.create(_input(reference: 'VPP 22222'));
+      final bNumber = (await read(repo, b)).orderNumber;
+
+      await expectLater(
+        repo.update(a, _input(reference: 'VPP22222')),
+        throwsA(isA<AppFailure>().having((e) => e.message, 'message', 'This postal reference is already used on $bNumber.')),
+      );
+      expect((await rawParcel(a))['postalReference'], 'VPP 11111', reason: 'a refused edit changes nothing');
+      expect(await auditEntries(), isEmpty, reason: 'and writes no audit entry');
+
+      await repo.update(a, _input(reference: 'VPP 33333'));
+      await waitFor(a, (p) => p.postalReference == 'VPP 33333');
+      // the old reference can be used again, the new one cannot
+      await repo.create(_input(reference: 'VPP 11111'));
+      await expectLater(repo.create(_input(reference: 'VPP 33333')), throwsA(isA<AppFailure>()));
+      // keeping its own reference while editing something else is not a conflict
+      await repo.update(a, _input(reference: 'VPP 33333', charge: 999));
+      expect((await waitFor(a, (p) => p.deliveryChargePaisa == 999)).postalReference, 'VPP 33333');
+    });
+
+    testWidgets('changed products recalculate the totals; Gift / Free expects nothing; payment status follows', (t) async {
+      await signUpNewUser('etotals');
+      final id = await repo.create(_input());
+      expect((await read(repo, id)).expectedPaisa, 500000);
+
+      await repo.update(id, _input(items: [
+        ParcelItem.pieces(productId: 'p1', productName: 'Mango Box', quantity: 3, unitPricePaisa: 100000),
+        ParcelItem.weight(productId: 'p2', productName: 'Dry Fruits', weightGrams: 1250, unitPricePaisa: 80000),
+      ]));
+      final bigger = await waitFor(id, (p) => p.items.length == 2);
+      expect(bigger.expectedPaisa, 400000);
+      expect(bigger.outstandingPaisa, 400000);
+      expect(bigger.paymentStatus, PaymentStatus.pending);
+
+      await repo.update(id, _input(method: CollectionMethod.giftFree, service: PostalService.vpl, items: [
+        ParcelItem.pieces(productId: 'p1', productName: 'Mango Box', quantity: 3, unitPricePaisa: 0),
+      ]));
+      final gift = await waitFor(id, (p) => p.method == CollectionMethod.giftFree);
+      expect(gift.expectedPaisa, 0);
+      expect(gift.outstandingPaisa, 0);
+      expect(gift.paymentStatus, PaymentStatus.notRequired);
+    });
+
+    testWidgets('optional fields can be removed again (charge, packed weight, service name, payment date)', (t) async {
+      await signUpNewUser('eopt');
+      final id = await repo.create(_input(
+        method: CollectionMethod.payLater,
+        service: PostalService.other,
+        otherName: 'Fast Courier',
+        reference: 'ABC 12345',
+        packedGrams: 1500,
+        payDate: '2999-01-31',
+      ));
+      expect((await rawParcel(id))['otherPostalServiceName'], 'Fast Courier');
+
+      await repo.update(id, _input(
+        status: ParcelStatus.draft,
+        method: CollectionMethod.payLater,
+        service: PostalService.vpl,
+        reference: '',
+        charge: null,
+      ));
+      await waitFor(id, (p) => p.status == ParcelStatus.draft);
+      final raw = await rawParcel(id);
+      for (final removed in ['otherPostalServiceName', 'deliveryChargePaisa', 'actualPackedWeightGrams', 'estimatedPaymentDateLocal']) {
+        expect(raw.containsKey(removed), isFalse, reason: '$removed should be gone');
+      }
+      expect(raw['postalReferenceNormalized'], '');
+      // clearing the reference released it
+      await repo.create(_input(reference: 'ABC 12345', service: PostalService.other, otherName: 'Fast Courier'));
+    });
+
+    testWidgets('an edit that changes nothing writes nothing', (t) async {
+      await signUpNewUser('enoop');
+      final id = await repo.create(_input());
+      final before = await rawParcel(id);
+      await repo.update(id, _input());
+      final after = await rawParcel(id);
+      expect(after['updatedAt'], before['updatedAt']);
+      expect(await auditEntries(), isEmpty);
+    });
+
+    testWidgets('unknown parcel and invalid input are refused', (t) async {
+      await signUpNewUser('ebad');
+      await expectLater(repo.update('does-not-exist', _input()), throwsA(isA<AppFailure>().having((e) => e.message, 'message', 'This parcel no longer exists.')));
+      final id = await repo.create(_input());
+      await expectLater(repo.update(id, _input(items: [])), throwsA(isA<AppFailure>()));
+      await expectLater(repo.update(id, _input(charge: null)), throwsA(isA<AppFailure>()), reason: 'a sent parcel keeps its slip details');
+      await expectLater(repo.update(id, _input(reference: '')), throwsA(isA<AppFailure>()));
+    });
+
+    testWidgets("another user cannot edit or read this user's parcel or audit log", (t) async {
+      await signUpNewUser('eisoA');
+      final aUid = FirebaseAuth.instance.currentUser!.uid;
+      final id = await repo.create(_input(status: ParcelStatus.draft, reference: '', charge: null));
+      await repo.update(id, _input(reference: 'VPP 99999'));
+      await waitFor(id, (p) => p.status == ParcelStatus.sent);
+
+      await signUpNewUser('eisoB');
+      await expectLater(repo.update(id, _input()), throwsA(isA<AppFailure>()), reason: "B's own data has no such parcel");
+      final db = FirebaseFirestore.instance;
+      for (final action in <Future<Object?> Function()>[
+        () => db.doc('users/$aUid/parcels/$id').update({'parcelStatus': 'returned'}),
+        () => db.collection('users/$aUid/audit_logs').get(),
+        () => db.collection('users/$aUid/audit_logs').add({'entityType': 'parcel', 'entityId': id, 'action': 'update', 'changedFields': ['x'], 'createdAt': FieldValue.serverTimestamp()}),
+      ]) {
+        await expectLater(action(), throwsA(isA<FirebaseException>().having((e) => e.code, 'code', 'permission-denied')));
+      }
+    });
+  });
 }

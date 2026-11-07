@@ -179,6 +179,22 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Audit log: one entry per edit of a parcel. Written together with the edit, never changed.
+    match /users/{uid}/audit_logs/{logId} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid)
+        && request.resource.data.keys().hasOnly(['entityType', 'entityId', 'action', 'orderNumber', 'changedFields', 'createdAt'])
+        && request.resource.data.keys().hasAll(['entityType', 'entityId', 'action', 'changedFields', 'createdAt'])
+        && request.resource.data.entityType in ['parcel']
+        && request.resource.data.entityId is string && request.resource.data.entityId.size() > 0 && request.resource.data.entityId.size() <= 40
+        && request.resource.data.action in ['update']
+        && request.resource.data.changedFields is list
+        && request.resource.data.changedFields.size() >= 1 && request.resource.data.changedFields.size() <= 30
+        && (!('orderNumber' in request.resource.data) || request.resource.data.orderNumber.matches('^ADT-[0-9]{6,}$'))
+        && request.resource.data.createdAt == request.time;
+      allow update, delete: if false;
+    }
+
     // Everything else is closed.
     match /{document=**} {
       allow read, write: if false;

@@ -6,6 +6,8 @@ import 'package:deliv_track/features/parcels/domain/parcel.dart';
 import 'package:deliv_track/features/parcels/domain/parcel_enums.dart';
 import 'package:deliv_track/features/parcels/domain/parcel_input.dart';
 import 'package:deliv_track/features/parcels/domain/parcel_item.dart';
+import 'package:deliv_track/features/parcels/domain/payment.dart';
+import 'package:deliv_track/features/parcels/domain/payment_rules.dart';
 
 /// A saved parcel for tests (override what a test cares about).
 Parcel testParcel({
@@ -24,6 +26,7 @@ Parcel testParcel({
   String? payDate,
   ParcelStatus status = ParcelStatus.sent,
   PaymentStatus? payment,
+  int received = 0,
   List<ParcelItem>? items,
 }) {
   final lines = items ?? [ParcelItem.pieces(productId: 'x', productName: 'Mango Box', quantity: 2, unitPricePaisa: 250000)];
@@ -46,9 +49,10 @@ Parcel testParcel({
     sendingDate: sendingDate,
     estimatedPaymentDate: payDate,
     expectedPaisa: expected,
-    receivedPaisa: 0,
-    outstandingPaisa: expected,
-    paymentStatus: payment ?? (method == CollectionMethod.giftFree ? PaymentStatus.notRequired : PaymentStatus.pending),
+    receivedPaisa: received,
+    outstandingPaisa: outstandingFor(expectedPaisa: expected, receivedPaisa: received),
+    paymentStatus: payment ??
+        paymentStatusFor(isFree: method == CollectionMethod.giftFree, expectedPaisa: expected, receivedPaisa: received),
     status: status,
   );
 }
@@ -64,6 +68,8 @@ class FakeParcelRepository implements ParcelRepository {
   int creates = 0;
   int updates = 0;
   int watchAllCalls = 0;
+  int paymentRecords = 0;
+  final payments = <String, List<Payment>>{};
   final List<Parcel> _parcels;
   final _changes = StreamController<void>.broadcast();
 
@@ -127,6 +133,44 @@ class FakeParcelRepository implements ParcelRepository {
       items: input.items,
     );
     _changes.add(null);
+  }
+
+  @override
+  Future<void> recordPayment(String parcelId, {required int amountPaisa, required PaymentType type, String? note}) async {
+    paymentRecords++;
+    await gate?.future;
+    if (failure != null) throw failure!;
+    final cleanNote = (note ?? '').trim();
+    final problem = paymentProblem(amountPaisa: amountPaisa, note: cleanNote);
+    if (problem != null) throw AppFailure(problem);
+    final index = _parcels.indexWhere((p) => p.id == parcelId);
+    if (index < 0) throw const AppFailure('This parcel no longer exists.');
+    final old = _parcels[index];
+    if (old.method == CollectionMethod.giftFree) throw const AppFailure('A Gift / Free parcel has no payment to receive.');
+    if (old.status == ParcelStatus.returned) throw const AppFailure("A returned parcel can't take payments.");
+    if (amountPaisa > old.outstandingPaisa) throw const AppFailure('Cannot exceed outstanding amount.');
+    _parcels[index] = testParcel(
+      id: old.id,
+      sequence: old.orderSequence,
+      method: old.method,
+      service: old.service,
+      reference: old.postalReference,
+      charge: old.deliveryChargePaisa,
+      payDate: old.estimatedPaymentDate,
+      status: old.status,
+      items: old.items,
+      received: old.receivedPaisa + amountPaisa,
+    );
+    (payments[parcelId] ??= []).insert(0, Payment(id: 'pay-$paymentRecords', amountPaisa: amountPaisa, type: type, note: cleanNote.isEmpty ? null : cleanNote, receivedAt: DateTime.now()));
+    _changes.add(null);
+  }
+
+  @override
+  Stream<List<Payment>> watchPayments(String parcelId) async* {
+    yield List.of(payments[parcelId] ?? const []);
+    await for (final _ in _changes.stream) {
+      yield List.of(payments[parcelId] ?? const []);
+    }
   }
 
   @override

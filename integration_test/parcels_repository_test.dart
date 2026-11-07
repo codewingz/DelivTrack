@@ -10,6 +10,7 @@ import 'package:deliv_track/features/parcels/domain/parcel.dart';
 import 'package:deliv_track/features/parcels/domain/parcel_enums.dart';
 import 'package:deliv_track/features/parcels/domain/parcel_input.dart';
 import 'package:deliv_track/features/parcels/domain/parcel_item.dart';
+import 'package:deliv_track/features/parcels/domain/payment.dart';
 import 'package:deliv_track/firebase_options.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -358,6 +359,87 @@ void main() {
       ]) {
         await expectLater(action(), throwsA(isA<FirebaseException>().having((e) => e.code, 'code', 'permission-denied')));
       }
+    });
+  });
+
+  group('payments', () {
+    // Order total is Rs. 5,000 (2 x Rs. 2,500).
+    Future<Parcel> waitFor(String id, bool Function(Parcel) test) => repo
+        .watch(id)
+        .firstWhere((p) => p != null && test(p))
+        .timeout(const Duration(seconds: 10))
+        .then((p) => p!);
+
+    testWidgets('partial then final payment move the parcel to received; history is newest first', (t) async {
+      await signUpNewUser('pay');
+      final id = await repo.create(_input());
+      await repo.recordPayment(id, amountPaisa: 200000, type: PaymentType.advance, note: '  first   part ');
+      var parcel = await waitFor(id, (p) => p.receivedPaisa == 200000);
+      expect(parcel.outstandingPaisa, 300000);
+      expect(parcel.paymentStatus, PaymentStatus.partial);
+
+      await repo.recordPayment(id, amountPaisa: 300000, type: PaymentType.postOfficeRemittance);
+      parcel = await waitFor(id, (p) => p.receivedPaisa == 500000);
+      expect(parcel.outstandingPaisa, 0);
+      expect(parcel.paymentStatus, PaymentStatus.received);
+
+      final history = await repo.watchPayments(id).firstWhere((l) => l.length == 2).timeout(const Duration(seconds: 10));
+      expect(history.map((p) => p.amountPaisa), [300000, 200000], reason: 'newest first');
+      expect(history.last.note, 'first part');
+      expect(history.first.note, isNull);
+      expect(history.last.type, PaymentType.advance);
+    });
+
+    testWidgets('overpaying, zero, a long note, a gift parcel and a missing parcel are refused', (t) async {
+      await signUpNewUser('payneg');
+      final id = await repo.create(_input());
+      await expectLater(repo.recordPayment(id, amountPaisa: 500100, type: PaymentType.customerPayment), throwsA(isA<AppFailure>()));
+      await expectLater(repo.recordPayment(id, amountPaisa: 0, type: PaymentType.customerPayment), throwsA(isA<AppFailure>()));
+      await expectLater(
+        repo.recordPayment(id, amountPaisa: 100, type: PaymentType.customerPayment, note: 'x' * 201),
+        throwsA(isA<AppFailure>()),
+      );
+      final gift = await repo.create(_input(reference: 'VPL 99999', method: CollectionMethod.giftFree, service: PostalService.vpl));
+      await expectLater(repo.recordPayment(gift, amountPaisa: 100, type: PaymentType.customerPayment), throwsA(isA<AppFailure>()));
+      await expectLater(repo.recordPayment('nope', amountPaisa: 100, type: PaymentType.customerPayment), throwsA(isA<AppFailure>()));
+      expect((await read(repo, id)).receivedPaisa, 0, reason: 'nothing was recorded');
+      expect(await repo.watchPayments(id).first, isEmpty);
+    });
+
+    testWidgets('two payments at the same moment: both counted once, never above the order total', (t) async {
+      await signUpNewUser('paypar');
+      final id = await repo.create(_input());
+      await Future.wait([
+        for (var i = 0; i < 3; i++) repo.recordPayment(id, amountPaisa: 100000, type: PaymentType.customerPayment),
+      ]);
+      final parcel = await waitFor(id, (p) => p.receivedPaisa == 300000);
+      expect(parcel.outstandingPaisa, 200000);
+      expect(await repo.watchPayments(id).firstWhere((l) => l.length == 3).timeout(const Duration(seconds: 10)), hasLength(3));
+    });
+
+    testWidgets('overlapping payments that together exceed the total: the last one is refused, nothing is lost', (t) async {
+      await signUpNewUser('payover');
+      final id = await repo.create(_input());
+      final results = await Future.wait([
+        for (var i = 0; i < 3; i++)
+          repo.recordPayment(id, amountPaisa: 200000, type: PaymentType.customerPayment).then((_) => true, onError: (_) => false),
+      ]);
+      expect(results.where((ok) => ok), hasLength(2), reason: '2 x Rs. 2,000 fit in Rs. 5,000, a third does not');
+      final parcel = await waitFor(id, (p) => p.receivedPaisa == 400000);
+      expect(parcel.outstandingPaisa, 100000);
+    });
+
+    testWidgets('editing a parcel keeps what was received and recalculates the balance', (t) async {
+      await signUpNewUser('payedit');
+      final id = await repo.create(_input());
+      await repo.recordPayment(id, amountPaisa: 200000, type: PaymentType.advance);
+      await repo.update(
+        id,
+        _input(items: [ParcelItem.pieces(productId: 'p1', productName: 'Mango Box', quantity: 3, unitPricePaisa: 250000)]),
+      );
+      final parcel = await waitFor(id, (p) => p.expectedPaisa == 750000);
+      expect(parcel.receivedPaisa, 200000);
+      expect(parcel.outstandingPaisa, 550000);
     });
   });
 }

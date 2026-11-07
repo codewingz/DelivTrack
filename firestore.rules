@@ -179,6 +179,27 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Payments: append-only. A payment is created in the same commit that moves the parcel's received
+    // amount by exactly that much, never beyond what is outstanding, never on a Gift / Free or returned parcel.
+    match /users/{uid}/parcels/{parcelId}/payments/{paymentId} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid)
+        && request.resource.data.keys().hasOnly(['amountPaisa', 'paymentType', 'note', 'receivedAt', 'recordedAt'])
+        && request.resource.data.keys().hasAll(['amountPaisa', 'paymentType', 'receivedAt', 'recordedAt'])
+        && request.resource.data.amountPaisa is int
+        && request.resource.data.amountPaisa > 0 && request.resource.data.amountPaisa <= 9999999900
+        && request.resource.data.paymentType in ['advance', 'post_office_remittance', 'customer_payment']
+        && (!('note' in request.resource.data) || (request.resource.data.note is string && request.resource.data.note.size() <= 200))
+        && request.resource.data.receivedAt == request.time
+        && request.resource.data.recordedAt == request.time
+        && get(/databases/$(database)/documents/users/$(uid)/parcels/$(parcelId)).data.parcelStatus != 'returned'
+        && get(/databases/$(database)/documents/users/$(uid)/parcels/$(parcelId)).data.collectionMethod != 'free_gift'
+        && request.resource.data.amountPaisa <= get(/databases/$(database)/documents/users/$(uid)/parcels/$(parcelId)).data.outstandingPaisa
+        && getAfter(/databases/$(database)/documents/users/$(uid)/parcels/$(parcelId)).data.receivedPaisa
+            == get(/databases/$(database)/documents/users/$(uid)/parcels/$(parcelId)).data.receivedPaisa + request.resource.data.amountPaisa;
+      allow update, delete: if false;
+    }
+
     // Audit log: one entry per edit of a parcel. Written together with the edit, never changed.
     match /users/{uid}/audit_logs/{logId} {
       allow read: if isOwner(uid);

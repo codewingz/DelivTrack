@@ -10,3 +10,12 @@ PaymentStatus paymentStatusFor({required bool isFree, required int expectedPaisa
   if (receivedPaisa > 0) return PaymentStatus.partial;
   return PaymentStatus.pending;
 }
+
+const maxPaymentNoteLength = 200;
+
+/// Why a payment can't be recorded (before looking at the parcel), or null when it is fine.
+String? paymentProblem({required int amountPaisa, required String note}) {
+  if (amountPaisa <= 0) return 'Enter an amount.';
+  if (note.length > maxPaymentNoteLength) return 'Use at most $maxPaymentNoteLength characters.';
+  return null;
+}

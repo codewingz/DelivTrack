@@ -6,11 +6,13 @@ import '../../../core/errors/app_failure.dart';
 import '../../../core/data/changed_keys.dart';
 import '../../../core/errors/firestore_failure.dart';
 import '../../../core/ids/order_number.dart';
+import '../../../core/money/money.dart';
 import '../../../core/time/pakistan_time.dart';
 import '../../../utils/text.dart';
 import '../domain/parcel.dart';
 import '../domain/parcel_enums.dart';
 import '../domain/parcel_input.dart';
+import '../domain/payment.dart';
 import '../domain/payment_rules.dart';
 import '../../../utils/postal_reference.dart';
 
@@ -29,6 +31,14 @@ abstract class ParcelRepository {
   /// payments already received are kept. Writes an audit-log entry with the changed fields.
   /// Throws [AppFailure] (not found, reference already used, no connection...).
   Future<void> update(String id, ParcelInput input);
+
+  /// A parcel's payments, newest first.
+  Stream<List<Payment>> watchPayments(String parcelId);
+
+  /// Records a payment and moves the parcel's received / outstanding / payment status in one
+  /// transaction. Throws [AppFailure] (amount not above 0 or above the outstanding balance, Gift / Free
+  /// or returned parcel, note too long, no connection...).
+  Future<void> recordPayment(String parcelId, {required int amountPaisa, required PaymentType type, String? note});
 }
 
 /// Data lives under `users/{uid}/parcels`; Firestore rules allow only that user.
@@ -87,43 +97,47 @@ class FirestoreParcelRepository implements ParcelRepository {
           ? null
           : _guard(input.service, input.otherServiceName, normalizedReference);
 
-      // Two saves at the same moment both read the same counter. The mobile SDK commits with a
-      // "counter unchanged" precondition, but Firestore checks the rules first, so the loser is
-      // answered "permission-denied" (not the retryable "aborted"). Verified against the real
-      // backend (5 parallel saves: one wins per round, all succeed within 5 attempts). So a
-      // denied attempt is retried a few times with a fresh counter read; a genuine denial fails
-      // the same way every time and is reported after the last attempt.
-      for (var attempt = 1;; attempt++) {
-        try {
-          return await _firestore.runTransaction((tx) async {
-            final counter = await tx.get(_counter);
-            final sequence = (counter.exists ? counter['lastSequence'] as int : 0) + 1;
-            final orderNumber = formatOrderNumber(sequence);
+      return await _retryWhenDenied(() => _firestore.runTransaction((tx) async {
+        final counter = await tx.get(_counter);
+        final sequence = (counter.exists ? counter['lastSequence'] as int : 0) + 1;
+        final orderNumber = formatOrderNumber(sequence);
 
-            if (guard != null) {
-              final existing = await tx.get(guard);
-              if (existing.exists) {
-                throw AppFailure('This postal reference is already used on ${existing['orderNumber']}.');
-              }
-            }
-
-            tx.set(_counter, {'lastSequence': sequence});
-            tx.set(parcelRef, _newParcelFields(input, orderNumber, sequence, normalizedReference));
-            if (guard != null) tx.set(guard, {'parcelId': parcelRef.id, 'orderNumber': orderNumber});
-            return parcelRef.id;
-          });
-        } on FirebaseException catch (e) {
-          if (e.code != 'permission-denied' || attempt >= _maxCreateAttempts) throw firestoreFailure(e);
-          await Future<void>.delayed(Duration(milliseconds: 25 * attempt + _jitter.nextInt(75)));
+        if (guard != null) {
+          final existing = await tx.get(guard);
+          if (existing.exists) {
+            throw AppFailure('This postal reference is already used on ${existing['orderNumber']}.');
+          }
         }
-      }
+
+        tx.set(_counter, {'lastSequence': sequence});
+        tx.set(parcelRef, _newParcelFields(input, orderNumber, sequence, normalizedReference));
+        if (guard != null) tx.set(guard, {'parcelId': parcelRef.id, 'orderNumber': orderNumber});
+        return parcelRef.id;
+      }));
     } on FirebaseException catch (e) {
       throw firestoreFailure(e);
     }
   }
 
-  static const _maxCreateAttempts = 5;
+  static const _maxAttempts = 5;
   static final _jitter = Random();
+
+  /// Two writes at the same moment both read the same document. The mobile SDK commits with an
+  /// "unchanged since read" precondition, but Firestore checks the rules first, so the loser is
+  /// answered "permission-denied" (not the retryable "aborted"). Verified against the real backend
+  /// (5 parallel saves: one wins per round, all succeed within 5 attempts). So a denied attempt is
+  /// retried a few times with a fresh read; a genuine denial fails the same way every time and is
+  /// reported after the last attempt.
+  Future<T> _retryWhenDenied<T>(Future<T> Function() attempt) async {
+    for (var tries = 1;; tries++) {
+      try {
+        return await attempt();
+      } on FirebaseException catch (e) {
+        if (e.code != 'permission-denied' || tries >= _maxAttempts) throw firestoreFailure(e);
+        await Future<void>.delayed(Duration(milliseconds: 25 * tries + _jitter.nextInt(75)));
+      }
+    }
+  }
 
   @override
   Future<void> update(String id, ParcelInput input) async {
@@ -183,6 +197,65 @@ class FirestoreParcelRepository implements ParcelRepository {
           'createdAt': FieldValue.serverTimestamp(),
         });
       });
+    } on FirebaseException catch (e) {
+      throw firestoreFailure(e);
+    }
+  }
+
+  @override
+  Stream<List<Payment>> watchPayments(String parcelId) => _parcels
+      .doc(parcelId)
+      .collection('payments')
+      .orderBy('receivedAt', descending: true)
+      .snapshots()
+      .map((snapshot) => [
+            for (final doc in snapshot.docs)
+              Payment(
+                id: doc.id,
+                amountPaisa: doc['amountPaisa'] as int,
+                type: PaymentType.fromValue(doc['paymentType'] as String),
+                note: doc.data()['note'] as String?,
+                receivedAt: (doc['receivedAt'] as Timestamp).toDate(),
+              ),
+          ])
+      .withFirestoreFailures();
+
+  @override
+  Future<void> recordPayment(String parcelId, {required int amountPaisa, required PaymentType type, String? note}) async {
+    final cleanNote = collapseSpaces(note ?? '');
+    final problem = paymentProblem(amountPaisa: amountPaisa, note: cleanNote);
+    if (problem != null) throw AppFailure(problem);
+
+    final parcelRef = _parcels.doc(parcelId);
+    final paymentRef = parcelRef.collection('payments').doc();
+    try {
+      await _retryWhenDenied(() => _firestore.runTransaction((tx) async {
+            final snapshot = await tx.get(parcelRef);
+            if (!snapshot.exists) throw const AppFailure('This parcel no longer exists.');
+            final parcel = snapshot.data()!;
+            if (parcel['parcelStatus'] == ParcelStatus.returned.value) throw const AppFailure("A returned parcel can't take payments.");
+            final isFree = parcel['collectionMethod'] == CollectionMethod.giftFree.value;
+            if (isFree) throw const AppFailure('A Gift / Free parcel has no payment to receive.');
+
+            final outstanding = parcel['outstandingPaisa'] as int;
+            if (amountPaisa > outstanding) throw AppFailure('Cannot exceed outstanding ${formatRupees(outstanding)}.');
+
+            final expected = parcel['productAmountExpectedPaisa'] as int;
+            final received = (parcel['receivedPaisa'] as int) + amountPaisa;
+            tx.update(parcelRef, {
+              'receivedPaisa': received,
+              'outstandingPaisa': outstandingFor(expectedPaisa: expected, receivedPaisa: received),
+              'paymentStatus': paymentStatusFor(isFree: isFree, expectedPaisa: expected, receivedPaisa: received).value,
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+            tx.set(paymentRef, {
+              'amountPaisa': amountPaisa,
+              'paymentType': type.value,
+              if (cleanNote.isNotEmpty) 'note': cleanNote,
+              'receivedAt': FieldValue.serverTimestamp(),
+              'recordedAt': FieldValue.serverTimestamp(),
+            });
+          }));
     } on FirebaseException catch (e) {
       throw firestoreFailure(e);
     }

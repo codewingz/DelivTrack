@@ -470,6 +470,119 @@ void main() {
     }, skip: skip);
   });
 
+  group('payments', () {
+    String ppath(String uid, String id) => 'users/$uid/parcels/$id';
+    String paypath(String uid, String id, String pay) => 'users/$uid/parcels/$id/payments/$pay';
+
+    Map<String, Object?> payment({int amount = 100000, String type = 'customer_payment', Map<String, Object?> extra = const {}}) =>
+        {'amountPaisa': amount, 'paymentType': type, ...extra};
+
+    /// A signed-up user with one parcel (expected Rs. 5,000) ready to take payments.
+    Future<({({String uid, String token}) user, String pid, DateTime created})> setup({Map<String, Object?> overrides = const {}}) async {
+      final u = await emu.signUp('pay${DateTime.now().microsecondsSinceEpoch}_${n++}@x.com');
+      final pid = id();
+      expect(
+        await emu.commit(u.token, [
+          DocWrite('users/${u.uid}/counters/orders', {'lastSequence': 1}),
+          DocWrite(ppath(u.uid, pid), _parcel(seq: 1, overrides: overrides), serverTimes: const ['createdAt', 'updatedAt']),
+        ]),
+        200,
+      );
+      return (user: u, pid: pid, created: await emu.createdAt(u.token, ppath(u.uid, pid)));
+    }
+
+    /// The app's transaction: the parcel's received/outstanding move together with the new payment.
+    Future<int> receive(({({String uid, String token}) user, String pid, DateTime created}) s, Map<String, Object?> pay,
+        {int? receivedTo, int? outstandingTo, String? asUid, String? token, int expected = 500000, int receivedBefore = 0, Map<String, Object?> overrides = const {}}) {
+      final to = receivedTo ?? receivedBefore + (pay['amountPaisa'] as int);
+      final out = outstandingTo ?? (expected > to ? expected - to : 0);
+      return emu.commit(token ?? s.user.token, [
+        DocWrite(
+          ppath(asUid ?? s.user.uid, s.pid),
+          {
+            ..._parcel(seq: 1, overrides: {'receivedPaisa': to, 'outstandingPaisa': out, 'paymentStatus': out == 0 ? 'received' : 'partial', ...overrides}),
+            'createdAt': s.created,
+          },
+          serverTimes: const ['updatedAt'],
+        ),
+        DocWrite('users/${asUid ?? s.user.uid}/parcels/${s.pid}/payments/pay${DateTime.now().microsecondsSinceEpoch}_${n++}', {...pay, 'receivedAt': null, 'recordedAt': null}..removeWhere((k, v) => v == null), serverTimes: const ['receivedAt', 'recordedAt']),
+      ]);
+    }
+
+    test('a partial and then the final payment are accepted; the parcel moves with each', () async {
+      final s = await setup();
+      expect(await receive(s, payment(amount: 200000)), 200);
+      expect(await receive(s, payment(amount: 300000), receivedBefore: 200000), 200);
+    }, skip: skip);
+
+    test('a payment above the outstanding balance is refused', () async {
+      final s = await setup();
+      expect(await receive(s, payment(amount: 500100), outstandingTo: 0), 403);
+      expect(await receive(s, payment(amount: 200000)), 200);
+      expect(await receive(s, payment(amount: 300100), receivedBefore: 200000, outstandingTo: 0), 403);
+    }, skip: skip);
+
+    test('the parcel must move by exactly the payment (no silent changes, no payment without the parcel)', () async {
+      final s = await setup();
+      expect(await receive(s, payment(amount: 100000), receivedTo: 200000, outstandingTo: 300000), 403, reason: 'received moved too far');
+      expect(await receive(s, payment(amount: 100000), receivedTo: 50000, outstandingTo: 450000), 403, reason: 'received moved too little');
+      expect(
+        await emu.set(s.user.token, paypath(s.user.uid, s.pid, 'orphan'), payment(), serverTimes: const ['receivedAt', 'recordedAt']),
+        403,
+        reason: 'payment without the parcel update',
+      );
+    }, skip: skip);
+
+    test('amount, type and note are validated; times are server time', () async {
+      final s = await setup();
+      for (final bad in [
+        payment(amount: 0),
+        payment(amount: -100),
+        payment(type: 'cash'),
+        payment(extra: {'note': 'x' * 201}),
+        payment(extra: {'note': 5}),
+        payment(extra: {'extra': 'field'}),
+      ]) {
+        expect(await receive(s, bad, receivedTo: 100000, outstandingTo: 400000), 403, reason: '$bad');
+      }
+      // a client-chosen receivedAt is refused (no backdating)
+      expect(
+        await emu.commit(s.user.token, [
+          DocWrite(ppath(s.user.uid, s.pid), {..._parcel(seq: 1, overrides: {'receivedPaisa': 100000, 'outstandingPaisa': 400000, 'paymentStatus': 'partial'}), 'createdAt': s.created}, serverTimes: const ['updatedAt']),
+          DocWrite(paypath(s.user.uid, s.pid, 'late'), {...payment(amount: 100000), 'receivedAt': DateTime.utc(2020)}, serverTimes: const ['recordedAt']),
+        ]),
+        403,
+      );
+      expect(await receive(s, payment(amount: 100000, extra: {'note': 'x' * 200})), 200);
+    }, skip: skip);
+
+    test('no payment on a Gift / Free or a returned parcel', () async {
+      final free = await setup(overrides: {'collectionMethod': 'free_gift', 'productAmountExpectedPaisa': 0, 'outstandingPaisa': 0, 'paymentStatus': 'not_required'});
+      expect(await receive(free, payment(amount: 100), expected: 0, outstandingTo: 0, overrides: {'collectionMethod': 'free_gift', 'productAmountExpectedPaisa': 0}), 403);
+      final returned = await setup();
+      expect(
+        await emu.set(returned.user.token, ppath(returned.user.uid, returned.pid),
+            {..._parcel(seq: 1, overrides: {'parcelStatus': 'returned'}), 'createdAt': returned.created}, serverTimes: const ['updatedAt']),
+        200,
+      );
+      expect(await receive(returned, payment(amount: 100000), overrides: {'parcelStatus': 'returned'}), 403);
+    }, skip: skip);
+
+    test('payments are append-only; another user cannot read or write them', () async {
+      final s = await setup();
+      final other = await emu.signUp('payother${DateTime.now().microsecondsSinceEpoch}@x.com');
+      expect(await receive(s, payment(amount: 100000)), 200);
+      final list = await emu.list(s.user.token, 'users/${s.user.uid}/parcels/${s.pid}/payments');
+      expect(list.status, 200);
+      expect(list.count, 1);
+      expect((await emu.list(other.token, 'users/${s.user.uid}/parcels/${s.pid}/payments')).status, 403);
+      expect(await receive(s, payment(amount: 100000), token: other.token, receivedBefore: 100000), 403, reason: "B cannot pay A's parcel");
+      // existing payment cannot be changed or removed
+      final first = await emu.list(s.user.token, 'users/${s.user.uid}/parcels/${s.pid}/payments');
+      expect(first.count, 1);
+    }, skip: skip);
+  });
+
   group('parcel edits', () {
     String ppath(String uid, String id) => 'users/$uid/parcels/$id';
 

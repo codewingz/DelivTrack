@@ -128,6 +128,8 @@ void main() {
           expect(t.takeException(), isNull);
           // More is a scrolling list: on a small screen Log out is below the fold.
           await t.scrollUntilVisible(find.widgetWithText(ListTile, 'Log out'), 100, scrollable: find.byType(Scrollable).first);
+          await t.ensureVisible(find.widgetWithText(ListTile, 'Log out'));
+          await t.pump();
           await t.tap(find.widgetWithText(ListTile, 'Log out'));
           await t.pumpAndSettle();
           expect(find.text('Log out?'), findsOneWidget);

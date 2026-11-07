@@ -9,6 +9,9 @@ abstract class AuthRepository {
 
   String? get displayName;
 
+  /// The signed-in account's email address.
+  String? get email;
+
   /// Emits the current display name, then every change (e.g. saved right after sign-up).
   Stream<String?> get displayNameChanges;
 
@@ -50,6 +53,9 @@ class FirebaseAuthRepository implements AuthRepository {
 
   @override
   String? get displayName => _auth.currentUser?.displayName;
+
+  @override
+  String? get email => _auth.currentUser?.email;
 
   @override
   Stream<String?> get displayNameChanges => _auth.userChanges().map((user) => user?.displayName);

@@ -3,7 +3,9 @@ import 'package:deliv_track/core/errors/app_failure.dart';
 import 'package:deliv_track/features/auth/data/auth_repository.dart';
 
 class FakeAuthRepository implements AuthRepository {
-  FakeAuthRepository({this.failure, this.signedIn = false, this.name});
+  FakeAuthRepository({this.failure, this.signedIn = false, this.name, this.accountEmail = 'owner@codewingz.com'});
+
+  final String? accountEmail;
 
   final AppFailure? failure;
   Completer<void>? gate;
@@ -44,6 +46,9 @@ class FakeAuthRepository implements AuthRepository {
 
   @override
   String? get displayName => name;
+
+  @override
+  String? get email => signedIn ? accountEmail : null;
 
   @override
   Stream<String?> get displayNameChanges => _nameController.stream;

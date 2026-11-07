@@ -46,6 +46,8 @@ class FakeReminderScheduler implements ReminderScheduler {
     return id;
   }
 
+  String? problem;
+
   @override
-  String? get lastProblem => null;
+  String? get lastProblem => problem;
 }

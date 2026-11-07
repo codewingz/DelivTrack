@@ -1,0 +1,56 @@
+rules_version = '2';
+
+// DelivTrack: every user's data lives under users/{uid}/... and only that user may touch it.
+// New collections are denied until a rule block is added for them (default deny).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    // Trimmed text with a length range.
+    function trimmedText(value, minLen, maxLen) {
+      return value is string
+        && value.size() >= minLen && value.size() <= maxLen
+        && value.matches('^[^\\s](.*[^\\s])?$');
+    }
+
+    function validProduct(data) {
+      return data.keys().hasOnly(['name', 'nameLower', 'saleUnit', 'isActive', 'createdAt', 'updatedAt'])
+        && data.keys().hasAll(['name', 'nameLower', 'saleUnit', 'isActive', 'createdAt', 'updatedAt'])
+        && trimmedText(data.name, 2, 60)
+        && data.nameLower == data.name.lower()
+        && data.saleUnit in ['per_piece', 'per_kg']
+        && data.isActive is bool
+        && data.createdAt is timestamp
+        && data.updatedAt == request.time;
+    }
+
+    // Products: created/edited/archived by their owner; never deleted (archive instead).
+    match /users/{uid}/products/{productId} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid)
+        && validProduct(request.resource.data)
+        && request.resource.data.createdAt == request.time;
+      allow update: if isOwner(uid)
+        && validProduct(request.resource.data)
+        && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if false;
+    }
+
+    // Product-name guards (one doc per name; keeps names unique per user).
+    match /users/{uid}/product_names/{nameKey} {
+      allow read, delete: if isOwner(uid);
+      allow create: if isOwner(uid)
+        && request.resource.data.keys().hasOnly(['productId'])
+        && request.resource.data.productId is string;
+      allow update: if false;
+    }
+
+    // Everything else is closed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

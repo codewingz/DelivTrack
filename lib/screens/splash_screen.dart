@@ -47,20 +47,19 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final logoWidth = (screenWidth * 0.65).clamp(200.0, 320.0);
+    final logoWidth = (MediaQuery.widthOf(context) * 0.65).clamp(200.0, 320.0);
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: Stack(
-          children: [
-            // Center Logo and Tagline with Entrance Animation
-            Center(
-              child: AnimatedBuilder(
-                animation: _animController,
-                builder: (context, child) {
-                  return FadeTransition(
+        child: CustomScrollView(
+          slivers: [
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Column(
+                children: [
+                  const Spacer(),
+                  FadeTransition(
                     opacity: _fadeAnimation,
                     child: ScaleTransition(
                       scale: _scaleAnimation,
@@ -71,6 +70,7 @@ class _SplashScreenState extends State<SplashScreen>
                           const SizedBox(height: 12),
                           const Text(
                             'Parcel & Payment Manager',
+                            textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
@@ -81,32 +81,20 @@ class _SplashScreenState extends State<SplashScreen>
                         ],
                       ),
                     ),
-                  );
-                },
-              ),
-            ),
-
-            // Bottom Brand Loading Indicator & Version
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 32),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const BrandLoadingIndicator(size: 26, strokeWidth: 2.8),
-                    const SizedBox(height: 16),
-                    Text(
-                      'v1.0.0',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.textPrimary.withValues(alpha: 0.45),
-                        letterSpacing: 0.5,
-                      ),
+                  ),
+                  const Spacer(),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 32),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        BrandLoadingIndicator(size: 26, strokeWidth: 2.8),
+                        SizedBox(height: 16),
+                        _VersionLabel(),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -116,3 +104,19 @@ class _SplashScreenState extends State<SplashScreen>
   }
 }
 
+class _VersionLabel extends StatelessWidget {
+  const _VersionLabel();
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      'v1.0.0',
+      style: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w500,
+        color: AppColors.textPrimary.withValues(alpha: 0.45),
+        letterSpacing: 0.5,
+      ),
+    );
+  }
+}

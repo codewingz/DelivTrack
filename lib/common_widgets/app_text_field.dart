@@ -330,27 +330,23 @@ class _AppTextFieldState extends State<AppTextField> {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (widget.label != null) ...[
-          Row(
-            children: [
-              Text(
-                widget.label!,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.label,
-                  letterSpacing: 0.2,
-                ),
-              ),
-              if (widget.isRequired)
-                const Text(
-                  ' *',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.error,
+          Text.rich(
+            TextSpan(
+              text: widget.label,
+              children: [
+                if (widget.isRequired)
+                  const TextSpan(
+                    text: ' *',
+                    style: TextStyle(color: AppColors.error),
                   ),
-                ),
-            ],
+              ],
+            ),
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: AppColors.label,
+              letterSpacing: 0.2,
+            ),
           ),
           const SizedBox(height: 6),
         ],
@@ -397,6 +393,7 @@ class _AppTextFieldState extends State<AppTextField> {
             ),
             filled: true,
             fillColor: widget.enabled ? AppColors.surface : AppColors.disabled,
+            constraints: const BoxConstraints(minHeight: 52),
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             prefixIcon: widget.prefixIcon,
             prefixText: widget.prefixText,

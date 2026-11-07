@@ -2,6 +2,8 @@
 
 Instructions for AI coding agents working in this repository. These rules are mandatory.
 
+**Read this entire file before starting ANY task, every time** (code, questions, reviews, git, docs). Re-read it at the start of each new task; do not rely on memory of an earlier read.
+
 ## 0. Project context
 
 - **App:** DelivTrack — Android-only Flutter app (single private company account) for tracking Pakistan Post parcels, customers and payments. Never call it "Animate DelivTrack".

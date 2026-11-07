@@ -31,8 +31,7 @@ void main() {
       );
 
       // Verify label and required asterisk
-      expect(find.text('Email Address'), findsOneWidget);
-      expect(find.text(' *'), findsOneWidget);
+      expect(find.text('Email Address *'), findsOneWidget);
 
       // Empty submission
       formKey.currentState!.validate();

@@ -442,4 +442,134 @@ void main() {
       expect(parcel.outstandingPaisa, 550000);
     });
   });
+
+  group('returns, notes, Pay Later dates and corrections', () {
+    Future<Parcel> waitFor(String id, bool Function(Parcel) test) => repo
+        .watch(id)
+        .firstWhere((p) => p != null && test(p))
+        .timeout(const Duration(seconds: 10))
+        .then((p) => p!);
+    String today() => pakistanDate(DateTime.now().toUtc());
+    Future<String> firstPaymentId(String id) async => (await repo.watchPayments(id).firstWhere((l) => l.isNotEmpty).timeout(const Duration(seconds: 10))).last.id;
+
+    testWidgets('marking returned: flags review when money is involved, locks the parcel, refuses bad dates', (t) async {
+      await signUpNewUser('ret');
+      final id = await repo.create(_input());
+      await expectLater(repo.markReturned(id, date: '2999-01-01'), throwsA(isA<AppFailure>()), reason: 'future');
+      await expectLater(repo.markReturned(id, date: '2000-01-01'), throwsA(isA<AppFailure>()), reason: 'before sending');
+      await expectLater(repo.markReturned(id, date: today(), reason: 'x' * 201), throwsA(isA<AppFailure>()));
+      await repo.markReturned(id, date: today(), reason: '  Customer   refused ');
+      final parcel = await waitFor(id, (p) => p.status == ParcelStatus.returned);
+      expect(parcel.returnedDate, today());
+      expect(parcel.returnReason, 'Customer refused');
+      expect(parcel.paymentReviewRequired, isTrue, reason: 'Rs. 5,000 still outstanding');
+      expect(parcel.outstandingPaisa, 500000, reason: 'nothing is changed automatically');
+
+      await expectLater(repo.markReturned(id, date: today()), throwsA(isA<AppFailure>()), reason: 'already returned');
+      await expectLater(repo.recordPayment(id, amountPaisa: 100, type: PaymentType.advance), throwsA(isA<AppFailure>()));
+      await expectLater(repo.update(id, _input(reference: 'VPP 77777')), throwsA(isA<AppFailure>()));
+    });
+
+    testWidgets('a draft cannot be returned; a Gift / Free parcel returns without review', (t) async {
+      await signUpNewUser('retdraft');
+      final draft = await repo.create(_input(reference: '', charge: null, status: ParcelStatus.draft));
+      await expectLater(repo.markReturned(draft, date: today()), throwsA(isA<AppFailure>()));
+      final gift = await repo.create(_input(reference: 'VPL 55555', method: CollectionMethod.giftFree, service: PostalService.vpl));
+      await repo.markReturned(gift, date: today());
+      expect((await waitFor(gift, (p) => p.status == ParcelStatus.returned)).paymentReviewRequired, isFalse);
+    });
+
+    testWidgets('notes: saved, trimmed, kept through edits, removed when emptied, still editable after a return', (t) async {
+      await signUpNewUser('notes');
+      final id = await repo.create(_input());
+      await repo.setNotes(id, '  Call before delivery ');
+      expect((await waitFor(id, (p) => p.notes != null)).notes, 'Call before delivery');
+      await expectLater(repo.setNotes(id, 'x' * 501), throwsA(isA<AppFailure>()));
+      await repo.update(id, _input(charge: 20000));
+      expect((await waitFor(id, (p) => p.deliveryChargePaisa == 20000)).notes, 'Call before delivery');
+      await repo.markReturned(id, date: today());
+      await repo.setNotes(id, 'Returned by the customer');
+      expect((await waitFor(id, (p) => p.notes == 'Returned by the customer')).status, ParcelStatus.returned);
+      await repo.setNotes(id, '   ');
+      expect((await waitFor(id, (p) => p.notes == null)).notes, isNull);
+    });
+
+    testWidgets('Pay Later date: changed, cleared, refused in the past, refused on other types and when nothing is owed', (t) async {
+      await signUpNewUser('paydate');
+      final id = await repo.create(_input(reference: 'VPL 12121', method: CollectionMethod.payLater, service: PostalService.vpl, payDate: '2031-01-01'));
+      await repo.setPayLaterDate(id, '2032-02-02');
+      expect((await waitFor(id, (p) => p.estimatedPaymentDate == '2032-02-02')).estimatedPaymentDate, '2032-02-02');
+      await expectLater(repo.setPayLaterDate(id, '2000-01-01'), throwsA(isA<AppFailure>()));
+      await repo.setPayLaterDate(id, today());
+      await waitFor(id, (p) => p.estimatedPaymentDate == today());
+      await repo.setPayLaterDate(id, null);
+      expect((await waitFor(id, (p) => p.estimatedPaymentDate == null)).estimatedPaymentDate, isNull);
+
+      final other = await repo.create(_input());
+      await expectLater(repo.setPayLaterDate(other, '2032-02-02'), throwsA(isA<AppFailure>()), reason: 'not a Pay Later parcel');
+      await repo.recordPayment(id, amountPaisa: 500000, type: PaymentType.customerPayment);
+      await expectLater(repo.setPayLaterDate(id, '2033-03-03'), throwsA(isA<AppFailure>()), reason: 'paid in full');
+    });
+
+    testWidgets('"received on": today is accepted; a future date or a date before the sending date is refused', (t) async {
+      await signUpNewUser('recon');
+      final id = await repo.create(_input());
+      await expectLater(repo.recordPayment(id, amountPaisa: 100, type: PaymentType.advance, receivedOn: '2999-01-01'), throwsA(isA<AppFailure>()));
+      await expectLater(repo.recordPayment(id, amountPaisa: 100, type: PaymentType.advance, receivedOn: '2000-01-01'), throwsA(isA<AppFailure>()));
+      await repo.recordPayment(id, amountPaisa: 100000, type: PaymentType.advance, receivedOn: today());
+      expect((await waitFor(id, (p) => p.receivedPaisa == 100000)).paymentStatus, PaymentStatus.partial);
+      final history = await repo.watchPayments(id).first;
+      expect(pakistanDate(history.single.receivedAt), today());
+    });
+
+    testWidgets('correcting a payment: reversal + replacement keep the history; totals follow; a payment is corrected once', (t) async {
+      await signUpNewUser('cor');
+      final id = await repo.create(_input());
+      await repo.recordPayment(id, amountPaisa: 200000, type: PaymentType.advance, note: 'first');
+      final original = await firstPaymentId(id);
+
+      await expectLater(repo.correctPayment(id, original, correctedAmountPaisa: 300000, reason: 'oops'), throwsA(isA<AppFailure>()), reason: 'reason too short');
+      await expectLater(repo.correctPayment(id, original, correctedAmountPaisa: 200000, reason: 'Wrong amount'), throwsA(isA<AppFailure>()), reason: 'unchanged');
+      await expectLater(repo.correctPayment(id, original, correctedAmountPaisa: 600000, reason: 'Wrong amount'), throwsA(isA<AppFailure>()), reason: 'above the total');
+      await repo.correctPayment(id, original, correctedAmountPaisa: 300000, reason: 'Wrong amount entered');
+
+      final parcel = await waitFor(id, (p) => p.receivedPaisa == 300000);
+      expect(parcel.outstandingPaisa, 200000);
+      expect(parcel.paymentStatus, PaymentStatus.partial);
+      final history = await repo.watchPayments(id).firstWhere((l) => l.length == 3).timeout(const Duration(seconds: 10));
+      expect(history.map((p) => p.amountPaisa).toSet(), {200000, -200000, 300000});
+      expect(history.where((p) => p.isReversal).single.correctionReason, 'Wrong amount entered');
+      expect(history.where((p) => p.correctionOfPaymentId == original), hasLength(1));
+
+      await expectLater(repo.correctPayment(id, original, correctedAmountPaisa: 100000, reason: 'Second try'), throwsA(isA<AppFailure>()), reason: 'already corrected');
+      await expectLater(repo.correctPayment(id, 'rev_$original', correctedAmountPaisa: 100000, reason: 'Correct a reversal'), throwsA(isA<AppFailure>()), reason: 'reversals are final');
+    });
+
+    testWidgets('a correction to 0 only cancels the payment; two corrections at once: one wins', (t) async {
+      await signUpNewUser('corzero');
+      final id = await repo.create(_input());
+      await repo.recordPayment(id, amountPaisa: 200000, type: PaymentType.advance);
+      final original = await firstPaymentId(id);
+      final results = await Future.wait([
+        for (var i = 0; i < 2; i++)
+          repo.correctPayment(id, original, correctedAmountPaisa: 0, reason: 'Entered by mistake').then((_) => true, onError: (_) => false),
+      ]);
+      expect(results.where((ok) => ok), hasLength(1));
+      final parcel = await waitFor(id, (p) => p.receivedPaisa == 0);
+      expect(parcel.paymentStatus, PaymentStatus.pending);
+      expect(parcel.outstandingPaisa, 500000);
+      expect(await repo.watchPayments(id).firstWhere((l) => l.length == 2).timeout(const Duration(seconds: 10)), hasLength(2), reason: 'the payment and its reversal');
+    });
+
+    testWidgets("another user cannot return, annotate or correct this user's parcel", (t) async {
+      await signUpNewUser('own');
+      final id = await repo.create(_input());
+      await repo.recordPayment(id, amountPaisa: 100000, type: PaymentType.advance);
+      final payment = await firstPaymentId(id);
+      await signUpNewUser('intruder');
+      await expectLater(repo.markReturned(id, date: today()), throwsA(isA<AppFailure>()));
+      await expectLater(repo.setNotes(id, 'hello'), throwsA(isA<AppFailure>()));
+      await expectLater(repo.correctPayment(id, payment, correctedAmountPaisa: 0, reason: 'Not yours'), throwsA(isA<AppFailure>()));
+    });
+  });
 }

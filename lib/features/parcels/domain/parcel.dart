@@ -26,6 +26,10 @@ class Parcel {
     required this.outstandingPaisa,
     required this.paymentStatus,
     required this.status,
+    this.notes,
+    this.returnedDate,
+    this.returnReason,
+    this.paymentReviewRequired = false,
   });
 
   factory Parcel.fromMap(String id, Map<String, dynamic> data) {
@@ -52,6 +56,10 @@ class Parcel {
       outstandingPaisa: data['outstandingPaisa'] as int,
       paymentStatus: PaymentStatus.fromValue(data['paymentStatus'] as String),
       status: ParcelStatus.fromValue(data['parcelStatus'] as String),
+      notes: data['notes'] as String?,
+      returnedDate: data['returnedDateLocal'] as String?,
+      returnReason: data['returnReason'] as String?,
+      paymentReviewRequired: data['paymentReviewRequired'] as bool? ?? false,
     );
   }
 
@@ -78,6 +86,14 @@ class Parcel {
   final int outstandingPaisa;
   final PaymentStatus paymentStatus;
   final ParcelStatus status;
+  final String? notes;
+
+  /// "yyyy-MM-dd"; only on a returned parcel.
+  final String? returnedDate;
+  final String? returnReason;
+
+  /// A returned parcel that received or still owes money: nothing is refunded automatically.
+  final bool paymentReviewRequired;
 
   /// The service as shown: the typed name for "Other", otherwise VPP / VPL / VPR.
   String get serviceLabel => service == PostalService.other ? (otherServiceName ?? 'Other') : service.value;

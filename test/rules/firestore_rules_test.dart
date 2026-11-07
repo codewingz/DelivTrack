@@ -30,6 +30,10 @@ Map<String, Object?> _customer({
 
 String _today() => pakistanDate(DateTime.now().toUtc());
 
+/// The fields a returned parcel carries (an unpaid Rs. 5,000 parcel, so payment review is needed).
+Map<String, Object?> _returned({String? date, bool review = true, Map<String, Object?> extra = const {}}) =>
+    {'parcelStatus': 'returned', 'returnedDateLocal': date ?? _today(), 'paymentReviewRequired': review, ...extra};
+
 /// A valid parcel document (without server-time fields). Override fields to make it invalid.
 Map<String, Object?> _parcel({
   int seq = 1,
@@ -402,7 +406,7 @@ void main() {
         403,
         reason: 'created time locked',
       );
-      expect(await update(_parcel(seq: 1, overrides: {'parcelStatus': 'returned'})), 200, reason: 'returned is allowed on update');
+      expect(await update(_parcel(seq: 1, overrides: _returned())), 200, reason: 'Sent -> Returned with its return fields');
       expect(await update(_parcel(seq: 1, overrides: {'outstandingPaisa': 5})), 403, reason: 'amounts must stay consistent');
       expect(await emu.delete(u.token, ppath(u.uid, pid)), 403);
     }, skip: skip);
@@ -467,6 +471,87 @@ void main() {
       await denied('client-supplied time', {...entry(), 'createdAt': DateTime.utc(2000)}, times: const []);
       await denied('no time', entry(), times: const []);
       expect(await emu.set(u.token, apath(u.uid, id()), entry(remove: ['orderNumber']), serverTimes: const ['createdAt']), 200, reason: 'order number is optional');
+    }, skip: skip);
+  });
+
+  group('returns, notes and Pay Later dates', () {
+    String ppath(String uid, String id) => 'users/$uid/parcels/$id';
+
+    Future<({({String uid, String token}) user, String pid, DateTime created})> setup({Map<String, Object?> overrides = const {}, bool counter = true}) async {
+      final u = await emu.signUp('ret${DateTime.now().microsecondsSinceEpoch}_${n++}@x.com');
+      final pid = id();
+      expect(
+        await emu.commit(u.token, [
+          DocWrite('users/${u.uid}/counters/orders', {'lastSequence': 1}),
+          DocWrite(ppath(u.uid, pid), _parcel(seq: 1, overrides: overrides), serverTimes: const ['createdAt', 'updatedAt']),
+        ]),
+        200,
+      );
+      return (user: u, pid: pid, created: await emu.createdAt(u.token, ppath(u.uid, pid)));
+    }
+
+    Future<int> replace(({({String uid, String token}) user, String pid, DateTime created}) s, Map<String, Object?> parcel, {String? token}) =>
+        emu.set(token ?? s.user.token, ppath(s.user.uid, s.pid), {...parcel, 'createdAt': s.created}, serverTimes: const ['updatedAt']);
+
+    test('Sent -> Returned needs the return fields, a sensible date and the review flag', () async {
+      final s = await setup();
+      expect(await replace(s, _parcel(seq: 1, overrides: {'parcelStatus': 'returned'})), 403, reason: 'no return date');
+      expect(await replace(s, _parcel(seq: 1, overrides: _returned(date: '2999-01-01'))), 403, reason: 'future date');
+      expect(await replace(s, _parcel(seq: 1, overrides: _returned(date: '2000-01-01'))), 403, reason: 'before the sending date');
+      expect(await replace(s, _parcel(seq: 1, overrides: _returned(review: false))), 403, reason: 'unpaid parcel needs review');
+      expect(await replace(s, _parcel(seq: 1, overrides: _returned(extra: {'returnReason': ''}))), 403, reason: 'empty reason');
+      expect(await replace(s, _parcel(seq: 1, overrides: _returned(extra: {'returnReason': 'x' * 201}))), 403, reason: 'long reason');
+      expect(await replace(s, _parcel(seq: 1, overrides: _returned(extra: {'returnReason': 'Customer refused'}))), 200);
+    }, skip: skip);
+
+    test('a returned parcel cannot be changed except for notes, and cannot come back', () async {
+      final s = await setup();
+      final returned = _parcel(seq: 1, overrides: _returned());
+      expect(await replace(s, returned), 200);
+      expect(await replace(s, {...returned, 'notes': 'Customer called'}), 200, reason: 'notes can still be edited');
+      expect(await replace(s, _parcel(seq: 1)), 403, reason: 'not back to sent');
+      expect(await replace(s, {...returned, 'postalReference': 'VPP 99999', 'postalReferenceNormalized': 'VPP99999'}), 403, reason: 'other fields are locked');
+      expect(await replace(s, {...returned, 'returnedDateLocal': '2000-01-01'}), 403, reason: 'return date is locked');
+    }, skip: skip);
+
+    test('a draft cannot be marked returned; return fields only exist on returned parcels', () async {
+      final d = await setup(overrides: {'parcelStatus': 'draft'}); // a draft that already has its slip details
+      expect(await replace(d, _parcel(seq: 1, overrides: _returned())), 403, reason: 'draft -> returned');
+      final s = await setup();
+      expect(await replace(s, _parcel(seq: 1, overrides: {'returnReason': 'x'})), 403, reason: 'return reason on a sent parcel');
+      expect(await replace(s, _parcel(seq: 1, overrides: {'paymentReviewRequired': false})), 403);
+    }, skip: skip);
+
+    test('returning a parcel that is paid in full still flags it for review; a Gift / Free return does not', () async {
+      final paid = await setup();
+      final base = {'receivedPaisa': 500000, 'outstandingPaisa': 0, 'paymentStatus': 'received'};
+      expect(await replace(paid, _parcel(seq: 1, overrides: base)), 200, reason: 'fully paid');
+      expect(await replace(paid, _parcel(seq: 1, overrides: {...base, ..._returned(review: false)})), 403);
+      expect(await replace(paid, _parcel(seq: 1, overrides: {...base, ..._returned()})), 200);
+      final free = await setup(overrides: {'collectionMethod': 'free_gift', 'productAmountExpectedPaisa': 0, 'outstandingPaisa': 0, 'paymentStatus': 'not_required'});
+      final freeBase = {'collectionMethod': 'free_gift', 'productAmountExpectedPaisa': 0, 'outstandingPaisa': 0, 'paymentStatus': 'not_required'};
+      expect(await replace(free, _parcel(seq: 1, overrides: {...freeBase, ..._returned()})), 403, reason: 'nothing to review');
+      expect(await replace(free, _parcel(seq: 1, overrides: {...freeBase, ..._returned(review: false)})), 200);
+    }, skip: skip);
+
+    test('notes: 1-500 characters, removable; another user cannot write them', () async {
+      final s = await setup();
+      expect(await replace(s, _parcel(seq: 1, overrides: {'notes': 'Call before delivery'})), 200);
+      expect(await replace(s, _parcel(seq: 1, overrides: {'notes': ''})), 403, reason: 'empty note must be removed instead');
+      expect(await replace(s, _parcel(seq: 1, overrides: {'notes': 'x' * 501})), 403);
+      expect(await replace(s, _parcel(seq: 1, overrides: {'notes': 'x' * 500})), 200);
+      expect(await replace(s, _parcel(seq: 1)), 200, reason: 'removed');
+      final other = await emu.signUp('notesother${DateTime.now().microsecondsSinceEpoch}@x.com');
+      expect(await replace(s, _parcel(seq: 1, overrides: {'notes': 'hacked'}), token: other.token), 403);
+    }, skip: skip);
+
+    test('Pay Later date: a changed date must be today or later; leaving it unchanged is fine; clearing is fine', () async {
+      final s = await setup(overrides: {'collectionMethod': 'credit', 'estimatedPaymentDateLocal': '2031-02-03'});
+      expect(await replace(s, _parcel(seq: 1, overrides: {'collectionMethod': 'credit', 'estimatedPaymentDateLocal': '2000-01-01'})), 403, reason: 'past');
+      expect(await replace(s, _parcel(seq: 1, overrides: {'collectionMethod': 'credit', 'estimatedPaymentDateLocal': _today()})), 200, reason: 'today');
+      expect(await replace(s, _parcel(seq: 1, overrides: {'collectionMethod': 'credit', 'estimatedPaymentDateLocal': '2032-05-06'})), 200, reason: 'later');
+      expect(await replace(s, _parcel(seq: 1, overrides: {'collectionMethod': 'credit'})), 200, reason: 'cleared');
+      expect(await replace(s, _parcel(seq: 1, overrides: {'collectionMethod': 'credit', 'notes': 'x'})), 200, reason: 'other edits are not blocked');
     }, skip: skip);
   });
 
@@ -562,10 +647,10 @@ void main() {
       final returned = await setup();
       expect(
         await emu.set(returned.user.token, ppath(returned.user.uid, returned.pid),
-            {..._parcel(seq: 1, overrides: {'parcelStatus': 'returned'}), 'createdAt': returned.created}, serverTimes: const ['updatedAt']),
+            {..._parcel(seq: 1, overrides: _returned()), 'createdAt': returned.created}, serverTimes: const ['updatedAt']),
         200,
       );
-      expect(await receive(returned, payment(amount: 100000), overrides: {'parcelStatus': 'returned'}), 403);
+      expect(await receive(returned, payment(amount: 100000), overrides: _returned()), 403);
     }, skip: skip);
 
     test('payments are append-only; another user cannot read or write them', () async {
@@ -581,6 +666,145 @@ void main() {
       final first = await emu.list(s.user.token, 'users/${s.user.uid}/parcels/${s.pid}/payments');
       expect(first.count, 1);
     }, skip: skip);
+    test('"received on": an earlier date is accepted; a future date or one before the sending date is not', () async {
+      final s = await setup();
+      Future<int> receiveOn(DateTime when) => emu.commit(s.user.token, [
+            DocWrite(
+              ppath(s.user.uid, s.pid),
+              {..._parcel(seq: 1, overrides: {'receivedPaisa': 100000, 'outstandingPaisa': 400000, 'paymentStatus': 'partial'}), 'createdAt': s.created},
+              serverTimes: const ['updatedAt'],
+            ),
+            DocWrite(paypath(s.user.uid, s.pid, id()), {...payment(amount: 100000), 'receivedAt': when}, serverTimes: const ['recordedAt']),
+          ]);
+      expect(await receiveOn(DateTime.now().toUtc().add(const Duration(days: 1))), 403, reason: 'future');
+      expect(await receiveOn(DateTime.utc(2000)), 403, reason: 'before the parcel was sent');
+      expect(await receiveOn(DateTime.now().toUtc().subtract(const Duration(seconds: 5))), 200, reason: 'earlier today');
+    }, skip: skip);
+
+    group('corrections', () {
+      Future<int> correct(({({String uid, String token}) user, String pid, DateTime created}) s,
+          {int original = 200000,
+          int replacement = 300000,
+          int receivedTo = 300000,
+          String reason = 'Wrong amount entered',
+          String originalId = 'pay1',
+          String? token,
+          Map<String, Object?> parcelOverrides = const {},
+          bool withReplacementDoc = true,
+          Map<String, Object?> reversalExtra = const {},
+          String? type}) {
+        final out = 500000 > receivedTo ? 500000 - receivedTo : 0;
+        return emu.commit(token ?? s.user.token, [
+          DocWrite(
+            ppath(s.user.uid, s.pid),
+            {..._parcel(seq: 1, overrides: {'receivedPaisa': receivedTo, 'outstandingPaisa': out, 'paymentStatus': out == 0 ? 'received' : 'partial', ...parcelOverrides}), 'createdAt': s.created},
+            serverTimes: const ['updatedAt'],
+          ),
+          DocWrite(
+            paypath(s.user.uid, s.pid, 'rev_$originalId'),
+            {
+              'amountPaisa': -original,
+              'paymentType': type ?? 'customer_payment',
+              'reversalOfPaymentId': originalId,
+              'correctionReason': reason,
+              'replacementPaisa': replacement,
+              ...reversalExtra,
+            },
+            serverTimes: const ['receivedAt', 'recordedAt'],
+          ),
+          if (withReplacementDoc && replacement > 0)
+            DocWrite(
+              paypath(s.user.uid, s.pid, 'cor_$originalId'),
+              {'amountPaisa': replacement, 'paymentType': 'customer_payment', 'correctionOfPaymentId': originalId},
+              serverTimes: const ['receivedAt', 'recordedAt'],
+            ),
+        ]);
+      }
+
+      /// A parcel that has received Rs. 2,000 as payment "pay1".
+      Future<({({String uid, String token}) user, String pid, DateTime created})> withPay1() async {
+        final s = await setup();
+        expect(
+          await emu.commit(s.user.token, [
+            DocWrite(
+              ppath(s.user.uid, s.pid),
+              {..._parcel(seq: 1, overrides: {'receivedPaisa': 200000, 'outstandingPaisa': 300000, 'paymentStatus': 'partial'}), 'createdAt': s.created},
+              serverTimes: const ['updatedAt'],
+            ),
+            DocWrite(paypath(s.user.uid, s.pid, 'pay1'), payment(amount: 200000), serverTimes: const ['receivedAt', 'recordedAt']),
+          ]),
+          200,
+        );
+        return s;
+      }
+
+      test('a reversal with a replacement moves the parcel by the difference and is accepted', () async {
+        final s = await withPay1();
+        expect(await correct(s), 200);
+      }, skip: skip);
+
+      test('a plain reversal (no replacement) takes the money off the parcel', () async {
+        final s = await withPay1();
+        expect(await correct(s, replacement: 0, receivedTo: 0), 200);
+      }, skip: skip);
+
+      test('the parcel must move by exactly reversal + replacement', () async {
+        final s = await withPay1();
+        expect(await correct(s, receivedTo: 250000), 403, reason: 'wrong total');
+        expect(await correct(s, replacement: 0, receivedTo: 200000), 403, reason: 'reversal left the parcel unchanged');
+      }, skip: skip);
+
+      test('the reversal must mirror the original payment; a payment can be reversed only once', () async {
+        final s = await withPay1();
+        expect(await correct(s, original: 150000, receivedTo: 350000), 403, reason: 'amount differs from the original');
+        expect(await correct(s, type: 'advance'), 403, reason: 'type differs from the original');
+        expect(await correct(s, originalId: 'ghost'), 403, reason: 'no such payment');
+        expect(await correct(s), 200);
+        expect(await correct(s, receivedTo: 400000, replacement: 300000), 403, reason: 'second reversal of the same payment');
+      }, skip: skip);
+
+      test('reason is required (5-200 characters); no stray fields; the replacement must match', () async {
+        final s = await withPay1();
+        expect(await correct(s, reason: 'oops'), 403, reason: 'too short');
+        expect(await correct(s, reason: 'x' * 201), 403, reason: 'too long');
+        expect(await correct(s, reversalExtra: {'extra': 1}), 403, reason: 'extra field');
+        expect(await correct(s, withReplacementDoc: false), 403, reason: 'replacement missing');
+        expect(await correct(s, replacement: 600000, receivedTo: 600000), 403, reason: 'more than the order total');
+      }, skip: skip);
+
+      test('no correction on a returned parcel; another user cannot correct', () async {
+        final s = await withPay1();
+        final other = await emu.signUp('corother${DateTime.now().microsecondsSinceEpoch}@x.com');
+        expect(await correct(s, token: other.token), 403);
+        expect(
+          await emu.set(s.user.token, ppath(s.user.uid, s.pid), {
+            ..._parcel(seq: 1, overrides: {'receivedPaisa': 200000, 'outstandingPaisa': 300000, 'paymentStatus': 'partial', ..._returned()}),
+            'createdAt': s.created,
+          }, serverTimes: const ['updatedAt']),
+          200,
+        );
+        expect(await correct(s, parcelOverrides: _returned()), 403);
+      }, skip: skip);
+
+      test('a replacement without its reversal is refused', () async {
+        final s = await withPay1();
+        expect(
+          await emu.commit(s.user.token, [
+            DocWrite(
+              ppath(s.user.uid, s.pid),
+              {..._parcel(seq: 1, overrides: {'receivedPaisa': 500000, 'outstandingPaisa': 0, 'paymentStatus': 'received'}), 'createdAt': s.created},
+              serverTimes: const ['updatedAt'],
+            ),
+            DocWrite(
+              paypath(s.user.uid, s.pid, 'cor_pay1'),
+              {'amountPaisa': 300000, 'paymentType': 'customer_payment', 'correctionOfPaymentId': 'pay1'},
+              serverTimes: const ['receivedAt', 'recordedAt'],
+            ),
+          ]),
+          403,
+        );
+      }, skip: skip);
+    });
   });
 
   group('parcel edits', () {

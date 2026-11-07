@@ -94,7 +94,8 @@ service cloud.firestore {
           'collectionMethod', 'postalServiceType', 'otherPostalServiceName', 'postalReference',
           'postalReferenceNormalized', 'deliveryChargePaisa', 'actualPackedWeightGrams',
           'estimatedPaymentDateLocal', 'productAmountExpectedPaisa', 'receivedPaisa', 'outstandingPaisa',
-          'paymentStatus', 'parcelStatus', 'sendingDateLocal', 'createdAt', 'updatedAt']);
+          'paymentStatus', 'parcelStatus', 'sendingDateLocal', 'createdAt', 'updatedAt',
+          'notes', 'returnedDateLocal', 'returnReason', 'paymentReviewRequired']);
     }
 
     // Field-level checks. Rules cannot loop over `items`, so the per-line maths is checked by the
@@ -130,8 +131,22 @@ service cloud.firestore {
         && (data.collectionMethod != 'free_gift' || data.productAmountExpectedPaisa == 0)
         && data.paymentStatus in ['not_required', 'pending', 'partial', 'received']
         && validDateString(data.sendingDateLocal)
+        && (!('notes' in data) || (data.notes is string && data.notes.size() >= 1 && data.notes.size() <= 500))
+        && validReturnFields(data)
         && data.createdAt is timestamp
         && data.updatedAt == request.time;
+    }
+
+    // Return fields exist only on a returned parcel. Nothing is refunded automatically, so a returned
+    // parcel that received or still owes money is flagged for payment review.
+    function validReturnFields(data) {
+      return data.parcelStatus == 'returned'
+        ? ('returnedDateLocal' in data && validDateString(data.returnedDateLocal)
+            && data.returnedDateLocal >= data.sendingDateLocal && data.returnedDateLocal <= pakistanDate(request.time)
+            && 'paymentReviewRequired' in data
+            && data.paymentReviewRequired == (data.receivedPaisa > 0 || data.outstandingPaisa > 0)
+            && (!('returnReason' in data) || (data.returnReason is string && data.returnReason.size() >= 1 && data.returnReason.size() <= 200)))
+        : (!('returnedDateLocal' in data) && !('returnReason' in data) && !('paymentReviewRequired' in data));
     }
 
     // Order-number counter: only ever +1 (a parcel create writes it in the same commit).
@@ -175,28 +190,88 @@ service cloud.firestore {
         && request.resource.data.orderNumber == resource.data.orderNumber
         && request.resource.data.orderSequence == resource.data.orderSequence
         && request.resource.data.createdAt == resource.data.createdAt
-        && request.resource.data.sendingDateLocal == resource.data.sendingDateLocal;
+        && request.resource.data.sendingDateLocal == resource.data.sendingDateLocal
+        // A returned parcel only takes notes; Sent -> Returned changes nothing but the return fields.
+        && (resource.data.parcelStatus != 'returned'
+            || (request.resource.data.parcelStatus == 'returned'
+                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['notes', 'updatedAt'])))
+        && (request.resource.data.parcelStatus != 'returned' || resource.data.parcelStatus == 'returned'
+            || (resource.data.parcelStatus == 'sent'
+                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['parcelStatus', 'returnedDateLocal', 'returnReason', 'paymentReviewRequired', 'updatedAt'])))
+        // A changed Pay Later date must be today or later.
+        && (!('estimatedPaymentDateLocal' in request.resource.data)
+            || ('estimatedPaymentDateLocal' in resource.data && resource.data.estimatedPaymentDateLocal == request.resource.data.estimatedPaymentDateLocal)
+            || request.resource.data.estimatedPaymentDateLocal >= pakistanDate(request.time));
       allow delete: if false;
     }
 
-    // Payments: append-only. A payment is created in the same commit that moves the parcel's received
-    // amount by exactly that much, never beyond what is outstanding, never on a Gift / Free or returned parcel.
+    // Payments: append-only, written in the same commit that moves the parcel's received amount.
+    //  * a payment (positive) never exceeds what is outstanding and never lands on a Gift / Free or
+    //    returned parcel; it may carry an earlier "received on" date (not in the future, not before sending);
+    //  * a correction reverses an earlier payment with a negative twin (document id "rev_<payment id>", so
+    //    each payment can be reversed once) and may add one replacement ("cor_<payment id>") in the same commit.
+    function parcelAt(uid, parcelId) {
+      return /databases/$(database)/documents/users/$(uid)/parcels/$(parcelId);
+    }
+
+    function paymentAt(uid, parcelId, paymentId) {
+      return /databases/$(database)/documents/users/$(uid)/parcels/$(parcelId)/payments/$(paymentId);
+    }
+
+    function paymentFields(data, extra) {
+      return data.keys().hasAll(['amountPaisa', 'paymentType', 'receivedAt', 'recordedAt'])
+        && data.keys().hasOnly(['amountPaisa', 'paymentType', 'note', 'receivedAt', 'recordedAt'].concat(extra))
+        && data.amountPaisa is int && data.amountPaisa >= -9999999900 && data.amountPaisa <= 9999999900 && data.amountPaisa != 0
+        && data.paymentType in ['advance', 'post_office_remittance', 'customer_payment']
+        && (!('note' in data) || (data.note is string && data.note.size() <= 200))
+        && data.recordedAt == request.time;
+    }
+
     match /users/{uid}/parcels/{parcelId}/payments/{paymentId} {
       allow read: if isOwner(uid);
-      allow create: if isOwner(uid)
-        && request.resource.data.keys().hasOnly(['amountPaisa', 'paymentType', 'note', 'receivedAt', 'recordedAt'])
-        && request.resource.data.keys().hasAll(['amountPaisa', 'paymentType', 'receivedAt', 'recordedAt'])
-        && request.resource.data.amountPaisa is int
-        && request.resource.data.amountPaisa > 0 && request.resource.data.amountPaisa <= 9999999900
-        && request.resource.data.paymentType in ['advance', 'post_office_remittance', 'customer_payment']
-        && (!('note' in request.resource.data) || (request.resource.data.note is string && request.resource.data.note.size() <= 200))
-        && request.resource.data.receivedAt == request.time
-        && request.resource.data.recordedAt == request.time
-        && get(/databases/$(database)/documents/users/$(uid)/parcels/$(parcelId)).data.parcelStatus != 'returned'
-        && get(/databases/$(database)/documents/users/$(uid)/parcels/$(parcelId)).data.collectionMethod != 'free_gift'
-        && request.resource.data.amountPaisa <= get(/databases/$(database)/documents/users/$(uid)/parcels/$(parcelId)).data.outstandingPaisa
-        && getAfter(/databases/$(database)/documents/users/$(uid)/parcels/$(parcelId)).data.receivedPaisa
-            == get(/databases/$(database)/documents/users/$(uid)/parcels/$(parcelId)).data.receivedPaisa + request.resource.data.amountPaisa;
+      allow create: if isOwner(uid) && (
+        // a payment
+        (paymentFields(request.resource.data, [])
+          && request.resource.data.amountPaisa > 0
+          && !paymentId.matches('^(rev|cor)_.*')
+          && (request.resource.data.receivedAt == request.time
+              || (request.resource.data.receivedAt is timestamp && request.resource.data.receivedAt < request.time
+                  && pakistanDate(request.resource.data.receivedAt) >= get(parcelAt(uid, parcelId)).data.sendingDateLocal))
+          && get(parcelAt(uid, parcelId)).data.parcelStatus != 'returned'
+          && get(parcelAt(uid, parcelId)).data.collectionMethod != 'free_gift'
+          && request.resource.data.amountPaisa <= get(parcelAt(uid, parcelId)).data.outstandingPaisa
+          && getAfter(parcelAt(uid, parcelId)).data.receivedPaisa
+              == get(parcelAt(uid, parcelId)).data.receivedPaisa + request.resource.data.amountPaisa)
+        // the reversal half of a correction
+        || (paymentId.matches('^rev_.+')
+          && paymentFields(request.resource.data, ['reversalOfPaymentId', 'correctionReason', 'replacementPaisa'])
+          && request.resource.data.keys().hasAll(['reversalOfPaymentId', 'correctionReason', 'replacementPaisa'])
+          && request.resource.data.amountPaisa < 0
+          && request.resource.data.receivedAt == request.time
+          && request.resource.data.reversalOfPaymentId == paymentId[4:]
+          && trimmedText(request.resource.data.correctionReason, 5, 200)
+          && request.resource.data.replacementPaisa is int
+          && request.resource.data.replacementPaisa >= 0 && request.resource.data.replacementPaisa <= 9999999900
+          && get(paymentAt(uid, parcelId, paymentId[4:])).data.amountPaisa == -request.resource.data.amountPaisa
+          && get(paymentAt(uid, parcelId, paymentId[4:])).data.paymentType == request.resource.data.paymentType
+          && get(parcelAt(uid, parcelId)).data.parcelStatus != 'returned'
+          && getAfter(parcelAt(uid, parcelId)).data.receivedPaisa
+              == get(parcelAt(uid, parcelId)).data.receivedPaisa + request.resource.data.amountPaisa + request.resource.data.replacementPaisa
+          && getAfter(parcelAt(uid, parcelId)).data.receivedPaisa <= get(parcelAt(uid, parcelId)).data.productAmountExpectedPaisa
+          && (request.resource.data.replacementPaisa == 0
+              || (existsAfter(paymentAt(uid, parcelId, 'cor_' + paymentId[4:]))
+                  && getAfter(paymentAt(uid, parcelId, 'cor_' + paymentId[4:])).data.amountPaisa == request.resource.data.replacementPaisa)))
+        // the replacement half of a correction (checked together with its reversal)
+        || (paymentId.matches('^cor_.+')
+          && paymentFields(request.resource.data, ['correctionOfPaymentId'])
+          && request.resource.data.keys().hasAll(['correctionOfPaymentId'])
+          && request.resource.data.amountPaisa > 0
+          && request.resource.data.receivedAt == request.time
+          && request.resource.data.correctionOfPaymentId == paymentId[4:]
+          && existsAfter(paymentAt(uid, parcelId, 'rev_' + paymentId[4:]))
+          && getAfter(paymentAt(uid, parcelId, 'rev_' + paymentId[4:])).data.replacementPaisa == request.resource.data.amountPaisa
+          && getAfter(paymentAt(uid, parcelId, 'rev_' + paymentId[4:])).data.paymentType == request.resource.data.paymentType)
+      );
       allow update, delete: if false;
     }
 
@@ -208,7 +283,7 @@ service cloud.firestore {
         && request.resource.data.keys().hasAll(['entityType', 'entityId', 'action', 'changedFields', 'createdAt'])
         && request.resource.data.entityType in ['parcel']
         && request.resource.data.entityId is string && request.resource.data.entityId.size() > 0 && request.resource.data.entityId.size() <= 40
-        && request.resource.data.action in ['update']
+        && request.resource.data.action in ['update', 'return', 'correct_payment']
         && request.resource.data.changedFields is list
         && request.resource.data.changedFields.size() >= 1 && request.resource.data.changedFields.size() <= 30
         && (!('orderNumber' in request.resource.data) || request.resource.data.orderNumber.matches('^ADT-[0-9]{6,}$'))

@@ -38,7 +38,24 @@ abstract class ParcelRepository {
   /// Records a payment and moves the parcel's received / outstanding / payment status in one
   /// transaction. Throws [AppFailure] (amount not above 0 or above the outstanding balance, Gift / Free
   /// or returned parcel, note too long, no connection...).
-  Future<void> recordPayment(String parcelId, {required int amountPaisa, required PaymentType type, String? note});
+  ///
+  /// [receivedOn] ("yyyy-MM-dd", Pakistan date) records a payment that arrived earlier: not in the
+  /// future and not before the sending date. Without it the payment is stamped with the server time.
+  Future<void> recordPayment(String parcelId, {required int amountPaisa, required PaymentType type, String? note, String? receivedOn});
+
+  /// Marks a Sent parcel as returned on [date] ("yyyy-MM-dd"). Nothing is refunded automatically:
+  /// a parcel that received or still owes money is flagged for payment review.
+  Future<void> markReturned(String parcelId, {required String date, String? reason});
+
+  /// Saves the parcel's notes (at most 500 characters); empty removes them.
+  Future<void> setNotes(String parcelId, String notes);
+
+  /// Changes or clears (null) a Pay Later parcel's estimated payment date. A date must be today or later.
+  Future<void> setPayLaterDate(String parcelId, String? date);
+
+  /// Corrects a payment without editing it: a negative twin cancels it and, when [correctedAmountPaisa]
+  /// is above 0, a replacement payment is recorded, all in one transaction. [reason] is required.
+  Future<void> correctPayment(String parcelId, String paymentId, {required int correctedAmountPaisa, required String reason});
 }
 
 /// Data lives under `users/{uid}/parcels`; Firestore rules allow only that user.
@@ -216,15 +233,21 @@ class FirestoreParcelRepository implements ParcelRepository {
                 type: PaymentType.fromValue(doc['paymentType'] as String),
                 note: doc.data()['note'] as String?,
                 receivedAt: (doc['receivedAt'] as Timestamp).toDate(),
+                reversalOfPaymentId: doc.data()['reversalOfPaymentId'] as String?,
+                correctionReason: doc.data()['correctionReason'] as String?,
+                correctionOfPaymentId: doc.data()['correctionOfPaymentId'] as String?,
               ),
           ])
       .withFirestoreFailures();
 
   @override
-  Future<void> recordPayment(String parcelId, {required int amountPaisa, required PaymentType type, String? note}) async {
+  Future<void> recordPayment(String parcelId, {required int amountPaisa, required PaymentType type, String? note, String? receivedOn}) async {
     final cleanNote = collapseSpaces(note ?? '');
     final problem = paymentProblem(amountPaisa: amountPaisa, note: cleanNote);
     if (problem != null) throw AppFailure(problem);
+    final today = pakistanDate(clock.nowUtc());
+    if (receivedOn != null && !_isDate(receivedOn)) throw const AppFailure('Enter a valid date.');
+    if (receivedOn != null && receivedOn.compareTo(today) > 0) throw const AppFailure('The received date cannot be in the future.');
 
     final parcelRef = _parcels.doc(parcelId);
     final paymentRef = parcelRef.collection('payments').doc();
@@ -236,6 +259,10 @@ class FirestoreParcelRepository implements ParcelRepository {
             if (parcel['parcelStatus'] == ParcelStatus.returned.value) throw const AppFailure("A returned parcel can't take payments.");
             final isFree = parcel['collectionMethod'] == CollectionMethod.giftFree.value;
             if (isFree) throw const AppFailure('A Gift / Free parcel has no payment to receive.');
+
+            if (receivedOn != null && receivedOn.compareTo(parcel['sendingDateLocal'] as String) < 0) {
+              throw AppFailure('The received date cannot be before the sending date (${formatDate(parcel['sendingDateLocal'] as String)}).');
+            }
 
             final outstanding = parcel['outstandingPaisa'] as int;
             if (amountPaisa > outstanding) throw AppFailure('Cannot exceed outstanding ${formatRupees(outstanding)}.');
@@ -252,9 +279,166 @@ class FirestoreParcelRepository implements ParcelRepository {
               'amountPaisa': amountPaisa,
               'paymentType': type.value,
               if (cleanNote.isNotEmpty) 'note': cleanNote,
+              'receivedAt': receivedOn == null || receivedOn == today ? FieldValue.serverTimestamp() : _noonPakistan(receivedOn),
+              'recordedAt': FieldValue.serverTimestamp(),
+            });
+          }));
+    } on FirebaseException catch (e) {
+      throw firestoreFailure(e);
+    }
+  }
+
+  static bool _isDate(String value) => RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(value);
+
+  /// 12:00 Pakistan time of a "yyyy-MM-dd" date (07:00 UTC): a time that falls on that Pakistan day.
+  static Timestamp _noonPakistan(String date) {
+    final parts = date.split('-').map(int.parse).toList();
+    return Timestamp.fromDate(DateTime.utc(parts[0], parts[1], parts[2], 7));
+  }
+
+  void _audit(Transaction tx, String action, String parcelId, String orderNumber, List<String> changedFields) {
+    tx.set(_userDoc.collection('audit_logs').doc(), {
+      'entityType': 'parcel',
+      'entityId': parcelId,
+      'action': action,
+      'orderNumber': orderNumber,
+      'changedFields': changedFields,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  @override
+  Future<void> markReturned(String parcelId, {required String date, String? reason}) async {
+    final cleanReason = collapseSpaces(reason ?? '');
+    final today = pakistanDate(clock.nowUtc());
+    if (!_isDate(date)) throw const AppFailure('Enter a valid date.');
+    if (date.compareTo(today) > 0) throw const AppFailure('The returned date cannot be in the future.');
+    if (cleanReason.length > 200) throw const AppFailure('Use at most 200 characters.');
+
+    final parcelRef = _parcels.doc(parcelId);
+    try {
+      await _firestore.runTransaction((tx) async {
+        final snapshot = await tx.get(parcelRef);
+        if (!snapshot.exists) throw const AppFailure('This parcel no longer exists.');
+        final parcel = snapshot.data()!;
+        if (parcel['parcelStatus'] != ParcelStatus.sent.value) {
+          throw const AppFailure('Only a Sent parcel can be marked as returned.');
+        }
+        final sending = parcel['sendingDateLocal'] as String;
+        if (date.compareTo(sending) < 0) throw AppFailure('The returned date cannot be before the sending date (${formatDate(sending)}).');
+
+        final needsReview = (parcel['receivedPaisa'] as int) > 0 || (parcel['outstandingPaisa'] as int) > 0;
+        tx.update(parcelRef, {
+          'parcelStatus': ParcelStatus.returned.value,
+          'returnedDateLocal': date,
+          if (cleanReason.isNotEmpty) 'returnReason': cleanReason,
+          'paymentReviewRequired': needsReview,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        _audit(tx, 'return', parcelId, parcel['orderNumber'] as String, ['parcelStatus', 'returnedDateLocal', 'returnReason', 'paymentReviewRequired']);
+      });
+    } on FirebaseException catch (e) {
+      throw firestoreFailure(e);
+    }
+  }
+
+  @override
+  Future<void> setNotes(String parcelId, String notes) async {
+    final clean = notes.trim();
+    if (clean.length > 500) throw const AppFailure('Use at most 500 characters.');
+    final parcelRef = _parcels.doc(parcelId);
+    try {
+      await _firestore.runTransaction((tx) async {
+        final snapshot = await tx.get(parcelRef);
+        if (!snapshot.exists) throw const AppFailure('This parcel no longer exists.');
+        final parcel = snapshot.data()!;
+        if ((parcel['notes'] as String? ?? '') == clean) return;
+        tx.update(parcelRef, {'notes': clean.isEmpty ? FieldValue.delete() : clean, 'updatedAt': FieldValue.serverTimestamp()});
+        _audit(tx, 'update', parcelId, parcel['orderNumber'] as String, ['notes']);
+      });
+    } on FirebaseException catch (e) {
+      throw firestoreFailure(e);
+    }
+  }
+
+  @override
+  Future<void> setPayLaterDate(String parcelId, String? date) async {
+    if (date != null && !_isDate(date)) throw const AppFailure('Enter a valid date.');
+    if (date != null && date.compareTo(pakistanDate(clock.nowUtc())) < 0) throw const AppFailure('Choose today or a later date.');
+    final parcelRef = _parcels.doc(parcelId);
+    try {
+      await _firestore.runTransaction((tx) async {
+        final snapshot = await tx.get(parcelRef);
+        if (!snapshot.exists) throw const AppFailure('This parcel no longer exists.');
+        final parcel = snapshot.data()!;
+        if (parcel['collectionMethod'] != CollectionMethod.payLater.value) throw const AppFailure('Only a Pay Later parcel has a payment date.');
+        if (parcel['parcelStatus'] == ParcelStatus.returned.value) throw const AppFailure("A returned parcel's date can't be changed.");
+        if ((parcel['outstandingPaisa'] as int) == 0) throw const AppFailure('Nothing is outstanding on this parcel.');
+        if (parcel['estimatedPaymentDateLocal'] == date) return;
+        tx.update(parcelRef, {'estimatedPaymentDateLocal': date ?? FieldValue.delete(), 'updatedAt': FieldValue.serverTimestamp()});
+        _audit(tx, 'update', parcelId, parcel['orderNumber'] as String, ['estimatedPaymentDateLocal']);
+      });
+    } on FirebaseException catch (e) {
+      throw firestoreFailure(e);
+    }
+  }
+
+  @override
+  Future<void> correctPayment(String parcelId, String paymentId, {required int correctedAmountPaisa, required String reason}) async {
+    final cleanReason = collapseSpaces(reason);
+    if (cleanReason.length < 5) throw const AppFailure('Give a reason (at least 5 characters).');
+    if (cleanReason.length > 200) throw const AppFailure('Use at most 200 characters.');
+    if (correctedAmountPaisa < 0) throw const AppFailure('Enter a valid amount.');
+
+    final parcelRef = _parcels.doc(parcelId);
+    final originalRef = parcelRef.collection('payments').doc(paymentId);
+    final reversalRef = parcelRef.collection('payments').doc('rev_$paymentId');
+    final replacementRef = parcelRef.collection('payments').doc('cor_$paymentId');
+    try {
+      await _retryWhenDenied(() => _firestore.runTransaction((tx) async {
+            final snapshot = await tx.get(parcelRef);
+            if (!snapshot.exists) throw const AppFailure('This parcel no longer exists.');
+            final parcel = snapshot.data()!;
+            if (parcel['parcelStatus'] == ParcelStatus.returned.value) throw const AppFailure("A returned parcel's payments can't be corrected.");
+
+            final original = await tx.get(originalRef);
+            if (!original.exists) throw const AppFailure('This payment no longer exists.');
+            final originalAmount = original['amountPaisa'] as int;
+            if (originalAmount <= 0) throw const AppFailure("A correction can't be corrected.");
+            if ((await tx.get(reversalRef)).exists) throw const AppFailure('This payment was already corrected.');
+            if (correctedAmountPaisa == originalAmount) throw const AppFailure('The corrected amount is the same as the payment.');
+
+            final expected = parcel['productAmountExpectedPaisa'] as int;
+            final received = (parcel['receivedPaisa'] as int) - originalAmount + correctedAmountPaisa;
+            if (received > expected) throw AppFailure('The total received cannot exceed ${formatRupees(expected)}.');
+
+            final isFree = parcel['collectionMethod'] == CollectionMethod.giftFree.value;
+            tx.update(parcelRef, {
+              'receivedPaisa': received,
+              'outstandingPaisa': outstandingFor(expectedPaisa: expected, receivedPaisa: received),
+              'paymentStatus': paymentStatusFor(isFree: isFree, expectedPaisa: expected, receivedPaisa: received).value,
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+            final type = original['paymentType'] as String;
+            tx.set(reversalRef, {
+              'amountPaisa': -originalAmount,
+              'paymentType': type,
+              'reversalOfPaymentId': paymentId,
+              'correctionReason': cleanReason,
+              'replacementPaisa': correctedAmountPaisa,
               'receivedAt': FieldValue.serverTimestamp(),
               'recordedAt': FieldValue.serverTimestamp(),
             });
+            if (correctedAmountPaisa > 0) {
+              tx.set(replacementRef, {
+                'amountPaisa': correctedAmountPaisa,
+                'paymentType': type,
+                'correctionOfPaymentId': paymentId,
+                'receivedAt': FieldValue.serverTimestamp(),
+                'recordedAt': FieldValue.serverTimestamp(),
+              });
+            }
+            _audit(tx, 'correct_payment', parcelId, parcel['orderNumber'] as String, ['receivedPaisa', 'outstandingPaisa', 'paymentStatus']);
           }));
     } on FirebaseException catch (e) {
       throw firestoreFailure(e);

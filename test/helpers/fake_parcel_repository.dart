@@ -33,6 +33,7 @@ Parcel testParcel({
   String? returnedDate,
   String? returnReason,
   bool paymentReviewRequired = false,
+  bool isArchived = false,
   List<ParcelItem>? items,
 }) {
   final lines = items ?? [ParcelItem.pieces(productId: 'x', productName: 'Mango Box', quantity: 2, unitPricePaisa: 250000)];
@@ -64,11 +65,12 @@ Parcel testParcel({
     returnedDate: returnedDate,
     returnReason: returnReason,
     paymentReviewRequired: paymentReviewRequired,
+    isArchived: isArchived,
   );
 }
 
 /// [old] with a few fields replaced.
-Parcel _changed(Parcel old, {int? received, ParcelStatus? status, String? notes, String? payDate, String? returnedDate, String? returnReason, bool? review}) => testParcel(
+Parcel _changed(Parcel old, {int? received, ParcelStatus? status, String? notes, String? payDate, String? returnedDate, String? returnReason, bool? review, bool? archived}) => testParcel(
       id: old.id,
       sequence: old.orderSequence,
       customerName: old.customerName,
@@ -89,6 +91,7 @@ Parcel _changed(Parcel old, {int? received, ParcelStatus? status, String? notes,
       returnedDate: returnedDate ?? old.returnedDate,
       returnReason: returnReason ?? old.returnReason,
       paymentReviewRequired: review ?? old.paymentReviewRequired,
+      isArchived: archived ?? old.isArchived,
     );
 
 /// In-memory repository: keeps parcels (newest first), records created inputs, can fail or wait.
@@ -116,7 +119,7 @@ class FakeParcelRepository implements ParcelRepository {
     _changes.add(null);
   }
 
-  List<Parcel> _sorted() => [..._parcels]..sort((a, b) => b.orderSequence.compareTo(a.orderSequence));
+  List<Parcel> _sorted({bool archived = false}) => [for (final p in _parcels) if (p.isArchived == archived) p]..sort((a, b) => b.orderSequence.compareTo(a.orderSequence));
 
   void emitError(Object error) => _changes.addError(error);
 
@@ -323,10 +326,41 @@ class FakeParcelRepository implements ParcelRepository {
   @override
   Stream<List<Parcel>> watchAll() async* {
     watchAllCalls++;
-    yield _sorted();
+    yield _sorted(archived: false);
     await for (final _ in _changes.stream) {
-      yield _sorted();
+      yield _sorted(archived: false);
     }
+  }
+
+  @override
+  Stream<List<Parcel>> watchArchived() async* {
+    yield _sorted(archived: true);
+    await for (final _ in _changes.stream) {
+      yield _sorted(archived: true);
+    }
+  }
+
+  final archivedIds = <String>[];
+
+  @override
+  Future<void> archive(String parcelId) async {
+    await gate?.future;
+    if (failure != null) throw failure!;
+    final index = _index(parcelId);
+    final old = _parcels[index];
+    if (!old.isArchived && !old.canArchive) throw const AppFailure("A parcel that still has money to collect can't be archived.");
+    archivedIds.add(parcelId);
+    _parcels[index] = _changed(old, archived: true);
+    _changes.add(null);
+  }
+
+  @override
+  Future<void> restore(String parcelId) async {
+    await gate?.future;
+    if (failure != null) throw failure!;
+    final index = _index(parcelId);
+    _parcels[index] = _changed(_parcels[index], archived: false);
+    _changes.add(null);
   }
 
   @override

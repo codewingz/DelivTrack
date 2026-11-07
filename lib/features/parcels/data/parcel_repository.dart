@@ -17,8 +17,18 @@ import '../domain/payment_rules.dart';
 import '../../../utils/postal_reference.dart';
 
 abstract class ParcelRepository {
-  /// All of the signed-in user's parcels, newest first.
+  /// All of the signed-in user's parcels, newest first. Archived parcels are not included.
   Stream<List<Parcel>> watchAll();
+
+  /// The archived parcels, newest first.
+  Stream<List<Parcel>> watchArchived();
+
+  /// Hides a parcel that has nothing left to chase (a draft, a returned parcel, or one that owes
+  /// nothing). Its order number stays reserved; [restore] brings it back. Throws [AppFailure].
+  Future<void> archive(String parcelId);
+
+  /// Brings an archived parcel back to the lists.
+  Future<void> restore(String parcelId);
 
   /// One parcel, or null if it does not exist.
   Stream<Parcel?> watch(String id);
@@ -96,10 +106,18 @@ class FirestoreParcelRepository implements ParcelRepository {
   }
 
   @override
-  Stream<List<Parcel>> watchAll() => _parcels
+  Stream<List<Parcel>> watchAll() => _watchParcels(archived: false);
+
+  @override
+  Stream<List<Parcel>> watchArchived() => _watchParcels(archived: true);
+
+  Stream<List<Parcel>> _watchParcels({required bool archived}) => _parcels
       .orderBy('orderSequence', descending: true)
       .snapshots()
-      .map((snapshot) => [for (final doc in snapshot.docs) Parcel.fromMap(doc.id, doc.data())])
+      .map((snapshot) => [
+            for (final doc in snapshot.docs)
+              if ((doc.data()['isArchived'] as bool? ?? false) == archived) Parcel.fromMap(doc.id, doc.data()),
+          ])
       .withFirestoreFailures();
 
   @override
@@ -178,6 +196,7 @@ class FirestoreParcelRepository implements ParcelRepository {
         final snapshot = await tx.get(parcelRef);
         if (!snapshot.exists) throw const AppFailure('This parcel no longer exists.');
         final before = snapshot.data()!;
+        _requireNotArchived(before);
 
         if (before['parcelStatus'] == ParcelStatus.returned.value) {
           throw const AppFailure("A returned parcel can't be edited.");
@@ -296,6 +315,7 @@ class FirestoreParcelRepository implements ParcelRepository {
             final snapshot = await tx.get(parcelRef);
             if (!snapshot.exists) throw const AppFailure('This parcel no longer exists.');
             final parcel = snapshot.data()!;
+            _requireNotArchived(parcel);
             if (parcel['parcelStatus'] == ParcelStatus.returned.value) throw const AppFailure("A returned parcel can't take payments.");
             final isFree = parcel['collectionMethod'] == CollectionMethod.giftFree.value;
             if (isFree) throw const AppFailure('A Gift / Free parcel has no payment to receive.');
@@ -347,6 +367,36 @@ class FirestoreParcelRepository implements ParcelRepository {
     });
   }
 
+  static void _requireNotArchived(Map<String, dynamic> parcel) {
+    if (parcel['isArchived'] == true) throw const AppFailure('This parcel is archived. Restore it first.');
+  }
+
+  @override
+  Future<void> archive(String parcelId) => _setArchived(parcelId, archived: true);
+
+  @override
+  Future<void> restore(String parcelId) => _setArchived(parcelId, archived: false);
+
+  Future<void> _setArchived(String parcelId, {required bool archived}) async {
+    final parcelRef = _parcels.doc(parcelId);
+    try {
+      await _firestore.runTransaction((tx) async {
+        final snapshot = await tx.get(parcelRef);
+        if (!snapshot.exists) throw const AppFailure('This parcel no longer exists.');
+        final parcel = snapshot.data()!;
+        final isArchived = parcel['isArchived'] == true;
+        if (isArchived == archived) return;
+        if (archived && parcel['parcelStatus'] == ParcelStatus.sent.value && (parcel['outstandingPaisa'] as int) > 0) {
+          throw const AppFailure("A parcel that still has money to collect can't be archived.");
+        }
+        tx.update(parcelRef, {'isArchived': archived ? true : FieldValue.delete(), 'updatedAt': FieldValue.serverTimestamp()});
+        _audit(tx, archived ? 'archive' : 'restore', parcelId, parcel['orderNumber'] as String, ['isArchived']);
+      });
+    } on FirebaseException catch (e) {
+      throw firestoreFailure(e);
+    }
+  }
+
   @override
   Future<void> markReturned(String parcelId, {required String date, String? reason}) async {
     final cleanReason = collapseSpaces(reason ?? '');
@@ -361,6 +411,7 @@ class FirestoreParcelRepository implements ParcelRepository {
         final snapshot = await tx.get(parcelRef);
         if (!snapshot.exists) throw const AppFailure('This parcel no longer exists.');
         final parcel = snapshot.data()!;
+        _requireNotArchived(parcel);
         if (parcel['parcelStatus'] != ParcelStatus.sent.value) {
           throw const AppFailure('Only a Sent parcel can be marked as returned.');
         }
@@ -392,6 +443,7 @@ class FirestoreParcelRepository implements ParcelRepository {
         final snapshot = await tx.get(parcelRef);
         if (!snapshot.exists) throw const AppFailure('This parcel no longer exists.');
         final parcel = snapshot.data()!;
+        _requireNotArchived(parcel);
         if ((parcel['notes'] as String? ?? '') == clean) return;
         tx.update(parcelRef, {'notes': clean.isEmpty ? FieldValue.delete() : clean, 'updatedAt': FieldValue.serverTimestamp()});
         _audit(tx, 'update', parcelId, parcel['orderNumber'] as String, ['notes']);
@@ -411,6 +463,7 @@ class FirestoreParcelRepository implements ParcelRepository {
         final snapshot = await tx.get(parcelRef);
         if (!snapshot.exists) throw const AppFailure('This parcel no longer exists.');
         final parcel = snapshot.data()!;
+        _requireNotArchived(parcel);
         if (parcel['collectionMethod'] != CollectionMethod.payLater.value) throw const AppFailure('Only a Pay Later parcel has a payment date.');
         if (parcel['parcelStatus'] == ParcelStatus.returned.value) throw const AppFailure("A returned parcel's date can't be changed.");
         if ((parcel['outstandingPaisa'] as int) == 0) throw const AppFailure('Nothing is outstanding on this parcel.');
@@ -439,6 +492,7 @@ class FirestoreParcelRepository implements ParcelRepository {
             final snapshot = await tx.get(parcelRef);
             if (!snapshot.exists) throw const AppFailure('This parcel no longer exists.');
             final parcel = snapshot.data()!;
+            _requireNotArchived(parcel);
             if (parcel['parcelStatus'] == ParcelStatus.returned.value) throw const AppFailure("A returned parcel's payments can't be corrected.");
 
             final original = await tx.get(originalRef);

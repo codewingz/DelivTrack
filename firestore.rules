@@ -95,7 +95,7 @@ service cloud.firestore {
           'postalReferenceNormalized', 'deliveryChargePaisa', 'actualPackedWeightGrams',
           'estimatedPaymentDateLocal', 'productAmountExpectedPaisa', 'receivedPaisa', 'outstandingPaisa',
           'paymentStatus', 'parcelStatus', 'sendingDateLocal', 'createdAt', 'updatedAt',
-          'notes', 'returnedDateLocal', 'returnReason', 'paymentReviewRequired']);
+          'notes', 'returnedDateLocal', 'returnReason', 'paymentReviewRequired', 'isArchived']);
     }
 
     // Field-level checks. Rules cannot loop over `items`, so the per-line maths is checked by the
@@ -132,6 +132,7 @@ service cloud.firestore {
         && data.paymentStatus in ['not_required', 'pending', 'partial', 'received']
         && validDateString(data.sendingDateLocal)
         && (!('notes' in data) || (data.notes is string && data.notes.size() >= 1 && data.notes.size() <= 500))
+        && (!('isArchived' in data) || data.isArchived == true)
         && validReturnFields(data)
         && data.createdAt is timestamp
         && data.updatedAt == request.time;
@@ -179,6 +180,7 @@ service cloud.firestore {
         && request.resource.data.createdAt == request.time
         && request.resource.data.sendingDateLocal == pakistanDate(request.time)
         && request.resource.data.receivedPaisa == 0
+        && !('isArchived' in request.resource.data)
         && request.resource.data.paymentStatus in ['pending', 'not_required']
         && request.resource.data.parcelStatus in ['draft', 'sent']
         && getAfter(/databases/$(database)/documents/users/$(uid)/counters/orders).data.lastSequence == request.resource.data.orderSequence
@@ -191,10 +193,19 @@ service cloud.firestore {
         && request.resource.data.orderSequence == resource.data.orderSequence
         && request.resource.data.createdAt == resource.data.createdAt
         && request.resource.data.sendingDateLocal == resource.data.sendingDateLocal
+        // An archived parcel cannot be edited; the only change allowed is restoring it. A parcel can be
+        // archived only when nothing is left to chase (a draft, a returned parcel, or nothing owed), and
+        // archiving changes nothing else.
+        && (request.resource.data.get('isArchived', false) == resource.data.get('isArchived', false)
+            ? !resource.data.get('isArchived', false)
+            : (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isArchived', 'updatedAt'])
+                && (resource.data.get('isArchived', false)
+                    || resource.data.parcelStatus in ['draft', 'returned']
+                    || resource.data.outstandingPaisa == 0)))
         // A returned parcel only takes notes; Sent -> Returned changes nothing but the return fields.
         && (resource.data.parcelStatus != 'returned'
             || (request.resource.data.parcelStatus == 'returned'
-                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['notes', 'updatedAt'])))
+                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['notes', 'isArchived', 'updatedAt'])))
         && (request.resource.data.parcelStatus != 'returned' || resource.data.parcelStatus == 'returned'
             || (resource.data.parcelStatus == 'sent'
                 && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['parcelStatus', 'returnedDateLocal', 'returnReason', 'paymentReviewRequired', 'updatedAt'])))
@@ -238,6 +249,7 @@ service cloud.firestore {
               || (request.resource.data.receivedAt is timestamp && request.resource.data.receivedAt < request.time
                   && pakistanDate(request.resource.data.receivedAt) >= get(parcelAt(uid, parcelId)).data.sendingDateLocal))
           && get(parcelAt(uid, parcelId)).data.parcelStatus != 'returned'
+          && !get(parcelAt(uid, parcelId)).data.get('isArchived', false)
           && get(parcelAt(uid, parcelId)).data.collectionMethod != 'free_gift'
           && request.resource.data.amountPaisa <= get(parcelAt(uid, parcelId)).data.outstandingPaisa
           && getAfter(parcelAt(uid, parcelId)).data.receivedPaisa
@@ -255,6 +267,7 @@ service cloud.firestore {
           && get(paymentAt(uid, parcelId, paymentId[4:])).data.amountPaisa == -request.resource.data.amountPaisa
           && get(paymentAt(uid, parcelId, paymentId[4:])).data.paymentType == request.resource.data.paymentType
           && get(parcelAt(uid, parcelId)).data.parcelStatus != 'returned'
+          && !get(parcelAt(uid, parcelId)).data.get('isArchived', false)
           && getAfter(parcelAt(uid, parcelId)).data.receivedPaisa
               == get(parcelAt(uid, parcelId)).data.receivedPaisa + request.resource.data.amountPaisa + request.resource.data.replacementPaisa
           && getAfter(parcelAt(uid, parcelId)).data.receivedPaisa <= get(parcelAt(uid, parcelId)).data.productAmountExpectedPaisa
@@ -283,7 +296,7 @@ service cloud.firestore {
         && request.resource.data.keys().hasAll(['entityType', 'entityId', 'action', 'changedFields', 'createdAt'])
         && request.resource.data.entityType in ['parcel']
         && request.resource.data.entityId is string && request.resource.data.entityId.size() > 0 && request.resource.data.entityId.size() <= 40
-        && request.resource.data.action in ['update', 'return', 'correct_payment']
+        && request.resource.data.action in ['update', 'return', 'correct_payment', 'archive', 'restore']
         && request.resource.data.changedFields is list
         && request.resource.data.changedFields.size() >= 1 && request.resource.data.changedFields.size() <= 30
         && (!('orderNumber' in request.resource.data) || request.resource.data.orderNumber.matches('^ADT-[0-9]{6,}$'))

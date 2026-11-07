@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../common_widgets/confirm_dialog.dart';
+import '../../../core/errors/app_failure.dart';
 import '../../../common_widgets/empty_state.dart';
 import '../../../common_widgets/list_skeleton.dart';
 import '../../../common_widgets/primary_button.dart';
@@ -40,7 +42,11 @@ class _ParcelDetailsScreenState extends State<ParcelDetailsScreen> {
   /// Opens one of the action sheets; a snackbar confirms when it was submitted.
   Future<void> _act(Future<bool> Function() open, String done) async {
     final messenger = ScaffoldMessenger.of(context);
-    if (await open()) messenger.showSnackBar(SnackBar(content: Text(done)));
+    try {
+      if (await open()) messenger.showSnackBar(SnackBar(content: Text(done)));
+    } on AppFailure catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    }
   }
 
   void _retry() => setState(() => _stream = widget.repository.watch(widget.parcelId));
@@ -55,7 +61,7 @@ class _ParcelDetailsScreenState extends State<ParcelDetailsScreen> {
           appBar: AppBar(
             title: Text(parcel?.orderNumber ?? 'Parcel'),
             actions: [
-              if (parcel != null && parcel.status != ParcelStatus.returned)
+              if (parcel != null && parcel.status != ParcelStatus.returned && !parcel.isArchived)
                 IconButton(tooltip: 'Edit parcel', icon: const Icon(Icons.edit_outlined), onPressed: () => _edit(parcel)),
             ],
           ),
@@ -99,13 +105,24 @@ class _ParcelView extends StatelessWidget {
   Widget build(BuildContext context) {
     final isFree = parcel.method == CollectionMethod.giftFree;
     final isReturned = parcel.status == ParcelStatus.returned;
-    final canReceive = !isFree && !isReturned && parcel.outstandingPaisa > 0;
-    final canChangeDate = parcel.method == CollectionMethod.payLater && !isReturned && parcel.outstandingPaisa > 0;
+    final canReceive = !isFree && !isReturned && !parcel.isArchived && parcel.outstandingPaisa > 0;
+    final canChangeDate = parcel.method == CollectionMethod.payLater && !isReturned && !parcel.isArchived && parcel.outstandingPaisa > 0;
     return SingleChildScrollView(
       padding: const EdgeInsetsDirectional.all(AppSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (parcel.isArchived)
+            _Section(title: 'Archived', children: [
+              const _Info('Status', 'This parcel is archived. It is hidden from the lists and totals, and its order number stays reserved.'),
+              PrimaryButton(
+                label: 'Restore Parcel',
+                onPressed: () => onAction(() async {
+                  await repository.restore(parcel.id);
+                  return true;
+                }, 'Parcel restored.'),
+              ),
+            ]),
           _Section(title: 'Parcel', children: [
             ParcelStatusChips(status: parcel.status, payment: parcel.paymentStatus, reviewRequired: parcel.paymentReviewRequired),
             _Info('Order number', parcel.orderNumber),
@@ -150,6 +167,7 @@ class _ParcelView extends StatelessWidget {
                 const _Info('Payment review', 'Requires payment review: money was received or is still owed. Nothing is refunded automatically.'),
             ]),
           _Section(title: 'Notes', children: [_Info('Notes', parcel.notes ?? 'No notes yet')]),
+          if (!parcel.isArchived)
           _Section(title: 'Actions', children: [
             OutlinedButton(
               onPressed: () => onAction(() => showNotesSheet(context, repository, parcel), 'Notes saved.'),
@@ -164,6 +182,21 @@ class _ParcelView extends StatelessWidget {
               OutlinedButton(
                 onPressed: () => onAction(() => showReturnSheet(context, repository, parcel), 'Parcel marked as returned.'),
                 child: const Text('Mark Returned'),
+              ),
+            if (parcel.canArchive)
+              OutlinedButton(
+                onPressed: () => onAction(() async {
+                  final confirmed = await showConfirmDialog(
+                    context,
+                    title: 'Archive this parcel?',
+                    message: 'It will be hidden from the lists and totals. Its order number stays reserved and you can restore it any time.',
+                    confirmLabel: 'Archive',
+                  );
+                  if (!confirmed) return false;
+                  await repository.archive(parcel.id);
+                  return true;
+                }, 'Parcel archived.'),
+                child: const Text('Archive Parcel'),
               ),
           ]),
         ],
@@ -251,7 +284,7 @@ class _PaymentHistoryState extends State<_PaymentHistory> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(child: _PaymentRow(payment: payment, corrected: reversed.contains(payment.id))),
-                  if (payment.amountPaisa > 0 && !reversed.contains(payment.id) && parcel.status != ParcelStatus.returned)
+                  if (payment.amountPaisa > 0 && !reversed.contains(payment.id) && parcel.status != ParcelStatus.returned && !parcel.isArchived)
                     TextButton(
                       onPressed: () => widget.onAction(
                         () => showCorrectPaymentSheet(context, widget.repository, parcel, payment),

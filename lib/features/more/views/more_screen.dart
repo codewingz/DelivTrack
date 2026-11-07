@@ -5,10 +5,11 @@ import '../../auth/data/auth_repository.dart';
 
 /// Secondary sections. Products and Reports are here; Settings is added when it is built.
 class MoreScreen extends StatelessWidget {
-  const MoreScreen({super.key, required this.repository, required this.onOpenProducts, required this.onOpenReports});
+  const MoreScreen({super.key, required this.repository, required this.onOpenProducts, required this.onOpenReports, required this.onOpenArchived});
   final AuthRepository repository;
   final VoidCallback onOpenProducts;
   final VoidCallback onOpenReports;
+  final VoidCallback onOpenArchived;
 
   @override
   Widget build(BuildContext context) {
@@ -31,6 +32,14 @@ class MoreScreen extends StatelessWidget {
               title: const Text('Reports'),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: onOpenReports,
+            ),
+            const Divider(height: 1),
+            ListTile(
+              minTileHeight: 56,
+              leading: const Icon(Icons.archive_outlined, color: AppColors.label),
+              title: const Text('Archived parcels'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: onOpenArchived,
             ),
             const Divider(height: 1),
             ListTile(

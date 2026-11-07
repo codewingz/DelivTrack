@@ -14,6 +14,7 @@ import '../features/dashboard/views/dashboard_screen.dart';
 import '../features/parcels/data/parcel_repository.dart';
 import '../features/parcels/domain/parcel.dart';
 import '../features/parcels/domain/parcel_search.dart';
+import '../features/parcels/views/archived_parcels_screen.dart';
 import '../features/parcels/views/parcel_details_screen.dart';
 import '../features/parcels/views/parcel_form_screen.dart';
 import '../features/parcels/views/parcels_screen.dart';
@@ -45,6 +46,7 @@ class AppRoutes {
 
   static String parcelPath(String id) => '/parcels/$id';
   static const String reminders = '/reminders';
+  static const String archived = '/archived';
   static const String reports = '/reports';
   static const String reportDetails = '/reports/:type';
 
@@ -114,6 +116,14 @@ GoRouter createRouter(
         path: AppRoutes.products,
         name: 'products',
         builder: (context, state) => ProductsScreen(repository: productRepository),
+      ),
+      GoRoute(
+        path: AppRoutes.archived,
+        name: 'archived',
+        builder: (context, state) => ArchivedParcelsScreen(
+          repository: parcelRepository,
+          onOpen: (parcel) => context.push(AppRoutes.parcelPath(parcel.id)),
+        ),
       ),
       GoRoute(
         path: AppRoutes.reports,
@@ -263,6 +273,7 @@ GoRouter createRouter(
                   repository: repository,
                   onOpenProducts: () => context.push(AppRoutes.products),
                   onOpenReports: () => context.push(AppRoutes.reports),
+                  onOpenArchived: () => context.push(AppRoutes.archived),
                 ),
               ),
             ),

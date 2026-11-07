@@ -572,4 +572,50 @@ void main() {
       await expectLater(repo.correctPayment(id, payment, correctedAmountPaisa: 0, reason: 'Not yours'), throwsA(isA<AppFailure>()));
     });
   });
+
+  group('archiving', () {
+    Future<Parcel> waitFor(String id, bool Function(Parcel) test) => repo.watch(id).firstWhere((p) => p != null && test(p)).timeout(const Duration(seconds: 10)).then((p) => p!);
+
+    testWidgets('only a parcel with nothing to chase is archived; it leaves the list, stays readable, is locked, and restores', (t) async {
+      await signUpNewUser('arch');
+      final owing = await repo.create(_input(reference: 'VPP 11111'));
+      final paid = await repo.create(_input(reference: 'VPP 22222'));
+      await repo.recordPayment(paid, amountPaisa: 500000, type: PaymentType.customerPayment);
+      await waitFor(paid, (p) => p.paymentStatus == PaymentStatus.received);
+
+      await expectLater(repo.archive(owing), throwsA(isA<AppFailure>()), reason: 'Rs. 5,000 still owed');
+      await repo.archive(paid);
+      await waitFor(paid, (p) => p.isArchived);
+      expect((await repo.watchAll().firstWhere((l) => l.length == 1).timeout(const Duration(seconds: 10))).map((p) => p.id), [owing], reason: 'gone from the lists');
+      expect((await repo.watchArchived().firstWhere((l) => l.isNotEmpty).timeout(const Duration(seconds: 10))).map((p) => p.id), [paid]);
+      expect((await repo.watch(paid).first)!.orderNumber, 'ADT-000002', reason: 'still readable by its address');
+
+      await expectLater(repo.update(paid, _input(reference: 'VPP 22222', charge: 20000)), throwsA(isA<AppFailure>()), reason: 'locked: edit');
+      await expectLater(repo.setNotes(paid, 'x'), throwsA(isA<AppFailure>()), reason: 'locked: notes');
+      await expectLater(repo.markReturned(paid, date: pakistanDate(DateTime.now().toUtc())), throwsA(isA<AppFailure>()), reason: 'locked: return');
+
+      final next = await repo.create(_input(reference: 'VPP 33333'));
+      expect((await repo.watch(next).first)!.orderNumber, 'ADT-000003', reason: 'an archived number is never reused (AT-03)');
+
+      await repo.restore(paid);
+      await waitFor(paid, (p) => !p.isArchived);
+      expect((await repo.watchAll().firstWhere((l) => l.length == 3).timeout(const Duration(seconds: 10))).map((p) => p.id).toSet(), {owing, paid, next});
+      await repo.setNotes(paid, 'editable again');
+      expect((await waitFor(paid, (p) => p.notes != null)).notes, 'editable again');
+    });
+
+    testWidgets('a draft and a returned parcel can be archived; another user cannot archive or restore it', (t) async {
+      await signUpNewUser('arch2');
+      final draft = await repo.create(_input(reference: '', charge: null, status: ParcelStatus.draft));
+      final sent = await repo.create(_input(reference: 'VPP 44444'));
+      await repo.markReturned(sent, date: pakistanDate(DateTime.now().toUtc()));
+      await waitFor(sent, (p) => p.status == ParcelStatus.returned);
+      await repo.archive(draft);
+      await repo.archive(sent);
+      expect((await repo.watchArchived().firstWhere((l) => l.length == 2).timeout(const Duration(seconds: 10))).map((p) => p.id).toSet(), {draft, sent});
+      await signUpNewUser('intruder2');
+      await expectLater(repo.restore(draft), throwsA(isA<AppFailure>()));
+      expect(await repo.watchArchived().first, isEmpty, reason: "another user's archive is not visible");
+    });
+  });
 }

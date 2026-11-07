@@ -356,6 +356,7 @@ void main() {
       await denied('free parcel with an amount', _parcel(seq: 1, overrides: {'collectionMethod': 'free_gift'}));
       await denied('already received on create', _parcel(seq: 1, overrides: {'receivedPaisa': 100, 'outstandingPaisa': 499900}));
       await denied('returned on create', _parcel(seq: 1, overrides: {'parcelStatus': 'returned'}));
+      await denied('archived on create', _parcel(seq: 1, overrides: {'parcelStatus': 'draft', 'postalReference': '', 'postalReferenceNormalized': '', 'isArchived': true}, remove: ['deliveryChargePaisa']));
       await denied('no items', _parcel(seq: 1, overrides: {'items': <Object?>[]}));
       await denied('21 items', _parcel(seq: 1, overrides: {'items': List.generate(21, (i) => {'productId': 'p$i'})}));
       await denied('order number does not match the sequence', _parcel(seq: 1, orderNumber: 'ADT-000002'));
@@ -553,6 +554,85 @@ void main() {
       expect(await replace(s, _parcel(seq: 1, overrides: {'collectionMethod': 'credit'})), 200, reason: 'cleared');
       expect(await replace(s, _parcel(seq: 1, overrides: {'collectionMethod': 'credit', 'notes': 'x'})), 200, reason: 'other edits are not blocked');
     }, skip: skip);
+    group('archiving', () {
+      Map<String, Object?> archived(Map<String, Object?> overrides) => _parcel(seq: 1, overrides: {...overrides, 'isArchived': true});
+
+      test('only a parcel with nothing left to chase can be archived: draft, returned, nothing owed, Gift / Free', () async {
+        final unpaid = await setup();
+        expect(await replace(unpaid, archived({})), 403, reason: 'Rs. 5,000 is still owed');
+        final partial = await setup();
+        final partOverrides = {'receivedPaisa': 200000, 'outstandingPaisa': 300000, 'paymentStatus': 'partial'};
+        expect(await replace(partial, _parcel(seq: 1, overrides: partOverrides)), 200);
+        expect(await replace(partial, archived(partOverrides)), 403, reason: 'part paid');
+
+        final draft = await setup(overrides: {'parcelStatus': 'draft'});
+        expect(await replace(draft, archived({'parcelStatus': 'draft'})), 200, reason: 'a draft');
+
+        final paid = await setup();
+        const paidOverrides = {'receivedPaisa': 500000, 'outstandingPaisa': 0, 'paymentStatus': 'received'};
+        expect(await replace(paid, _parcel(seq: 1, overrides: paidOverrides)), 200);
+        expect(await replace(paid, archived(paidOverrides)), 200, reason: 'paid in full');
+
+        final returned = await setup();
+        expect(await replace(returned, _parcel(seq: 1, overrides: _returned())), 200);
+        expect(await replace(returned, archived(_returned())), 200, reason: 'returned');
+
+        const freeOverrides = {'collectionMethod': 'free_gift', 'productAmountExpectedPaisa': 0, 'outstandingPaisa': 0, 'paymentStatus': 'not_required'};
+        final free = await setup(overrides: freeOverrides);
+        expect(await replace(free, archived(freeOverrides)), 200, reason: 'Gift / Free');
+      }, skip: skip);
+
+      test('archiving changes nothing else, and only `true` is ever stored', () async {
+        final s = await setup(overrides: {'parcelStatus': 'draft'});
+        const draft = {'parcelStatus': 'draft'};
+        expect(await replace(s, archived({...draft, 'postalReference': 'VPP 99999', 'postalReferenceNormalized': 'VPP99999'})), 403, reason: 'archive + edit');
+        expect(await replace(s, archived({...draft, 'notes': 'sneaky'})), 403);
+        expect(await replace(s, _parcel(seq: 1, overrides: {...draft, 'isArchived': false})), 403, reason: 'false is not stored');
+        expect(await replace(s, archived(draft)), 200);
+      }, skip: skip);
+
+      test('an archived parcel is locked: no edits, no notes, no payments, no corrections; restoring is the only change', () async {
+        final s = await setup(overrides: {'parcelStatus': 'draft'});
+        const draft = {'parcelStatus': 'draft'};
+        expect(await replace(s, archived(draft)), 200);
+        expect(await replace(s, archived({...draft, 'notes': 'edit while archived'})), 403, reason: 'notes');
+        expect(await replace(s, _parcel(seq: 1, overrides: {...draft, 'postalReference': 'VPP 99999', 'postalReferenceNormalized': 'VPP99999'})), 403, reason: 'edit + restore together');
+        expect(await replace(s, _parcel(seq: 1, overrides: draft)), 200, reason: 'restore (field removed)');
+        expect(await replace(s, _parcel(seq: 1, overrides: {...draft, 'notes': 'edit after restore'})), 200, reason: 'editable again');
+      }, skip: skip);
+
+      test('an archived parcel takes no payment', () async {
+        final s = await setup();
+        const paidOverrides = {'receivedPaisa': 500000, 'outstandingPaisa': 0, 'paymentStatus': 'received'};
+        expect(await replace(s, _parcel(seq: 1, overrides: paidOverrides)), 200);
+        expect(await replace(s, archived(paidOverrides)), 200);
+        // a payment would need outstanding money anyway; the rule also names archived parcels explicitly
+        expect(
+          await emu.commit(s.user.token, [
+            DocWrite(ppath(s.user.uid, s.pid), {..._parcel(seq: 1, overrides: {...paidOverrides, 'receivedPaisa': 500100}), 'isArchived': true, 'createdAt': s.created}, serverTimes: const ['updatedAt']),
+            DocWrite('users/${s.user.uid}/parcels/${s.pid}/payments/p1', {'amountPaisa': 100, 'paymentType': 'advance'}, serverTimes: const ['receivedAt', 'recordedAt']),
+          ]),
+          403,
+        );
+      }, skip: skip);
+
+      test('another user cannot archive or restore', () async {
+        final s = await setup(overrides: {'parcelStatus': 'draft'});
+        final other = await emu.signUp('archother${DateTime.now().microsecondsSinceEpoch}@x.com');
+        expect(await replace(s, archived({'parcelStatus': 'draft'}), token: other.token), 403);
+      }, skip: skip);
+
+      test('archive and restore audit entries are accepted', () async {
+        final u = await emu.signUp('archaudit${DateTime.now().microsecondsSinceEpoch}@x.com');
+        for (final action in ['archive', 'restore']) {
+          expect(
+            await emu.set(u.token, 'users/${u.uid}/audit_logs/$action', {'entityType': 'parcel', 'entityId': 'p', 'action': action, 'changedFields': ['isArchived']}, serverTimes: const ['createdAt']),
+            200,
+            reason: action,
+          );
+        }
+      }, skip: skip);
+    });
   });
 
   group('payments', () {

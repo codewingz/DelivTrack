@@ -311,6 +311,74 @@ void main() {
       }
     }
   });
+
+  group('archiving', () {
+    Finder button(String label) => find.widgetWithText(OutlinedButton, label);
+
+    testWidgets('a parcel that still owes money offers no Archive; a paid one, a draft, a returned one and a Gift / Free one do', (t) async {
+      for (final (parcel, canArchive) in [
+        (testParcel(id: 'a'), false),
+        (testParcel(id: 'a', received: 100000), false),
+        (testParcel(id: 'a', received: 500000), true),
+        (testParcel(id: 'a', status: ParcelStatus.draft, reference: '', charge: null), true),
+        (testParcel(id: 'a', status: ParcelStatus.returned, paymentReviewRequired: true), true),
+        (testParcel(id: 'a', method: CollectionMethod.giftFree), true),
+      ]) {
+        await _open(t, FakeParcelRepository(initial: [parcel]), 'a');
+        expect(button('Archive Parcel'), canArchive ? findsOneWidget : findsNothing, reason: '${parcel.status} ${parcel.method} ${parcel.receivedPaisa}');
+        await t.pumpWidget(const SizedBox());
+      }
+    });
+
+    testWidgets('Archive asks first; Cancel keeps the parcel; Archive hides it and shows the Restore banner', (t) async {
+      final repo = FakeParcelRepository(initial: [testParcel(id: 'a', received: 500000)]);
+      await _open(t, repo, 'a');
+      await t.ensureVisible(button('Archive Parcel'));
+      await t.pump();
+      await t.tap(button('Archive Parcel'));
+      await t.pumpAndSettle();
+      expect(find.text('Archive this parcel?'), findsOneWidget);
+      await t.tap(find.widgetWithText(TextButton, 'Cancel'));
+      await t.pumpAndSettle();
+      expect(repo.archivedIds, isEmpty);
+
+      await t.tap(button('Archive Parcel'));
+      await t.pumpAndSettle();
+      await t.tap(find.widgetWithText(TextButton, 'Archive'));
+      await t.pumpAndSettle();
+      expect(repo.archivedIds, ['a']);
+      expect(find.text('Parcel archived.'), findsOneWidget);
+      expect(find.text('Archived'), findsWidgets);
+      expect(find.widgetWithText(FilledButton, 'Restore Parcel'), findsOneWidget);
+    });
+
+    testWidgets('an archived parcel is read-only: no Edit, Receive, Correct or action buttons; Restore brings it back', (t) async {
+      final payment = Payment(id: 'p1', amountPaisa: 100000, type: PaymentType.advance, note: null, receivedAt: DateTime.utc(2026, 11, 8, 6));
+      final repo = FakeParcelRepository(initial: [testParcel(id: 'a', received: 100000, isArchived: true)])..payments['a'] = [payment];
+      await _open(t, repo, 'a');
+      expect(find.byTooltip('Edit parcel'), findsNothing);
+      expect(find.widgetWithText(FilledButton, 'Mark Payment Received'), findsNothing);
+      expect(find.text('Correct'), findsNothing);
+      expect(find.text('Actions'), findsNothing);
+      await t.ensureVisible(find.widgetWithText(FilledButton, 'Restore Parcel'));
+      await t.pump();
+      await t.tap(find.widgetWithText(FilledButton, 'Restore Parcel'));
+      await t.pumpAndSettle();
+      expect(find.text('Parcel restored.'), findsOneWidget);
+      expect(find.byTooltip('Edit parcel'), findsOneWidget);
+      expect(find.widgetWithText(FilledButton, 'Restore Parcel'), findsNothing);
+    });
+
+    testWidgets('a refusal from the repository is shown instead of crashing', (t) async {
+      final repo = FakeParcelRepository(initial: [testParcel(id: 'a', received: 500000, isArchived: true)])..failure = const AppFailure('No internet connection.');
+      await _open(t, repo, 'a');
+      await t.ensureVisible(find.widgetWithText(FilledButton, 'Restore Parcel'));
+      await t.pump();
+      await t.tap(find.widgetWithText(FilledButton, 'Restore Parcel'));
+      await t.pumpAndSettle();
+      expect(find.text('No internet connection.'), findsOneWidget);
+    });
+  });
 }
 
 /// First load fails, the next one works.

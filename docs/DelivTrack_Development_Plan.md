@@ -492,7 +492,7 @@ Firestore scheduled backups need the **Blaze** plan (daily + weekly schedule, re
 | D12 | Show a read-only live "Products total" on Add Parcel | Yes (it is computed, not typed) |
 | D13 | One primary button whose label changes (Draft ↔ Sent) | Yes |
 | D14 | Advance parcel starts Pending until the advance is recorded | Yes |
-| D15 | Allow archiving/deleting a parcel? (spec mentions it in AT-03 but has no screen for it) | Archive only, with confirm; number stays reserved |
+| D15 | Allow archiving/deleting a parcel? (spec mentions it in AT-03 but has no screen for it) | **DONE 7 Nov 2026: archive only, with confirm.** Allowed for a draft, a returned parcel, or one that owes nothing (paid in full, Gift / Free); an archived parcel is hidden from every list, total, reminder and report, is read-only (only Restore), and its order number stays reserved. More → Archived parcels lists them. Enforced in the rules (two-user tests, mutation-checked). |
 | D16 | Allow entering a past "received on" date for late entries | Yes, behind a toggle |
 | D17 | Reminder date = today after 9:00 | In-app immediately + notification ~1 min later |
 | D18 | Reminders for returned parcels | Cancel when nothing owed; keep in Review otherwise |

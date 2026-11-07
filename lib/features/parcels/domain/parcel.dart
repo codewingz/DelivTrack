@@ -30,6 +30,7 @@ class Parcel {
     this.returnedDate,
     this.returnReason,
     this.paymentReviewRequired = false,
+    this.isArchived = false,
   });
 
   factory Parcel.fromMap(String id, Map<String, dynamic> data) {
@@ -60,6 +61,7 @@ class Parcel {
       returnedDate: data['returnedDateLocal'] as String?,
       returnReason: data['returnReason'] as String?,
       paymentReviewRequired: data['paymentReviewRequired'] as bool? ?? false,
+      isArchived: data['isArchived'] as bool? ?? false,
     );
   }
 
@@ -94,6 +96,13 @@ class Parcel {
 
   /// A returned parcel that received or still owes money: nothing is refunded automatically.
   final bool paymentReviewRequired;
+
+  /// Hidden from every list and total; the order number stays reserved. Only restoring is possible.
+  final bool isArchived;
+
+  /// A parcel can be archived once nothing is left to chase: a draft, a returned parcel, or one that
+  /// owes nothing (paid in full, or Gift / Free).
+  bool get canArchive => !isArchived && (status != ParcelStatus.sent || outstandingPaisa == 0);
 
   /// The service as shown: the typed name for "Other", otherwise VPP / VPL / VPR.
   String get serviceLabel => service == PostalService.other ? (otherServiceName ?? 'Other') : service.value;

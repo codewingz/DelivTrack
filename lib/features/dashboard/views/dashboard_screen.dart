@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import '../../../common_widgets/confirm_dialog.dart';
+import '../../../common_widgets/count_badge.dart';
 import '../../../common_widgets/empty_state.dart';
 import '../../../common_widgets/list_skeleton.dart';
 import '../../../constants/app_colors.dart';
@@ -107,7 +108,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               final due = _parcels.reminders.dueCount;
               return IconButton(
                 tooltip: due == 0 ? 'Reminders' : 'Reminders, $due due',
-                icon: Badge(isLabelVisible: due > 0, label: Text('$due'), child: const Icon(Icons.notifications_none_rounded)),
+                icon: CountBadge(count: due, child: const Icon(Icons.notifications_none_rounded)),
                 onPressed: widget.onOpenReminders,
               );
             },

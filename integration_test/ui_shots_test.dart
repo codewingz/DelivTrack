@@ -34,6 +34,24 @@ Future<void> _tapButton(WidgetTester t, Finder button) async {
   await t.tap(button);
 }
 
+/// Scrolls the page down in small steps until [target] has been built (a lazily built list may not have
+/// it yet, especially at large text), then brings it fully into view.
+Future<void> _reveal(WidgetTester t, Finder target) async {
+  // Down first; if it is not below, it is above (the page may already be scrolled to the end).
+  for (var i = 0; i < 60 && target.evaluate().isEmpty; i++) {
+    await t.drag(find.byType(CustomScrollView).first, Offset(0, i < 30 ? -300 : 300));
+    await t.pump();
+  }
+  await t.ensureVisible(target);
+  await t.pump();
+}
+
+/// Scrolls a list row (by its text) into view, then taps it.
+Future<void> _tapRow(WidgetTester t, String text) async {
+  await _reveal(t, find.text(text));
+  await t.tap(find.text(text));
+}
+
 Future<void> _settle(WidgetTester t) async {
   for (var i = 0; i < 30; i++) {
     await t.pump(const Duration(milliseconds: 100));
@@ -317,19 +335,19 @@ void main() {
     await t.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('Parcels')));
     await shot(t, '30_parcels_list');
 
-    await t.tap(find.text('ADT-000001'));
+    await _tapRow(t, 'ADT-000001');
     await shot(t, '31_details_top');
     await t.drag(find.byType(SingleChildScrollView).first, const Offset(0, -6000));
     await shot(t, '32_details_bottom');
     await t.pageBack();
     await _settle(t);
 
-    await t.tap(find.text('ADT-000002'));
+    await _tapRow(t, 'ADT-000002');
     await shot(t, '33_details_pay_later_other_service');
     await t.pageBack();
     await _settle(t);
 
-    await t.tap(find.text('ADT-000003'));
+    await _tapRow(t, 'ADT-000003');
     await shot(t, '34_details_gift_draft');
 
     // --- edit the draft: prefilled, then slip details make it Sent
@@ -348,7 +366,7 @@ void main() {
     await _settle(t);
     await t.pageBack();
     await _settle(t);
-    await t.tap(find.text('ADT-000001'));
+    await _tapRow(t, 'ADT-000001');
     await _settle(t);
     await t.tap(find.byTooltip('Edit parcel'));
     await shot(t, '38_edit_sent_top');
@@ -416,7 +434,7 @@ void main() {
     await _settle(t);
 
     // --- Pay Later parcel: date sheet and the late-payment toggle
-    await t.tap(find.text('ADT-000002'));
+    await _tapRow(t, 'ADT-000002');
     await _settle(t);
     final changeDate = find.widgetWithText(OutlinedButton, 'Change Pay Later Date');
     await t.ensureVisible(changeDate);
@@ -531,11 +549,11 @@ void main() {
     await t.drag(find.byType(CustomScrollView), const Offset(0, -6000));
     await shot(t, '71_payments_pending_bottom');
     await t.drag(find.byType(CustomScrollView), const Offset(0, 6000));
-    await t.ensureVisible(find.widgetWithText(ChoiceChip, 'Partially paid'));
+    await t.pump();
+    await _reveal(t, find.widgetWithText(ChoiceChip, 'Partially paid'));
     await t.tap(find.widgetWithText(ChoiceChip, 'Partially paid'));
     await shot(t, '72_payments_partial');
-    await t.ensureVisible(find.widgetWithText(ChoiceChip, 'Overdue'));
-    await t.pump();
+    await _reveal(t, find.widgetWithText(ChoiceChip, 'Overdue'));
     await t.tap(find.widgetWithText(ChoiceChip, 'Overdue'));
     await shot(t, '73_payments_overdue_empty');
   });
@@ -583,8 +601,8 @@ void main() {
     await shot(t, '81_search_results');
     await t.tap(find.widgetWithText(OutlinedButton, 'Filters'));
     await shot(t, '82_filter_sheet');
-    await t.tap(find.widgetWithText(FilterChip, 'Post office collection'));
-    await t.tap(find.widgetWithText(FilterChip, 'Pending'));
+    await _tapButton(t, find.widgetWithText(FilterChip, 'Post office collection'));
+    await _tapButton(t, find.widgetWithText(FilterChip, 'Pending'));
     await t.pump();
     await shot(t, '83_filter_sheet_choices');
     await _tapButton(t, find.widgetWithText(FilledButton, 'Apply Filters'));

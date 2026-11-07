@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../../common_widgets/count_badge.dart';
 import '../../../common_widgets/empty_state.dart';
 import '../../../common_widgets/searchable_list_page.dart';
 import '../../../constants/app_colors.dart';
@@ -161,7 +162,7 @@ class _FilterBar extends StatelessWidget {
           children: [
             OutlinedButton.icon(
               onPressed: onOpenFilters,
-              icon: Badge(isLabelVisible: filters.activeCount > 0, label: Text('${filters.activeCount}'), child: const Icon(Icons.filter_list_rounded)),
+              icon: CountBadge(count: filters.activeCount, child: const Icon(Icons.filter_list_rounded)),
               label: const Text('Filters'),
             ),
             const SizedBox(width: AppSpacing.md),
@@ -179,7 +180,7 @@ class _FilterBar extends StatelessWidget {
             spacing: AppSpacing.sm,
             children: [
               for (final chip in chips)
-                InputChip(label: Text(chip.label), onDeleted: () => viewModel.setFilters(chip.without)),
+                InputChip(label: Text(chip.label, maxLines: 3), onDeleted: () => viewModel.setFilters(chip.without)),
             ],
           ),
       ],

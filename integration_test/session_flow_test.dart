@@ -4,6 +4,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:deliv_track/features/auth/data/auth_repository.dart';
+import 'package:deliv_track/features/products/data/product_repository.dart';
 import 'package:deliv_track/firebase_options.dart';
 import 'package:deliv_track/main.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -64,7 +65,7 @@ void main() {
   setUp(() => FirebaseAuth.instance.signOut());
 
   Future<void> openApp(WidgetTester t) async {
-    await t.pumpWidget(DelivTrackApp(repository: FirebaseAuthRepository()));
+    await t.pumpWidget(DelivTrackApp(repository: FirebaseAuthRepository(), productRepository: FirestoreProductRepository()));
   }
 
   testWidgets('sign up -> dashboard with name; reopening app stays on dashboard; logout -> login; login -> dashboard',
@@ -106,7 +107,7 @@ void main() {
     final repo = FirebaseAuthRepository();
     await repo.signUp(name: 'Muhammad Afzaal', email: email, password: 'secret123');
 
-    await t.pumpWidget(DelivTrackApp(repository: repo));
+    await t.pumpWidget(DelivTrackApp(repository: repo, productRepository: FirestoreProductRepository()));
     await _pumpUntil(t, _onDashboard);
 
     // Someone resets the password from another device.
@@ -125,7 +126,7 @@ void main() {
     final email = 'keep${DateTime.now().microsecondsSinceEpoch}@codewingz.com';
     final repo = FirebaseAuthRepository();
     await repo.signUp(name: 'Muhammad Afzaal', email: email, password: 'secret123');
-    await t.pumpWidget(DelivTrackApp(repository: repo));
+    await t.pumpWidget(DelivTrackApp(repository: repo, productRepository: FirestoreProductRepository()));
     await _pumpUntil(t, _onDashboard);
 
     await repo.verifySession(); // valid session: must stay signed in

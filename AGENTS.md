@@ -104,7 +104,7 @@ Reuse applies to widgets, screens, layouts, design tokens, functions, classes, e
 
 ### Widget rules (project owner's standing preference)
 
-- Always check `lib/common_widgets/` first. Currently: `AppTextField` (with `.email`, `.password`, `.amount`, `.weight`, `.phone`, `.multiline`), `AppLogo`, `BrandLoadingIndicator`.
+- Always check `lib/common_widgets/` first. Currently: `AppTextField` (with `.email`, `.password`, `.confirmPassword`, `.name`, `.search`, `.amount`, `.weight`, `.phone`, `.multiline`), `AppFieldLabel`, `AppChoiceField`, `PrimaryButton`, `EmptyState` (also used for load errors), `ListSkeleton`, `showConfirmDialog`, `AppLogo`, `BrandLoadingIndicator`. Shared non-widget pieces: `AppFailure`, `ActionViewModel` (loading/error/double-tap guard for any submit), `firestoreFailure`.
 - A widget with a different name but the same task is reused, not duplicated.
 - A same-widget-with-extra-behavior need (e.g. text field vs amount field) stays **one** widget: add the behavior as options/named constructors, do not create a second widget.
 - If nothing suitable exists, create it once in `lib/common_widgets/` and use it everywhere.

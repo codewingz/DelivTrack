@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'constants/app_colors.dart';
 import 'features/auth/data/auth_repository.dart';
+import 'features/products/data/product_repository.dart';
 import 'firebase_options.dart';
 import 'routes/app_router.dart';
 
@@ -28,19 +29,20 @@ Future<void> main() async {
   // mistaken for a signed-out one at startup.
   await FirebaseAuth.instance.authStateChanges().first;
 
-  runApp(DelivTrackApp(repository: FirebaseAuthRepository()));
+  runApp(DelivTrackApp(repository: FirebaseAuthRepository(), productRepository: FirestoreProductRepository()));
 }
 
 class DelivTrackApp extends StatefulWidget {
-  const DelivTrackApp({super.key, required this.repository});
+  const DelivTrackApp({super.key, required this.repository, required this.productRepository});
   final AuthRepository repository;
+  final ProductRepository productRepository;
 
   @override
   State<DelivTrackApp> createState() => _DelivTrackAppState();
 }
 
 class _DelivTrackAppState extends State<DelivTrackApp> with WidgetsBindingObserver {
-  late final GoRouter _router = createRouter(widget.repository);
+  late final GoRouter _router = createRouter(widget.repository, widget.productRepository);
 
   @override
   void initState() {

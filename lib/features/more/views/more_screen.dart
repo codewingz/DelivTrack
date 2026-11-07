@@ -5,8 +5,9 @@ import '../../auth/data/auth_repository.dart';
 
 /// Secondary sections. Products, Reports and Settings are added here as they are built.
 class MoreScreen extends StatelessWidget {
-  const MoreScreen({super.key, required this.repository});
+  const MoreScreen({super.key, required this.repository, required this.onOpenProducts});
   final AuthRepository repository;
+  final VoidCallback onOpenProducts;
 
   @override
   Widget build(BuildContext context) {
@@ -15,6 +16,14 @@ class MoreScreen extends StatelessWidget {
       body: SafeArea(
         child: ListView(
           children: [
+            ListTile(
+              minTileHeight: 56,
+              leading: const Icon(Icons.inventory_2_outlined, color: AppColors.label),
+              title: const Text('Products'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: onOpenProducts,
+            ),
+            const Divider(height: 1),
             ListTile(
               minTileHeight: 56,
               leading: const Icon(Icons.logout_rounded, color: AppColors.error),

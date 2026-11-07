@@ -4,6 +4,8 @@ import '../features/auth/views/forgot_password_screen.dart';
 import '../features/auth/views/login_screen.dart';
 import '../features/auth/views/sign_up_screen.dart';
 import '../features/dashboard/views/dashboard_screen.dart';
+import '../features/products/data/product_repository.dart';
+import '../features/products/views/products_screen.dart';
 import '../features/more/views/more_screen.dart';
 import '../screens/splash_screen.dart';
 import 'app_shell.dart';
@@ -16,13 +18,14 @@ class AppRoutes {
   static const String forgotPassword = '/forgot-password';
   static const String home = '/home';
   static const String more = '/more';
+  static const String products = '/products';
 
   static const _public = {login, signUp, forgotPassword};
 }
 
 /// Signed-in users never see the auth screens; signed-out users never see the app.
 /// Re-evaluated on every sign-in / sign-out, including a remote password reset.
-GoRouter createRouter(AuthRepository repository) {
+GoRouter createRouter(AuthRepository repository, ProductRepository productRepository) {
   return GoRouter(
     initialLocation: AppRoutes.splash,
     refreshListenable: StreamListenable(repository.signedInChanges),
@@ -64,6 +67,11 @@ GoRouter createRouter(AuthRepository repository) {
           onLogIn: () => context.go(AppRoutes.login),
         ),
       ),
+      GoRoute(
+        path: AppRoutes.products,
+        name: 'products',
+        builder: (context, state) => ProductsScreen(repository: productRepository),
+      ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) => AppShell(navigationShell: navigationShell),
         branches: [
@@ -78,7 +86,10 @@ GoRouter createRouter(AuthRepository repository) {
             GoRoute(
               path: AppRoutes.more,
               name: 'more',
-              builder: (context, state) => MoreScreen(repository: repository),
+              builder: (context, state) => MoreScreen(
+                repository: repository,
+                onOpenProducts: () => context.push(AppRoutes.products),
+              ),
             ),
           ]),
         ],

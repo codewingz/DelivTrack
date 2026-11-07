@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../constants/app_colors.dart';
+import 'app_field_label.dart';
 import '../design_system/foundations/radius/app_radius.dart';
 import '../design_system/foundations/spacing/app_spacing.dart';
 import '../utils/app_validators.dart';
@@ -9,6 +10,7 @@ import '../utils/app_validators.dart';
 /// Supports named constructors:
 /// - [AppTextField] (general text)
 /// - [AppTextField.name]
+/// - [AppTextField.search]
 /// - [AppTextField.email]
 /// - [AppTextField.password]
 /// - [AppTextField.confirmPassword]
@@ -43,6 +45,9 @@ class AppTextField extends StatefulWidget {
   final FocusNode? focusNode;
   final AutovalidateMode? autovalidateMode;
 
+  /// Shows a clear (x) button while text is present. Requires a [controller].
+  final bool clearable;
+
   const AppTextField({
     super.key,
     this.controller,
@@ -70,7 +75,28 @@ class AppTextField extends StatefulWidget {
     this.onTap,
     this.focusNode,
     this.autovalidateMode,
-  });
+    this.clearable = false,
+  }) : assert(!clearable || controller != null, 'clearable needs a controller');
+
+  /// Search box with a leading search icon and a clear button.
+  factory AppTextField.search({
+    Key? key,
+    required TextEditingController controller,
+    String hint = 'Search',
+    ValueChanged<String>? onChanged,
+  }) {
+    return AppTextField(
+      key: key,
+      controller: controller,
+      hint: hint,
+      clearable: true,
+      textCapitalization: TextCapitalization.none,
+      textInputAction: TextInputAction.search,
+      prefixIcon: const Icon(Icons.search_rounded, size: 20, color: AppColors.label),
+      inputFormatters: [LengthLimitingTextInputFormatter(60)],
+      onChanged: onChanged,
+    );
+  }
 
   /// Name field (person, product...): word capitalization, 2-60 characters.
   factory AppTextField.name({
@@ -380,11 +406,35 @@ class AppTextField extends StatefulWidget {
 
 class _AppTextFieldState extends State<AppTextField> {
   late bool _obscureText;
+  bool _hasText = false;
 
   @override
   void initState() {
     super.initState();
     _obscureText = widget.isPassword;
+    _hasText = widget.controller?.text.isNotEmpty ?? false;
+    if (widget.clearable) widget.controller!.addListener(_onTextChanged);
+  }
+
+  @override
+  void didUpdateWidget(AppTextField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.clearable) oldWidget.controller!.removeListener(_onTextChanged);
+    if (widget.clearable) {
+      widget.controller!.addListener(_onTextChanged);
+      _hasText = widget.controller!.text.isNotEmpty;
+    }
+  }
+
+  @override
+  void dispose() {
+    if (widget.clearable) widget.controller!.removeListener(_onTextChanged);
+    super.dispose();
+  }
+
+  void _onTextChanged() {
+    final hasText = widget.controller!.text.isNotEmpty;
+    if (hasText != _hasText) setState(() => _hasText = hasText);
   }
 
   @override
@@ -394,24 +444,7 @@ class _AppTextFieldState extends State<AppTextField> {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (widget.label != null) ...[
-          Text.rich(
-            TextSpan(
-              text: widget.label,
-              children: [
-                if (widget.isRequired)
-                  const TextSpan(
-                    text: ' *',
-                    style: TextStyle(color: AppColors.error),
-                  ),
-              ],
-            ),
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              color: AppColors.label,
-              letterSpacing: 0.2,
-            ),
-          ),
+          AppFieldLabel(widget.label!, isRequired: widget.isRequired),
           const SizedBox(height: AppSpacing.sm),
         ],
         TextFormField(
@@ -488,7 +521,16 @@ class _AppTextFieldState extends State<AppTextField> {
                       });
                     },
                   )
-                : widget.suffixIcon,
+                : widget.clearable && _hasText
+                    ? IconButton(
+                        tooltip: 'Clear',
+                        icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.label),
+                        onPressed: () {
+                          widget.controller!.clear();
+                          widget.onChanged?.call('');
+                        },
+                      )
+                    : widget.suffixIcon,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.control),
               borderSide: const BorderSide(color: AppColors.border),

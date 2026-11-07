@@ -2,6 +2,7 @@ import 'package:deliv_track/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'helpers/fake_auth_repository.dart';
+import 'helpers/fake_product_repository.dart';
 
 Future<void> _launch(WidgetTester t, FakeAuthRepository repo, {Size size = const Size(393, 852), double scale = 1}) async {
   t.view.physicalSize = size;
@@ -9,7 +10,7 @@ Future<void> _launch(WidgetTester t, FakeAuthRepository repo, {Size size = const
   addTearDown(t.view.reset);
   t.platformDispatcher.textScaleFactorTestValue = scale;
   addTearDown(t.platformDispatcher.clearTextScaleFactorTestValue);
-  await t.pumpWidget(DelivTrackApp(repository: repo));
+  await t.pumpWidget(DelivTrackApp(repository: repo, productRepository: FakeProductRepository()));
   await t.pump(const Duration(milliseconds: 2000));
   await t.pumpAndSettle();
 }
@@ -37,6 +38,22 @@ void main() {
       await _launch(t, FakeAuthRepository());
       expect(find.byType(NavigationBar), findsNothing);
       expect(find.text('Welcome back'), findsOneWidget);
+    });
+  });
+
+  group('products entry', () {
+    testWidgets('More lists Products; it opens the screen and back returns to More', (t) async {
+      await _launch(t, FakeAuthRepository(signedIn: true, name: 'Ali'));
+      await t.tap(_moreTab);
+      await t.pumpAndSettle();
+      await t.tap(find.widgetWithText(ListTile, 'Products'));
+      await t.pumpAndSettle();
+      expect(find.widgetWithText(AppBar, 'Products'), findsOneWidget);
+      expect(find.byType(NavigationBar), findsNothing, reason: 'pushed full screen hides the tabs');
+
+      await t.pageBack();
+      await t.pumpAndSettle();
+      expect(find.widgetWithText(ListTile, 'Products'), findsOneWidget);
     });
   });
 

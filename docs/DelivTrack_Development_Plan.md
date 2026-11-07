@@ -161,7 +161,9 @@ Written for: parcel edit (changed fields), return, payment correction, Pay Later
 
 ---
 
-## 4. Feature: Products (FR-03) — ⬜ Size M
+## 4. Feature: Products (FR-03) — ✅ DONE 7 Nov 2026 (phases 0–4 verified: CLI, emulator, screenshots)
+
+> **Built as planned, with these decisions:** add/edit in a bottom sheet; search is client-side (all of a user's products are loaded, so it matches anywhere in the name); data under `users/{uid}/products` with name-guard docs for case-insensitive unique names (archived names stay reserved); products are archived, never deleted; add/edit need a connection (Firestore transactions). Money/time helpers were not built (not needed by Products) and move to the Parcels feature.
 
 **Screens:** Products list (in More tab) · Add/Edit Product (bottom sheet **or** screen — product form has only 2 inputs; plan uses a bottom sheet) [DECISION 9].
 

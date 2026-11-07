@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../common_widgets/confirm_dialog.dart';
 import '../../../core/errors/app_failure.dart';
 import '../../../common_widgets/empty_state.dart';
@@ -143,7 +144,21 @@ class _ParcelView extends StatelessWidget {
           ]),
           _Section(title: 'Postal details', children: [
             _Info('Service', parcel.serviceLabel),
-            _Info('Postal reference', parcel.postalReference.isEmpty ? 'Not entered yet' : parcel.postalReference),
+            _Info(
+              'Postal reference',
+              parcel.postalReference.isEmpty ? 'Not entered yet' : parcel.postalReference,
+              trailing: parcel.postalReference.isEmpty
+                  ? null
+                  : IconButton(
+                      tooltip: 'Copy postal reference',
+                      icon: const Icon(Icons.copy_rounded),
+                      onPressed: () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        await Clipboard.setData(ClipboardData(text: parcel.postalReference));
+                        messenger.showSnackBar(const SnackBar(content: Text('Postal reference copied.')));
+                      },
+                    ),
+            ),
             _Info('Delivery charges', parcel.deliveryChargePaisa == null ? 'Not entered yet' : formatRupees(parcel.deliveryChargePaisa!)),
             if (parcel.packedWeightGrams != null) _Info('Packed parcel weight', formatKg(parcel.packedWeightGrams!)),
           ]),
@@ -236,19 +251,22 @@ class _Section extends StatelessWidget {
 }
 
 class _Info extends StatelessWidget {
-  const _Info(this.label, this.value);
+  const _Info(this.label, this.value, {this.trailing});
   final String label;
   final String value;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    final text = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textSecondary)),
         Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
       ],
     );
+    if (trailing == null) return text;
+    return Row(crossAxisAlignment: CrossAxisAlignment.center, children: [Expanded(child: text), trailing!]);
   }
 }
 

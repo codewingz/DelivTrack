@@ -11,9 +11,8 @@ Customer _c(String id, String name, String phone, [String address = 'House 1, Sa
 
 class _Calls {
   int adds = 0;
-  final edited = <String>[];
+  final opened = <String>[];
   String? addResult;
-  String? editResult;
 }
 
 Future<_Calls> _pump(WidgetTester t, FakeCustomerRepository repo, {Size size = const Size(393, 852), double scale = 1}) async {
@@ -30,10 +29,7 @@ Future<_Calls> _pump(WidgetTester t, FakeCustomerRepository repo, {Size size = c
         calls.adds++;
         return calls.addResult;
       },
-      onEdit: (customer) async {
-        calls.edited.add(customer.id);
-        return calls.editResult;
-      },
+      onOpen: (customer) => calls.opened.add(customer.id),
     ),
   ));
   await t.pump();
@@ -51,7 +47,7 @@ void main() {
       t.view.physicalSize = const Size(393, 852);
       t.view.devicePixelRatio = 1;
       addTearDown(t.view.reset);
-      await t.pumpWidget(MaterialApp(home: CustomersScreen(repository: repo, onAdd: () async => null, onEdit: (_) async => null)));
+      await t.pumpWidget(MaterialApp(home: CustomersScreen(repository: repo, onAdd: () async => null, onOpen: (_) {})));
       expect(find.byType(ListSkeleton), findsOneWidget);
       await t.pump();
       await t.pump();
@@ -131,19 +127,13 @@ void main() {
       expect(find.text('Customer added.'), findsOneWidget);
     });
 
-    testWidgets('tapping a customer opens Edit with that customer; saved result shows a confirmation', (t) async {
+    testWidgets('tapping a customer opens that customer\'s details', (t) async {
       final calls = await _pump(t, FakeCustomerRepository(initial: [_c('1', 'Ali Raza', '03001111111'), _c('2', 'Sara Khan', '03002222222')]));
       await t.tap(find.text('Sara Khan'));
       await t.pump();
-      expect(calls.edited, ['2']);
-      expect(find.text('Customer updated.'), findsNothing);
-
-      calls.editResult = '2';
       await t.tap(find.text('Ali Raza'));
       await t.pump();
-      await t.pump();
-      expect(calls.edited, ['2', '1']);
-      expect(find.text('Customer updated.'), findsOneWidget);
+      expect(calls.opened, ['2', '1']);
     });
   });
 

@@ -174,7 +174,11 @@ void main() {
     await _settle(t);
 
     await t.tap(find.text('Sara Khan'));
-    await shot(t, '18_customer_edit');
+    await shot(t, '18_customer_details');
+    await t.tap(find.byTooltip('Edit customer'));
+    await shot(t, '18b_customer_edit');
+    await t.pageBack();
+    await _settle(t);
     await t.pageBack();
     await _settle(t);
 

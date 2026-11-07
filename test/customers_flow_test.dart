@@ -67,6 +67,9 @@ void main() {
     await t.pumpAndSettle();
     await t.tap(find.text('Ali Raza'));
     await t.pumpAndSettle();
+    expect(find.widgetWithText(AppBar, 'Ali Raza'), findsOneWidget, reason: 'the row opens the customer\'s details first');
+    await t.tap(find.byTooltip('Edit customer'));
+    await t.pumpAndSettle();
     expect(find.widgetWithText(AppBar, 'Edit customer'), findsOneWidget);
     expect(t.widget<TextFormField>(_fields.at(2)).controller!.text, 'Old address 1');
 
@@ -78,7 +81,7 @@ void main() {
 
     expect(repo.items.single.address, 'New address 99, Lahore');
     expect(find.text('Customer updated.'), findsOneWidget);
-    expect(find.textContaining('New address 99, Lahore'), findsOneWidget);
+    expect(find.textContaining('New address 99, Lahore'), findsOneWidget, reason: 'the details show the new address');
   });
 
   testWidgets('leaving the add form with typed text asks first; Discard returns to the list without a confirmation', (t) async {

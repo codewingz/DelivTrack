@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import 'constants/app_colors.dart';
 import 'features/auth/data/auth_repository.dart';
 import 'features/customers/data/customer_repository.dart';
+import 'features/customers/data/phone_dialer.dart';
 import 'features/parcels/data/parcel_repository.dart';
 import 'features/products/data/product_repository.dart';
 import 'features/reminders/data/reminder_scheduler.dart';
@@ -41,6 +42,7 @@ Future<void> main() async {
   runApp(
     DelivTrackApp(
       reminderScheduler: reminderScheduler,
+      dialer: const UrlLauncherDialer(),
       repository: FirebaseAuthRepository(),
       productRepository: FirestoreProductRepository(),
       customerRepository: FirestoreCustomerRepository(),
@@ -57,12 +59,14 @@ class DelivTrackApp extends StatefulWidget {
     required this.customerRepository,
     required this.parcelRepository,
     this.reminderScheduler = const NoReminderScheduler(),
+    this.dialer = const NoPhoneDialer(),
   });
   final AuthRepository repository;
   final ProductRepository productRepository;
   final CustomerRepository customerRepository;
   final ParcelRepository parcelRepository;
   final ReminderScheduler reminderScheduler;
+  final PhoneDialer dialer;
 
   @override
   State<DelivTrackApp> createState() => _DelivTrackAppState();
@@ -76,6 +80,7 @@ class _DelivTrackAppState extends State<DelivTrackApp>
     widget.customerRepository,
     widget.parcelRepository,
     reminderScheduler: widget.reminderScheduler,
+    dialer: widget.dialer,
   );
   StreamSubscription<bool>? _signedIn;
   StreamSubscription<String>? _notificationTaps;

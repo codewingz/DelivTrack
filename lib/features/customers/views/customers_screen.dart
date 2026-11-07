@@ -5,13 +5,13 @@ import '../data/customer_repository.dart';
 import '../domain/customer.dart';
 import '../viewmodel/customer_list_view_model.dart';
 
-/// Customers list. Add/Edit open on their own full screens; the callbacks return the saved
-/// customer's id (or null when the user left without saving).
+/// Customers list. Add opens its own full screen (the callback returns the saved customer's id, or
+/// null when the user left without saving); a row opens that customer's details.
 class CustomersScreen extends StatefulWidget {
-  const CustomersScreen({super.key, required this.repository, required this.onAdd, required this.onEdit});
+  const CustomersScreen({super.key, required this.repository, required this.onAdd, required this.onOpen});
   final CustomerRepository repository;
   final Future<String?> Function() onAdd;
-  final Future<String?> Function(Customer customer) onEdit;
+  final void Function(Customer customer) onOpen;
 
   @override
   State<CustomersScreen> createState() => _CustomersScreenState();
@@ -36,12 +36,6 @@ class _CustomersScreenState extends State<CustomersScreen> {
     _showMessage('Customer added.');
   }
 
-  Future<void> _edit(Customer customer) async {
-    final savedId = await widget.onEdit(customer);
-    if (!mounted || savedId == null) return;
-    _showMessage('Customer updated.');
-  }
-
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -62,7 +56,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
           subtitle: Text('${customer.phone}\n${customer.address}', maxLines: 3, overflow: TextOverflow.ellipsis),
           isThreeLine: true,
           trailing: const Icon(Icons.chevron_right_rounded),
-          onTap: () => _edit(customer),
+          onTap: () => widget.onOpen(customer),
         ),
       ),
     );

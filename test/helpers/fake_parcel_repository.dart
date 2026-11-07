@@ -15,6 +15,7 @@ import 'package:deliv_track/features/parcels/domain/payment_rules.dart';
 Parcel testParcel({
   String id = 'p1',
   int sequence = 1,
+  String customerId = 'c1',
   String customerName = 'Ali Raza',
   String customerPhone = '0300 1111111',
   String customerAddress = 'House 5, Street 2, Sahiwal',
@@ -42,7 +43,7 @@ Parcel testParcel({
     id: id,
     orderNumber: formatOrderNumber(sequence),
     orderSequence: sequence,
-    customerId: 'c1',
+    customerId: customerId,
     customerName: customerName,
     customerPhone: customerPhone,
     customerAddress: customerAddress,

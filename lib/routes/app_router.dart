@@ -9,6 +9,8 @@ import '../features/auth/views/sign_up_screen.dart';
 import '../features/customers/data/customer_repository.dart';
 import '../features/customers/domain/customer.dart';
 import '../features/customers/views/customer_form_screen.dart';
+import '../features/customers/data/phone_dialer.dart';
+import '../features/customers/views/customer_details_screen.dart';
 import '../features/customers/views/customers_screen.dart';
 import '../features/dashboard/views/dashboard_screen.dart';
 import '../features/parcels/data/parcel_repository.dart';
@@ -54,6 +56,9 @@ class AppRoutes {
   static const String products = '/products';
   static const String customerNew = '/customers/new';
   static const String customerEdit = '/customers/edit';
+  static const String customerDetails = '/customers/:id';
+
+  static String customerPath(String id) => '/customers/$id';
 
   static const _public = {login, signUp, forgotPassword};
 }
@@ -70,6 +75,7 @@ GoRouter createRouter(
   CustomerRepository customerRepository,
   ParcelRepository parcelRepository, {
   ReminderScheduler reminderScheduler = const NoReminderScheduler(),
+  PhoneDialer dialer = const UrlLauncherDialer(),
 }) {
   return GoRouter(
     initialLocation: AppRoutes.splash,
@@ -196,6 +202,19 @@ GoRouter createRouter(
         builder: (context, state) =>
             CustomerFormScreen(repository: customerRepository, customer: state.extra! as Customer),
       ),
+      // After /customers/new and /customers/edit, so those words are not read as a customer id.
+      GoRoute(
+        path: AppRoutes.customerDetails,
+        name: 'customerDetails',
+        builder: (context, state) => CustomerDetailsScreen(
+          customerRepository: customerRepository,
+          parcelRepository: parcelRepository,
+          customerId: state.pathParameters['id']!,
+          dialer: dialer,
+          onEdit: (customer) => context.push<String>(AppRoutes.customerEdit, extra: customer),
+          onOpenParcel: (parcel) => context.push(AppRoutes.parcelPath(parcel.id)),
+        ),
+      ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) => AppShell(navigationShell: navigationShell),
         branches: [
@@ -259,7 +278,7 @@ GoRouter createRouter(
                 CustomersScreen(
                   repository: customerRepository,
                   onAdd: () => context.push<String>(AppRoutes.customerNew),
-                  onEdit: (customer) => context.push<String>(AppRoutes.customerEdit, extra: customer),
+                  onOpen: (customer) => context.push(AppRoutes.customerPath(customer.id)),
                 ),
               ),
             ),

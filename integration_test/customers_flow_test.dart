@@ -100,6 +100,8 @@ void main() {
 
     // Edit: prefilled; changing the address keeps the (own) phone without a warning.
     await t.tap(find.text('Sara Khan'));
+    await pumpUntil(t, find.text('Parcel history'));
+    await t.tap(find.byTooltip('Edit customer'));
     await pumpUntil(t, find.widgetWithText(AppBar, 'Edit customer'));
     await t.pumpAndSettle();
     expect(t.widget<TextFormField>(_fields.at(0)).controller!.text, 'Sara Khan');
@@ -108,6 +110,9 @@ void main() {
     await pumpUntilGone(t, find.widgetWithText(AppBar, 'Edit customer'));
     await pumpUntil(t, find.textContaining('New shop 77, Model Town, Lahore'));
     await pumpUntil(t, find.text('Customer updated.'));
+    await t.pageBack(); // from the details back to the list
+    await pumpUntil(t, find.widgetWithText(AppBar, 'Customers'));
+    await t.pumpAndSettle();
 
     // Search by phone digits in another format, then by name.
     await t.enterText(find.byType(TextFormField).first, '+92 301 2222');

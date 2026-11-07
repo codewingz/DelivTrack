@@ -1,3 +1,6 @@
+import 'phone.dart';
+import 'text.dart';
+
 /// Centralized validation logic for DelivTrack.
 /// Reusable across FormFields, Controllers, and business logic.
 class AppValidators {
@@ -14,7 +17,7 @@ class AppValidators {
   /// Validates a person or item name: required, 2-60 characters after trimming and
   /// collapsing inner whitespace.
   static String? name(String? value, {String fieldName = 'Name'}) {
-    final normalized = (value ?? '').trim().replaceAll(RegExp(r'\s+'), ' ');
+    final normalized = collapseSpaces(value ?? '');
     if (normalized.isEmpty) return '$fieldName is required';
     if (normalized.length < 2 || normalized.length > 60) return 'Use 2–60 characters';
     return null;
@@ -94,17 +97,20 @@ class AppValidators {
     return null;
   }
 
-  /// Validates Pakistan and international mobile phone numbers.
+  /// Validates a phone number (see [isValidPhone]).
   static String? phone(String? value, {bool isRequired = true}) {
     final trimmed = value?.trim() ?? '';
     if (trimmed.isEmpty) {
       return isRequired ? 'Phone number is required' : null;
     }
+    return isValidPhone(trimmed) ? null : 'Enter a valid phone number';
+  }
 
-    final digitsOnly = trimmed.replaceAll(RegExp(r'\D'), '');
-    if (digitsOnly.length < 10) {
-      return 'Enter a valid phone number (at least 10 digits)';
-    }
+  /// Validates a full address: required, 5-200 characters after trimming.
+  static String? address(String? value, {String fieldName = 'Address'}) {
+    final trimmed = (value ?? '').trim();
+    if (trimmed.isEmpty) return '$fieldName is required';
+    if (trimmed.length < 5 || trimmed.length > 200) return 'Enter the full address (5–200 characters)';
     return null;
   }
 }

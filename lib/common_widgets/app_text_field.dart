@@ -348,6 +348,7 @@ class AppTextField extends StatefulWidget {
       prefixIcon: const Icon(Icons.phone_outlined, size: 20, color: AppColors.label),
       inputFormatters: [
         FilteringTextInputFormatter.allow(RegExp(r'[0-9+\s-]')),
+        LengthLimitingTextInputFormatter(20),
       ],
       validator: (value) {
         final err = AppValidators.phone(value, isRequired: isRequired);
@@ -371,6 +372,7 @@ class AppTextField extends StatefulWidget {
     bool enabled = true,
     int minLines = 3,
     int maxLines = 5,
+    int? maxLength,
     String? Function(String?)? validator,
     ValueChanged<String>? onChanged,
     FocusNode? focusNode,
@@ -387,6 +389,7 @@ class AppTextField extends StatefulWidget {
       maxLines: maxLines,
       keyboardType: TextInputType.multiline,
       textInputAction: TextInputAction.newline,
+      inputFormatters: maxLength == null ? null : [LengthLimitingTextInputFormatter(maxLength)],
       textCapitalization: TextCapitalization.sentences,
       validator: (value) {
         if (isRequired) {

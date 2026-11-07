@@ -144,7 +144,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
   }
 
   Widget _emptyState() {
-    if (_viewModel.hasNoProducts) {
+    if (_viewModel.hasNoItems) {
       return EmptyState(
         icon: Icons.inventory_2_outlined,
         title: 'No products yet',

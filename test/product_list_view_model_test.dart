@@ -40,14 +40,14 @@ void main() {
     expect(vm.visible.map((p) => p.name), ['Mango Pickle', 'Raw Mango']);
     vm.setQuery('zzz');
     expect(vm.visible, isEmpty);
-    expect(vm.hasNoProducts, isFalse, reason: 'no matches is not the same as no products');
+    expect(vm.hasNoItems, isFalse, reason: 'no matches is not the same as no products');
     vm.dispose();
   });
 
-  test('empty account reports hasNoProducts', () async {
+  test('empty account reports hasNoItems', () async {
     final vm = ProductListViewModel(FakeProductRepository());
     await _settle();
-    expect(vm.hasNoProducts, isTrue);
+    expect(vm.hasNoItems, isTrue);
     expect(vm.visible, isEmpty);
     vm.dispose();
   });

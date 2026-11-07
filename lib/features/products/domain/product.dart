@@ -1,3 +1,5 @@
+import '../../../utils/text.dart';
+
 enum SaleUnit {
   perPiece('per_piece', 'Per Piece'),
   perKg('per_kg', 'Per Kg');
@@ -29,7 +31,7 @@ class Product {
 }
 
 /// Trims and collapses inner whitespace. Names are saved in this form.
-String normalizeProductName(String raw) => raw.trim().replaceAll(RegExp(r'\s+'), ' ');
+String normalizeProductName(String raw) => collapseSpaces(raw);
 
 /// Firestore document id of the uniqueness guard for [name] (case-insensitive).
 String productNameKey(String name) => 'n_${Uri.encodeComponent(normalizeProductName(name).toLowerCase())}';

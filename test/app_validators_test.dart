@@ -42,7 +42,7 @@ void main() {
 
     test('phone validator', () {
       expect(AppValidators.phone(null, isRequired: true), 'Phone number is required');
-      expect(AppValidators.phone('12345'), 'Enter a valid phone number (at least 10 digits)');
+      expect(AppValidators.phone('12345'), 'Enter a valid phone number');
       expect(AppValidators.phone('03001234567'), isNull);
       expect(AppValidators.phone('+92 300 1234567'), isNull);
     });

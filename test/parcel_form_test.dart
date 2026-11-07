@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:deliv_track/core/errors/app_failure.dart';
 import 'package:deliv_track/features/customers/domain/customer.dart';
+import 'package:deliv_track/features/parcels/domain/parcel.dart';
 import 'package:deliv_track/features/parcels/domain/parcel_enums.dart';
 import 'package:deliv_track/features/parcels/views/parcel_form_screen.dart';
 import 'package:deliv_track/features/products/domain/product.dart';
@@ -24,7 +25,7 @@ class _Env {
   bool popped = false;
 }
 
-Future<_Env> _open(WidgetTester t, {FakeParcelRepository? parcels, Size size = const Size(393, 852), double scale = 1}) async {
+Future<_Env> _open(WidgetTester t, {FakeParcelRepository? parcels, Parcel? parcel, Size size = const Size(393, 852), double scale = 1}) async {
   t.view.physicalSize = size;
   t.view.devicePixelRatio = 1;
   addTearDown(t.view.reset);
@@ -42,6 +43,7 @@ Future<_Env> _open(WidgetTester t, {FakeParcelRepository? parcels, Size size = c
                   parcelRepository: env.parcels,
                   customerRepository: env.customers,
                   productRepository: env.products,
+                  parcel: parcel,
                   onAddCustomer: () async => env.customers.add(name: 'Brand New', phone: '03005555555', address: 'New street 5, Multan'),
                 ),
               ));
@@ -566,6 +568,77 @@ void main() {
       expect(find.byType(ParcelFormScreen), findsOneWidget);
       expect(find.widgetWithText(TextFormField, 'Brand New'), findsOneWidget);
     });
+  });
+
+  group('editing a saved parcel', () {
+    Future<_Env> openEdit(WidgetTester t, Parcel parcel, {Size size = const Size(393, 852), double scale = 1}) =>
+        _open(t, parcels: FakeParcelRepository(initial: [parcel]), parcel: parcel, size: size, scale: scale);
+
+    testWidgets('is prefilled; shows the fixed order number and Save Changes', (t) async {
+      await openEdit(t, testParcel(reference: 'VPP 12345', charge: 15050));
+      expect(find.text('Edit parcel'), findsOneWidget);
+      expect(find.textContaining('ADT-000001'), findsOneWidget);
+      expect(find.text('Ali Raza'), findsWidgets);
+      expect(find.text('VPP 12345'), findsOneWidget);
+      expect(find.text('Mango Box'), findsOneWidget);
+      await _scrollTo(t, _saveButton);
+      expect(find.widgetWithText(FilledButton, 'Save Changes'), findsOneWidget);
+    });
+
+    testWidgets('changing the charge saves one update and returns the id', (t) async {
+      final env = await openEdit(t, testParcel());
+      await _type(t, 'Amount on slip', '200');
+      await _tapSave(t);
+      await t.pumpAndSettle();
+      expect(env.parcels.updates, 1);
+      expect(env.parcels.creates, 0);
+      expect(env.parcels.updated.single.id, 'p1');
+      expect(env.parcels.updated.single.input.deliveryChargePaisa, 20000);
+      expect(env.result, 'p1');
+    });
+
+    testWidgets('a sent parcel cannot lose its reference', (t) async {
+      final env = await openEdit(t, testParcel());
+      await _type(t, 'Enter VPP / VPL / VPR reference from slip', '');
+      await _tapSave(t);
+      await t.pumpAndSettle();
+      expect(env.parcels.updates, 0);
+      expect(find.byType(ParcelFormScreen), findsOneWidget);
+    });
+
+    testWidgets('a draft says it will become Sent once slip details are added', (t) async {
+      await openEdit(t, testParcel(status: ParcelStatus.draft, reference: '', charge: null));
+      expect(find.text('Saving will mark this parcel as Sent.'), findsNothing);
+      await _type(t, 'Enter VPP / VPL / VPR reference from slip', 'vpp 777');
+      await _type(t, 'Amount on slip', '120');
+      await _scrollTo(t, _saveButton);
+      expect(find.text('Saving will mark this parcel as Sent.'), findsOneWidget);
+    });
+
+    testWidgets('leaving: untouched closes; changed asks about the changes', (t) async {
+      final env = await openEdit(t, testParcel());
+      await t.pageBack();
+      await t.pumpAndSettle();
+      expect(env.popped, isTrue);
+
+      final env2 = await openEdit(t, testParcel());
+      await _type(t, 'Amount on slip', '999');
+      await t.pageBack();
+      await t.pumpAndSettle();
+      expect(find.text('Discard your changes?'), findsOneWidget);
+      await t.tap(find.widgetWithText(TextButton, 'Discard'));
+      await t.pumpAndSettle();
+      expect(env2.popped, isTrue);
+      expect(env2.parcels.updates, 0);
+    });
+
+    for (final scale in [1.0, 1.3, 2.0]) {
+      testWidgets('no overflow at text x$scale', (t) async {
+        await openEdit(t, testParcel(), size: const Size(360, 640), scale: scale);
+        await _scrollTo(t, _saveButton);
+        expect(t.takeException(), isNull);
+      });
+    }
   });
 
   group('responsive', () {

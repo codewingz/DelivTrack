@@ -223,7 +223,9 @@ AT-31/32, validation matrix (each field empty/short/long/invalid phone formats),
 
 ---
 
-## 6. Feature: Add / Edit Parcel (FR-01, FR-02, FR-04, FR-06) — ⬜ Size XL (largest feature)
+## 6. Feature: Add / Edit Parcel (FR-01, FR-02, FR-04, FR-06) — ✅ DONE 7 Nov 2026 (phases A–E verified: CLI, rules, emulator, screenshots at 4 sizes)
+
+> **Built as planned, with these decisions:** order numbers `ADT-000001` come from a per-user counter in the same transaction as the parcel (overlapping saves retry, verified on the real backend); postal references are unique per service through guard documents; money is integer paisa, weight integer grams; Pakistan date is fixed UTC+5 (no extra packages). Editing (Parcel Details → Edit) keeps the order number, swaps the reference guard, recalculates totals, can turn a draft into Sent, never turns Sent back into a draft, is blocked for returned parcels and for switching free↔paid after a payment, and writes an audit-log entry listing the changed fields. Payments, returns and the details actions come with the next feature (§7).
 
 ### 6.1 Add Parcel — fixed fields (**10 inputs + product rows**)
 Order number is shown read-only: "Auto-generated on save". **No** sending date, expected amount, payment panel or notes on this screen (spec FR-04).

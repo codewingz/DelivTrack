@@ -11,11 +11,14 @@ import '../domain/parcel.dart';
 import '../domain/parcel_enums.dart';
 import 'parcel_status_chips.dart';
 
-/// Read-only view of one parcel. Payment, return and edit actions are added by their own features.
+/// One parcel's details with an Edit action. Payment and return actions are added by their own features.
 class ParcelDetailsScreen extends StatefulWidget {
-  const ParcelDetailsScreen({super.key, required this.repository, required this.parcelId});
+  const ParcelDetailsScreen({super.key, required this.repository, required this.parcelId, required this.onEdit});
   final ParcelRepository repository;
   final String parcelId;
+
+  /// Opens the edit form; completes with the parcel id once saved, or null if cancelled.
+  final Future<String?> Function(Parcel parcel) onEdit;
 
   @override
   State<ParcelDetailsScreen> createState() => _ParcelDetailsScreenState();
@@ -23,6 +26,12 @@ class ParcelDetailsScreen extends StatefulWidget {
 
 class _ParcelDetailsScreenState extends State<ParcelDetailsScreen> {
   late Stream<Parcel?> _stream = widget.repository.watch(widget.parcelId);
+
+  Future<void> _edit(Parcel parcel) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final saved = await widget.onEdit(parcel);
+    if (saved != null) messenger.showSnackBar(const SnackBar(content: Text('Parcel updated.')));
+  }
 
   void _retry() => setState(() => _stream = widget.repository.watch(widget.parcelId));
 
@@ -33,7 +42,13 @@ class _ParcelDetailsScreenState extends State<ParcelDetailsScreen> {
       builder: (context, snapshot) {
         final parcel = snapshot.data;
         return Scaffold(
-          appBar: AppBar(title: Text(parcel?.orderNumber ?? 'Parcel')),
+          appBar: AppBar(
+            title: Text(parcel?.orderNumber ?? 'Parcel'),
+            actions: [
+              if (parcel != null && parcel.status != ParcelStatus.returned)
+                IconButton(tooltip: 'Edit parcel', icon: const Icon(Icons.edit_outlined), onPressed: () => _edit(parcel)),
+            ],
+          ),
           body: SafeArea(
             child: Align(
               alignment: Alignment.topCenter,

@@ -322,5 +322,26 @@ void main() {
 
     await t.tap(find.text('ADT-000003'));
     await shot(t, '34_details_gift_draft');
+
+    // --- edit the draft: prefilled, then slip details make it Sent
+    await t.tap(find.byTooltip('Edit parcel'));
+    await shot(t, '35_edit_draft_top');
+    await t.drag(find.byType(Scrollable).first, const Offset(0, -6000));
+    await shot(t, '36_edit_draft_bottom');
+    await t.enterText(find.widgetWithText(TextFormField, 'Enter VPP / VPL / VPR reference from slip'), 'VPL 55667');
+    await t.pump();
+    await t.enterText(find.widgetWithText(TextFormField, 'Amount on slip'), '120');
+    await t.pump();
+    await shot(t, '37_edit_draft_ready_to_send');
+    await t.pageBack();
+    await _settle(t);
+    await t.tap(find.text('Discard'));
+    await _settle(t);
+    await t.pageBack();
+    await _settle(t);
+    await t.tap(find.text('ADT-000001'));
+    await _settle(t);
+    await t.tap(find.byTooltip('Edit parcel'));
+    await shot(t, '38_edit_sent_top');
   });
 }

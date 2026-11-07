@@ -19,6 +19,7 @@ import '../../products/data/product_repository.dart';
 import '../../products/domain/product.dart';
 import '../../products/views/product_picker_screen.dart';
 import '../data/parcel_repository.dart';
+import '../domain/parcel.dart';
 import '../domain/parcel_enums.dart';
 import '../viewmodel/parcel_form_view_model.dart';
 
@@ -31,6 +32,7 @@ class ParcelFormScreen extends StatefulWidget {
     required this.customerRepository,
     required this.productRepository,
     required this.onAddCustomer,
+    this.parcel,
     this.clock = const Clock(),
   });
 
@@ -40,6 +42,9 @@ class ParcelFormScreen extends StatefulWidget {
 
   /// Opens the full-screen Add Customer form; returns the new customer's id or null.
   final Future<String?> Function() onAddCustomer;
+
+  /// The parcel to edit; null when adding.
+  final Parcel? parcel;
   final Clock clock;
 
   @override
@@ -48,12 +53,12 @@ class ParcelFormScreen extends StatefulWidget {
 
 class _ParcelFormScreenState extends State<ParcelFormScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _form = ParcelFormViewModel();
+  late final _form = widget.parcel == null ? ParcelFormViewModel() : ParcelFormViewModel.fromParcel(widget.parcel!);
   final _action = ActionViewModel();
-  final _otherService = TextEditingController();
-  final _reference = TextEditingController();
-  final _charge = TextEditingController();
-  final _packedWeight = TextEditingController();
+  late final _otherService = TextEditingController(text: _form.otherServiceName);
+  late final _reference = TextEditingController(text: _form.reference);
+  late final _charge = TextEditingController(text: _form.chargePaisa == null ? null : plainRupees(_form.chargePaisa!));
+  late final _packedWeight = TextEditingController(text: _form.packedGrams == null ? null : plainKg(_form.packedGrams!));
   bool _saved = false;
 
   @override
@@ -83,18 +88,26 @@ class _ParcelFormScreenState extends State<ParcelFormScreen> {
     final problems = input.problems(today: pakistanDate(widget.clock.nowUtc()));
     if (problems.isNotEmpty) return _action.fail(problems.first);
 
-    String? newId;
-    final ok = await _action.run(() async => newId = await widget.parcelRepository.create(input));
+    final existing = widget.parcel;
+    String? savedId;
+    final ok = await _action.run(() async {
+      if (existing == null) {
+        savedId = await widget.parcelRepository.create(input);
+      } else {
+        await widget.parcelRepository.update(existing.id, input);
+        savedId = existing.id;
+      }
+    });
     if (!mounted || !ok) return;
     _saved = true;
-    Navigator.of(context).pop(newId);
+    Navigator.of(context).pop(savedId);
   }
 
   Future<void> _confirmDiscard() async {
     final discard = await showConfirmDialog(
       context,
-      title: 'Discard this parcel?',
-      message: 'What you entered will be lost.',
+      title: widget.parcel == null ? 'Discard this parcel?' : 'Discard your changes?',
+      message: widget.parcel == null ? 'What you entered will be lost.' : 'Your changes to this parcel will be lost.',
       confirmLabel: 'Discard',
       destructive: true,
     );
@@ -115,7 +128,7 @@ class _ParcelFormScreenState extends State<ParcelFormScreen> {
             if (!didPop) _confirmDiscard();
           },
           child: Scaffold(
-            appBar: AppBar(title: const Text('Add parcel')),
+            appBar: AppBar(title: Text(widget.parcel == null ? 'Add parcel' : 'Edit parcel')),
             body: SafeArea(
               child: Align(
                 alignment: Alignment.topCenter,
@@ -129,7 +142,7 @@ class _ParcelFormScreenState extends State<ParcelFormScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const _OrderNumberNote(),
+                          _OrderNumberNote(orderNumber: widget.parcel?.orderNumber),
                           const SizedBox(height: AppSpacing.xl),
                           AppSelectField(
                             label: 'Customer',
@@ -201,13 +214,13 @@ class _ParcelFormScreenState extends State<ParcelFormScreen> {
                             ),
                           ],
                           const SizedBox(height: AppSpacing.lg),
-                          AppTextField.reference(controller: _reference, enabled: !busy, onChanged: _form.setReference),
+                          AppTextField.reference(controller: _reference, isRequired: _form.requiresSlipDetails, enabled: !busy, onChanged: _form.setReference),
                           const SizedBox(height: AppSpacing.lg),
                           AppTextField.amount(
                             controller: _charge,
                             label: 'Delivery charges (Rs.)',
                             hint: 'Amount on slip',
-                            isRequired: false,
+                            isRequired: _form.requiresSlipDetails,
                             enabled: !busy,
                             onChanged: (value) => _form.setCharge(parseRupeesToPaisa(value)),
                           ),
@@ -244,11 +257,20 @@ class _ParcelFormScreenState extends State<ParcelFormScreen> {
                           ],
                           const SizedBox(height: AppSpacing.xxl),
                           PrimaryButton(
-                            label: _form.status == ParcelStatus.sent ? 'Save & Mark Sent' : 'Save as Draft',
+                            label: widget.parcel != null
+                                ? 'Save Changes'
+                                : (_form.status == ParcelStatus.sent ? 'Save & Mark Sent' : 'Save as Draft'),
                             isLoading: busy,
                             onPressed: _save,
                           ),
-                          if (_form.status == ParcelStatus.draft) ...[
+                          if (_form.willBecomeSent) ...[
+                            const SizedBox(height: AppSpacing.md),
+                            const Text(
+                              'Saving will mark this parcel as Sent.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary),
+                            ),
+                          ] else if (_form.status == ParcelStatus.draft && !_form.requiresSlipDetails) ...[
                             const SizedBox(height: AppSpacing.md),
                             const Text(
                               'Add the postal reference and delivery charge from the slip to mark this parcel as Sent.',
@@ -271,18 +293,21 @@ class _ParcelFormScreenState extends State<ParcelFormScreen> {
 }
 
 class _OrderNumberNote extends StatelessWidget {
-  const _OrderNumberNote();
+  const _OrderNumberNote({this.orderNumber});
+
+  /// The saved parcel's number (edit mode); null while adding.
+  final String? orderNumber;
 
   @override
   Widget build(BuildContext context) {
-    return const Row(
+    return Row(
       children: [
-        Icon(Icons.tag_rounded, size: 20, color: AppColors.label),
-        SizedBox(width: AppSpacing.sm),
+        const Icon(Icons.tag_rounded, size: 20, color: AppColors.label),
+        const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Text(
-            'Order number: assigned automatically when you save',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+            orderNumber == null ? 'Order number: assigned automatically when you save' : 'Order number: $orderNumber (cannot be changed)',
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
           ),
         ),
       ],
@@ -337,9 +362,9 @@ class _ItemCard extends StatefulWidget {
 }
 
 class _ItemCardState extends State<_ItemCard> {
-  final _quantity = TextEditingController();
-  final _weight = TextEditingController();
-  final _price = TextEditingController();
+  late final _quantity = TextEditingController(text: widget.item.quantity?.toString());
+  late final _weight = TextEditingController(text: widget.item.weightGrams == null ? null : plainKg(widget.item.weightGrams!));
+  late final _price = TextEditingController(text: widget.item.pricePaisa == null ? null : plainRupees(widget.item.pricePaisa!));
 
   @override
   void dispose() {

@@ -12,6 +12,7 @@ import '../features/customers/views/customer_form_screen.dart';
 import '../features/customers/views/customers_screen.dart';
 import '../features/dashboard/views/dashboard_screen.dart';
 import '../features/parcels/data/parcel_repository.dart';
+import '../features/parcels/domain/parcel.dart';
 import '../features/parcels/views/parcel_details_screen.dart';
 import '../features/parcels/views/parcel_form_screen.dart';
 import '../features/parcels/views/parcels_screen.dart';
@@ -33,6 +34,7 @@ class AppRoutes {
   static const String parcels = '/parcels';
   static const String parcelNew = '/parcels/new';
   static const String parcelDetails = '/parcels/:id';
+  static const String parcelEdit = '/parcels/edit';
 
   static String parcelPath(String id) => '/parcels/$id';
   static const String products = '/products';
@@ -110,10 +112,28 @@ GoRouter createRouter(
           onAddCustomer: () => context.push<String>(AppRoutes.customerNew),
         ),
       ),
+      // Declared before the details route so "edit" is not read as a parcel id.
+      GoRoute(
+        path: AppRoutes.parcelEdit,
+        name: 'parcelEdit',
+        // The parcel to edit travels as `extra`; without it there is nothing to edit.
+        redirect: (context, state) => state.extra is Parcel ? null : AppRoutes.parcels,
+        builder: (context, state) => ParcelFormScreen(
+          parcelRepository: parcelRepository,
+          customerRepository: customerRepository,
+          productRepository: productRepository,
+          onAddCustomer: () => context.push<String>(AppRoutes.customerNew),
+          parcel: state.extra! as Parcel,
+        ),
+      ),
       GoRoute(
         path: AppRoutes.parcelDetails,
         name: 'parcelDetails',
-        builder: (context, state) => ParcelDetailsScreen(repository: parcelRepository, parcelId: state.pathParameters['id']!),
+        builder: (context, state) => ParcelDetailsScreen(
+          repository: parcelRepository,
+          parcelId: state.pathParameters['id']!,
+          onEdit: (parcel) => context.push<String>(AppRoutes.parcelEdit, extra: parcel),
+        ),
       ),
       GoRoute(
         path: AppRoutes.customerNew,

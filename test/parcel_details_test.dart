@@ -12,13 +12,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'helpers/fake_parcel_repository.dart';
 
-Future<void> _open(WidgetTester t, ParcelRepository repo, String id, {Size size = const Size(393, 852), double scale = 1}) async {
+Future<void> _open(WidgetTester t, ParcelRepository repo, String id, {Size size = const Size(393, 852), double scale = 1, Future<String?> Function(Parcel)? onEdit}) async {
   t.view.physicalSize = size;
   t.view.devicePixelRatio = 1;
   addTearDown(t.view.reset);
   t.platformDispatcher.textScaleFactorTestValue = scale;
   addTearDown(t.platformDispatcher.clearTextScaleFactorTestValue);
-  await t.pumpWidget(MaterialApp(home: ParcelDetailsScreen(repository: repo, parcelId: id)));
+  await t.pumpWidget(MaterialApp(home: ParcelDetailsScreen(repository: repo, parcelId: id, onEdit: onEdit ?? (_) async => null)));
   await t.pump();
   await t.pump();
 }
@@ -94,7 +94,7 @@ void main() {
     t.view.physicalSize = const Size(393, 852);
     t.view.devicePixelRatio = 1;
     addTearDown(t.view.reset);
-    await t.pumpWidget(MaterialApp(home: ParcelDetailsScreen(repository: repo, parcelId: 'nope')));
+    await t.pumpWidget(MaterialApp(home: ParcelDetailsScreen(repository: repo, parcelId: 'nope', onEdit: (_) async => null)));
     expect(find.byType(ListSkeleton), findsOneWidget);
     await t.pump();
     await t.pump();
@@ -154,6 +154,30 @@ void main() {
         });
       }
     }
+  });
+
+  testWidgets('Edit opens the form for this parcel and shows a snackbar once saved', (t) async {
+    Parcel? opened;
+    await _open(t, FakeParcelRepository(initial: [testParcel(id: 'a')]), 'a', onEdit: (p) async {
+      opened = p;
+      return p.id;
+    });
+    await t.tap(find.byTooltip('Edit parcel'));
+    await t.pump();
+    expect(opened?.id, 'a');
+    expect(find.text('Parcel updated.'), findsOneWidget);
+  });
+
+  testWidgets('a cancelled edit shows no snackbar', (t) async {
+    await _open(t, FakeParcelRepository(initial: [testParcel(id: 'a')]), 'a');
+    await t.tap(find.byTooltip('Edit parcel'));
+    await t.pump();
+    expect(find.text('Parcel updated.'), findsNothing);
+  });
+
+  testWidgets('a returned parcel has no Edit action', (t) async {
+    await _open(t, FakeParcelRepository(initial: [testParcel(id: 'b', status: ParcelStatus.returned)]), 'b');
+    expect(find.byTooltip('Edit parcel'), findsNothing);
   });
 }
 

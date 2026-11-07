@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import '../../../utils/postal_reference.dart';
 import '../../customers/domain/customer.dart';
 import '../../products/domain/product.dart';
+import '../domain/parcel.dart';
 import '../domain/parcel_enums.dart';
 import '../domain/parcel_input.dart';
 import '../domain/parcel_item.dart';
@@ -22,7 +23,42 @@ class ItemDraft {
 
 /// State of the Add Parcel form and the rules that connect its fields.
 class ParcelFormViewModel extends ChangeNotifier {
-  ParcelFormViewModel() : items = [ItemDraft(0)];
+  ParcelFormViewModel()
+      : parcel = null,
+        items = [ItemDraft(0)] {
+    _initialSignature = _signature();
+  }
+
+  /// Prefills the form from a saved parcel (edit mode).
+  ParcelFormViewModel.fromParcel(Parcel saved)
+      : parcel = saved,
+        customer = Customer(id: saved.customerId, name: saved.customerName, phone: saved.customerPhone, address: saved.customerAddress),
+        method = saved.method,
+        service = saved.service,
+        otherServiceName = saved.otherServiceName ?? '',
+        reference = saved.postalReference,
+        chargePaisa = saved.deliveryChargePaisa,
+        packedGrams = saved.packedWeightGrams,
+        payDate = saved.estimatedPaymentDate,
+        _serviceChosenByUser = true,
+        items = [
+          for (var i = 0; i < saved.items.length; i++)
+            ItemDraft(i)
+              ..product = Product(id: saved.items[i].productId, name: saved.items[i].productName, saleUnit: saved.items[i].saleUnit, isActive: true)
+              ..quantity = saved.items[i].quantity
+              ..weightGrams = saved.items[i].weightGrams
+              ..pricePaisa = saved.items[i].unitPricePaisa == 0 && saved.method == CollectionMethod.giftFree ? null : saved.items[i].unitPricePaisa,
+        ] {
+    _nextKey = saved.items.length;
+    _initialSignature = _signature();
+  }
+
+  /// The parcel being edited, or null when adding.
+  final Parcel? parcel;
+  bool get isEditing => parcel != null;
+
+  /// A parcel that is already Sent must keep its postal reference and delivery charge.
+  bool get requiresSlipDetails => parcel?.status == ParcelStatus.sent;
 
   Customer? customer;
   CollectionMethod? method;
@@ -36,6 +72,7 @@ class ParcelFormViewModel extends ChangeNotifier {
 
   int _nextKey = 1;
   bool _serviceChosenByUser = false;
+  late final String _initialSignature;
 
   bool get isFree => method == CollectionMethod.giftFree;
   bool get canAddItem => items.length < maxParcelItems;
@@ -43,6 +80,9 @@ class ParcelFormViewModel extends ChangeNotifier {
   /// Sent once the slip details are in (a valid reference and a delivery charge); otherwise a draft.
   ParcelStatus get status =>
       reference.trim().isNotEmpty && isValidPostalReference(reference) && chargePaisa != null ? ParcelStatus.sent : ParcelStatus.draft;
+
+  /// True when saving this edit would turn a draft into a sent parcel.
+  bool get willBecomeSent => parcel?.status == ParcelStatus.draft && status == ParcelStatus.sent;
 
   /// Total of the lines that are complete so far (0 for gift parcels).
   int get totalPaisa {
@@ -58,15 +98,20 @@ class ParcelFormViewModel extends ChangeNotifier {
   /// "Line total" shown under a row once product, amount and price are filled in.
   int? lineTotalPaisa(ItemDraft item) => isFree ? null : _lineOrNull(item)?.lineTotalPaisa;
 
-  bool get isDirty =>
-      customer != null ||
-      method != null ||
-      reference.isNotEmpty ||
-      chargePaisa != null ||
-      packedGrams != null ||
-      payDate != null ||
-      items.any((i) => i.product != null || i.quantity != null || i.weightGrams != null || i.pricePaisa != null) ||
-      items.length > 1;
+  /// True once anything differs from how the form started (empty, or the saved parcel).
+  bool get isDirty => _signature() != _initialSignature;
+
+  String _signature() => [
+        customer?.id,
+        method,
+        service,
+        otherServiceName.trim(),
+        reference.trim(),
+        chargePaisa,
+        packedGrams,
+        payDate,
+        [for (final i in items) [i.product?.id, i.quantity, i.weightGrams, i.pricePaisa]],
+      ].toString();
 
   /// True when an earlier row already has the same product (only the repeat is flagged).
   bool isDuplicate(ItemDraft item) {

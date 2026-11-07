@@ -10,6 +10,23 @@ class AuthFailure implements Exception {
 }
 
 abstract class AuthRepository {
+  bool get isSignedIn;
+
+  /// Emits true/false whenever the user signs in or out (including remote revocation).
+  Stream<bool> get signedInChanges;
+
+  String? get displayName;
+
+  /// Emits the current display name, then every change (e.g. saved right after sign-up).
+  Stream<String?> get displayNameChanges;
+
+  Future<void> signOut();
+
+  /// Signs out locally if the server says this session is no longer valid
+  /// (password changed/reset elsewhere, account disabled or deleted).
+  /// Network errors are ignored: an offline user stays signed in.
+  Future<void> verifySession();
+
   /// Creates the account (saving [name] as the display name) and leaves the user signed in.
   /// Throws [AuthFailure] with a user-presentable message on failure.
   Future<void> signUp({required String name, required String email, required String password});
@@ -25,6 +42,39 @@ abstract class AuthRepository {
 class FirebaseAuthRepository implements AuthRepository {
   FirebaseAuthRepository({FirebaseAuth? auth}) : _auth = auth ?? FirebaseAuth.instance;
   final FirebaseAuth _auth;
+
+  static const _invalidSessionCodes = {
+    'user-token-expired',
+    'invalid-user-token',
+    'user-disabled',
+    'user-not-found',
+  };
+
+  @override
+  bool get isSignedIn => _auth.currentUser != null;
+
+  @override
+  Stream<bool> get signedInChanges => _auth.authStateChanges().map((user) => user != null);
+
+  @override
+  String? get displayName => _auth.currentUser?.displayName;
+
+  @override
+  Stream<String?> get displayNameChanges => _auth.userChanges().map((user) => user?.displayName);
+
+  @override
+  Future<void> signOut() => _auth.signOut();
+
+  @override
+  Future<void> verifySession() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    try {
+      await user.reload();
+    } on FirebaseAuthException catch (e) {
+      if (_invalidSessionCodes.contains(e.code)) await _auth.signOut();
+    }
+  }
 
   @override
   Future<void> signUp({required String name, required String email, required String password}) async {

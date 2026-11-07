@@ -45,7 +45,6 @@ void main() {
     await pumpScreen(t);
     await _signUp(t, email, 'secret123', name: '  Muhammad Afzaal  ');
 
-    expect(find.text('Account created successfully.'), findsOneWidget);
     expect(FirebaseAuth.instance.currentUser?.email, email);
     expect(FirebaseAuth.instance.currentUser?.displayName, 'Muhammad Afzaal');
 

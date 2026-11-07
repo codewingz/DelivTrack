@@ -47,7 +47,6 @@ void main() {
     await pumpScreen(t);
     await _logIn(t, email, 'secret123');
 
-    expect(find.text('Logged in successfully.'), findsOneWidget);
     expect(FirebaseAuth.instance.currentUser?.email, email);
     expect(FirebaseAuth.instance.currentUser?.displayName, 'Muhammad Afzaal');
   });
@@ -74,7 +73,6 @@ void main() {
     await pumpScreen(t);
     await _logIn(t, '  ${email.toUpperCase()}  ', 'secret123');
 
-    expect(find.text('Logged in successfully.'), findsOneWidget);
     expect(FirebaseAuth.instance.currentUser?.email, email);
   });
 

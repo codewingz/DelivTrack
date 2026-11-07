@@ -132,7 +132,7 @@ void main() {
       expect(repo.signUps, isEmpty);
     });
 
-    testWidgets('valid submit calls repository once with trimmed-safe values and shows success', (t) async {
+    testWidgets('valid submit calls repository once with the entered values', (t) async {
       final repo = FakeAuthRepository();
       await _pump(t, repo);
       await _fill(t);
@@ -140,7 +140,6 @@ void main() {
       await t.pump();
       await t.pump();
       expect(repo.signUps.single, (name: 'Muhammad Afzaal', email: 'owner@codewingz.com', password: 'secret123'));
-      expect(find.text('Account created successfully.'), findsOneWidget);
     });
 
     testWidgets('repeated taps while loading create only one account', (t) async {
@@ -167,7 +166,6 @@ void main() {
       await t.pump();
       await t.pump();
       expect(find.textContaining('already registered'), findsOneWidget);
-      expect(find.text('Account created successfully.'), findsNothing);
       expect(find.text('owner@codewingz.com'), findsOneWidget);
     });
   });

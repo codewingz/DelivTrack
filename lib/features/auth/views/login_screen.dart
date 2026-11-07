@@ -37,12 +37,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    final messenger = ScaffoldMessenger.of(context);
-    final ok = await _viewModel.run(
+    // On success the router redirects to the dashboard.
+    await _viewModel.run(
       () => widget.repository.signIn(email: _email.text, password: _password.text),
     );
-    if (!mounted || !ok) return;
-    messenger.showSnackBar(const SnackBar(content: Text('Logged in successfully.')));
   }
 
   @override

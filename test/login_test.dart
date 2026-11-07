@@ -59,7 +59,7 @@ void main() {
       expect(repo.signIns, hasLength(1));
     });
 
-    testWidgets('valid submit signs in once and shows success', (t) async {
+    testWidgets('valid submit signs in once with the entered values', (t) async {
       final repo = FakeAuthRepository();
       await _pump(t, repo);
       await _fill(t);
@@ -67,7 +67,6 @@ void main() {
       await t.pump();
       await t.pump();
       expect(repo.signIns.single, (email: 'owner@codewingz.com', password: 'secret123'));
-      expect(find.text('Logged in successfully.'), findsOneWidget);
     });
 
     testWidgets('wrong credentials show one generic message and keep the form', (t) async {
@@ -78,7 +77,6 @@ void main() {
       await t.pump();
       await t.pump();
       expect(find.text('Incorrect email or password.'), findsOneWidget);
-      expect(find.text('Logged in successfully.'), findsNothing);
       expect(find.text('owner@codewingz.com'), findsOneWidget);
     });
 

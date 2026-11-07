@@ -34,16 +34,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    final messenger = ScaffoldMessenger.of(context);
-    final created = await _viewModel.run(
+    // On success the router redirects to the dashboard.
+    await _viewModel.run(
       () => widget.repository.signUp(
         name: _name.text,
         email: _email.text,
         password: _password.text,
       ),
     );
-    if (!mounted || !created) return;
-    messenger.showSnackBar(const SnackBar(content: Text('Account created successfully.')));
   }
 
   @override

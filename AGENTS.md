@@ -6,10 +6,13 @@ Instructions for AI coding agents working in this repository. These rules are ma
 
 ## 0. Project context
 
-- **App:** DelivTrack — Android-only Flutter app (single private company account) for tracking Pakistan Post parcels, customers and payments. Never call it "Animate DelivTrack".
+- **App:** DelivTrack — Android-only Flutter app for tracking Pakistan Post parcels, customers and payments. Multiple users may sign up, but **each user sees only their own data** (see Data isolation below). Never call it "Animate DelivTrack".
 - **Stack:** Flutter, feature-first MVVM, `go_router`, Firebase Auth, Cloud Firestore. Theme: Emerald & Ivory (see `lib/constants/app_colors.dart`).
 - **Spec:** `DelivTrack_Project_Requirements.md` is the source of truth for scope. Do not build optional ideas from its Section 14 unless approved. `DelivTrack_Demo_Ready.html` is a UX prototype only.
-- **Git:** work on the `dev` branch. Do not commit to `main` directly. Commit/push only when the user asks.
+- **Git:** work on the `dev` branch. Do not commit to `main` unless the user says so. **Standing permission from the owner:** after each small piece is built, tested and verified (analyze + tests + emulator + UI check), commit and push it to `dev` without asking.
+- **Data isolation (mandatory):** all business data lives under `users/{uid}/...` and Firestore rules allow access only when `request.auth.uid == uid`. One user must never be able to read or write another user's data. Every data feature needs a rules test with two users.
+- **Deploy to Firebase (standing permission):** Firestore rules and indexes are deployed to the real project (`delivtrack-codewingz`) with the Firebase CLI after they pass the emulator tests. Never deploy rules that were not emulator-tested. Look at what is currently deployed before overwriting.
+- **Verification per phase:** CLI (`flutter analyze`, `flutter test`), sandbox (Firebase emulators + Android emulator integration tests), and UI (screenshots at several sizes that you actually look at) before moving to the next phase.
 - **Secrets:** never put API secrets in app files or Git history.
 
 ---

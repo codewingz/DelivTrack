@@ -14,27 +14,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
-Future<void> _pumpUntil(WidgetTester t, Finder finder, {int seconds = 12}) async {
-  for (var i = 0; i < seconds * 10; i++) {
-    await t.pump(const Duration(milliseconds: 100));
-    if (finder.evaluate().isNotEmpty) return;
-  }
-  fail('Timed out waiting for $finder');
-}
-
-Future<void> _pumpUntilGone(WidgetTester t, Finder finder, {int seconds = 12}) async {
-  for (var i = 0; i < seconds * 10; i++) {
-    await t.pump(const Duration(milliseconds: 100));
-    if (finder.evaluate().isEmpty) return;
-  }
-  fail('Still present: $finder');
-}
+import 'test_helpers.dart';
 
 Finder get _sheet => find.byType(ProductFormSheet);
 
 /// Waits for the sheet to exist and finish sliding up (taps during the animation miss).
 Future<void> _sheetOpen(WidgetTester t) async {
-  await _pumpUntil(t, _sheet);
+  await pumpUntil(t, _sheet);
   await t.pumpAndSettle();
 }
 Finder get _sheetName => find.descendant(of: _sheet, matching: find.byType(TextFormField));
@@ -53,7 +39,7 @@ void main() {
     await t.tap(find.text('More').last);
     await t.pumpAndSettle();
     await t.tap(find.widgetWithText(ListTile, 'Products'));
-    await _pumpUntil(t, find.widgetWithText(AppBar, 'Products'));
+    await pumpUntil(t, find.widgetWithText(AppBar, 'Products'));
   }
 
   Future<void> addProduct(WidgetTester t, String name, String unitLabel) async {
@@ -74,9 +60,9 @@ void main() {
     await auth.signUp(name: 'Owner One', email: 'one${DateTime.now().microsecondsSinceEpoch}@codewingz.com', password: 'secret123');
 
     await t.pumpWidget(DelivTrackApp(repository: auth, productRepository: products, customerRepository: FirestoreCustomerRepository()));
-    await _pumpUntil(t, find.text('Welcome, Owner One'));
+    await pumpUntil(t, find.text('Welcome, Owner One'));
     await openProducts(t);
-    await _pumpUntil(t, find.text('No products yet'));
+    await pumpUntil(t, find.text('No products yet'));
 
     // Add: validation first, then a valid product.
     await t.tap(find.widgetWithText(FloatingActionButton, 'Add Product'));
@@ -91,30 +77,30 @@ void main() {
     await t.tap(find.widgetWithText(ChoiceChip, 'Per Kg'));
     await t.pump();
     await t.tap(_sheetButton('Add Product'));
-    await _pumpUntilGone(t, _sheet);
-    await _pumpUntil(t, find.text('Mango Box'));
+    await pumpUntilGone(t, _sheet);
+    await pumpUntil(t, find.text('Mango Box'));
     expect(find.text('Per Kg'), findsWidgets);
 
     // Duplicate (different case/spacing) is refused with the sheet kept open.
     await addProduct(t, 'mango  BOX', 'Per Piece');
-    await _pumpUntil(t, find.text(duplicateProductMessage));
+    await pumpUntil(t, find.text(duplicateProductMessage));
     expect(_sheet, findsOneWidget);
     await t.tapAt(const Offset(5, 5)); // dismiss the sheet
-    await _pumpUntilGone(t, _sheet);
+    await pumpUntilGone(t, _sheet);
 
     // Second product, then edit the first (rename + unit).
     await addProduct(t, 'Apple Crate', 'Per Piece');
-    await _pumpUntilGone(t, _sheet);
-    await _pumpUntil(t, find.text('Apple Crate'));
+    await pumpUntilGone(t, _sheet);
+    await pumpUntil(t, find.text('Apple Crate'));
     await t.tap(find.text('Mango Box'));
     await _sheetOpen(t);
     await t.enterText(_sheetName, 'Raw Mango');
     await t.tap(find.widgetWithText(ChoiceChip, 'Per Piece'));
     await t.pump();
     await t.tap(_sheetButton('Save Changes'));
-    await _pumpUntilGone(t, _sheet);
-    await _pumpUntil(t, find.text('Raw Mango'));
-    await _pumpUntilGone(t, find.text('Mango Box'));
+    await pumpUntilGone(t, _sheet);
+    await pumpUntil(t, find.text('Raw Mango'));
+    await pumpUntilGone(t, find.text('Mango Box'));
 
     // Search narrows the list.
     await t.enterText(find.byType(TextFormField).first, 'apple');
@@ -129,28 +115,28 @@ void main() {
     await t.tap(find.byTooltip('Options for Raw Mango'));
     await t.pumpAndSettle();
     await t.tap(find.text('Archive').last);
-    await _pumpUntil(t, find.text('Archive "Raw Mango"?'));
+    await pumpUntil(t, find.text('Archive "Raw Mango"?'));
     await t.tap(find.widgetWithText(TextButton, 'Archive'));
-    await _pumpUntilGone(t, find.text('Raw Mango'));
+    await pumpUntilGone(t, find.text('Raw Mango'));
     await t.tap(find.widgetWithText(ChoiceChip, 'Archived'));
-    await _pumpUntil(t, find.text('Raw Mango'));
+    await pumpUntil(t, find.text('Raw Mango'));
     expect(find.text('Apple Crate'), findsNothing);
 
     // The archived name stays reserved.
     await t.tap(find.widgetWithText(ChoiceChip, 'Active'));
     await t.pump();
     await addProduct(t, 'raw mango', 'Per Kg');
-    await _pumpUntil(t, find.text(duplicateProductMessage));
+    await pumpUntil(t, find.text(duplicateProductMessage));
     await t.tapAt(const Offset(5, 5));
-    await _pumpUntilGone(t, _sheet);
+    await pumpUntilGone(t, _sheet);
 
     // Log out, then a different user: sees nothing of the first user's data.
     await FirebaseAuth.instance.signOut();
-    await _pumpUntil(t, find.text('Welcome back'));
+    await pumpUntil(t, find.text('Welcome back'));
     await auth.signUp(name: 'Owner Two', email: 'two${DateTime.now().microsecondsSinceEpoch}@codewingz.com', password: 'secret123');
-    await _pumpUntil(t, find.text('Welcome, Owner Two'));
+    await pumpUntil(t, find.text('Welcome, Owner Two'));
     await openProducts(t);
-    await _pumpUntil(t, find.text('No products yet'));
+    await pumpUntil(t, find.text('No products yet'));
     expect(find.text('Apple Crate'), findsNothing);
     expect(find.text('Raw Mango'), findsNothing);
     await t.tap(find.widgetWithText(ChoiceChip, 'Archived'));
@@ -161,8 +147,8 @@ void main() {
     await t.tap(find.widgetWithText(ChoiceChip, 'Active'));
     await t.pump();
     await addProduct(t, 'Raw Mango', 'Per Kg');
-    await _pumpUntilGone(t, _sheet);
-    await _pumpUntil(t, find.text('Raw Mango'));
+    await pumpUntilGone(t, _sheet);
+    await pumpUntil(t, find.text('Raw Mango'));
     expect(find.text('Raw Mango'), findsOneWidget);
   });
 }

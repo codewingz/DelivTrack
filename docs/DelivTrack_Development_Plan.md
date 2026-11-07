@@ -194,7 +194,9 @@ Validation (empty, 1 char, 61 chars, duplicate, duplicate different case), archi
 
 ---
 
-## 5. Feature: Customers (FR-13) — ⬜ Size M
+## 5. Feature: Customers (FR-13) — ✅ DONE 7 Nov 2026 (4 phases verified: CLI, emulator, screenshots at 4 sizes)
+
+> **Built as planned, with these decisions:** Customers is a bottom tab; list rows show name, phone and address (parcel count and outstanding come with Parcels); tapping a row opens the Edit screen directly (a separate detail page with parcel history comes with Parcels); search matches names anywhere and phone digits in any written form (including +92); duplicate phone is a warning, not a block; leaving a changed form asks to discard; saving returns the customer id so Add Parcel can select the new customer; customers are never deleted. Tap-to-call is not built (needs `url_launcher`, awaiting approval).
 
 **Screens:** Customers list · Customer Detail · Add/Edit Customer (**full screen, never a dialog**).
 

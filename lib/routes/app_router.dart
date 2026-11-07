@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../features/auth/data/auth_repository.dart';
 import '../features/auth/views/forgot_password_screen.dart';
@@ -6,6 +7,7 @@ import '../features/auth/views/sign_up_screen.dart';
 import '../features/customers/data/customer_repository.dart';
 import '../features/customers/domain/customer.dart';
 import '../features/customers/views/customer_form_screen.dart';
+import '../features/customers/views/customers_screen.dart';
 import '../features/dashboard/views/dashboard_screen.dart';
 import '../features/products/data/product_repository.dart';
 import '../features/products/views/products_screen.dart';
@@ -21,12 +23,17 @@ class AppRoutes {
   static const String forgotPassword = '/forgot-password';
   static const String home = '/home';
   static const String more = '/more';
+  static const String customers = '/customers';
   static const String products = '/products';
   static const String customerNew = '/customers/new';
   static const String customerEdit = '/customers/edit';
 
   static const _public = {login, signUp, forgotPassword};
 }
+
+/// Each tab page gets its own snackbar host. The tabs stay alive side by side, and one shared host
+/// would show the same snackbar on every tab's Scaffold at once (duplicate animations, wrong place).
+Widget _tabPage(Widget page) => ScaffoldMessenger(child: page);
 
 /// Signed-in users never see the auth screens; signed-out users never see the app.
 /// Re-evaluated on every sign-in / sign-out, including a remote password reset.
@@ -90,7 +97,7 @@ GoRouter createRouter(
         path: AppRoutes.customerEdit,
         name: 'customerEdit',
         // The customer to edit travels as `extra`; without it there is nothing to edit.
-        redirect: (context, state) => state.extra is Customer ? null : AppRoutes.home,
+        redirect: (context, state) => state.extra is Customer ? null : AppRoutes.customers,
         builder: (context, state) =>
             CustomerFormScreen(repository: customerRepository, customer: state.extra! as Customer),
       ),
@@ -101,16 +108,31 @@ GoRouter createRouter(
             GoRoute(
               path: AppRoutes.home,
               name: 'home',
-              builder: (context, state) => DashboardScreen(repository: repository),
+              builder: (context, state) => _tabPage(DashboardScreen(repository: repository)),
+            ),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: AppRoutes.customers,
+              name: 'customers',
+              builder: (context, state) => _tabPage(
+                CustomersScreen(
+                  repository: customerRepository,
+                  onAdd: () => context.push<String>(AppRoutes.customerNew),
+                  onEdit: (customer) => context.push<String>(AppRoutes.customerEdit, extra: customer),
+                ),
+              ),
             ),
           ]),
           StatefulShellBranch(routes: [
             GoRoute(
               path: AppRoutes.more,
               name: 'more',
-              builder: (context, state) => MoreScreen(
-                repository: repository,
-                onOpenProducts: () => context.push(AppRoutes.products),
+              builder: (context, state) => _tabPage(
+                MoreScreen(
+                  repository: repository,
+                  onOpenProducts: () => context.push(AppRoutes.products),
+                ),
               ),
             ),
           ]),

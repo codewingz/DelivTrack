@@ -41,7 +41,10 @@ class FirestoreProductRepository implements ProductRepository {
       _userDoc.collection('product_names').doc(productNameKey(name));
 
   @override
-  Stream<List<Product>> watchAll() => _products.orderBy('nameLower').snapshots().map(
+  Stream<List<Product>> watchAll() => _products
+      .orderBy('nameLower')
+      .snapshots()
+      .map(
         (snapshot) => [
           for (final doc in snapshot.docs)
             Product(
@@ -51,7 +54,8 @@ class FirestoreProductRepository implements ProductRepository {
               isActive: doc['isActive'] as bool,
             ),
         ],
-      );
+      )
+      .withFirestoreFailures();
 
   @override
   Future<void> add({required String name, required SaleUnit saleUnit}) => _run(() {

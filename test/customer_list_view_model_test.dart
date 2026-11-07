@@ -35,6 +35,10 @@ void main() {
     expect(vm.visible.map((c) => c.name), ['Sara']);
     vm.setQuery('03001111111');
     expect(vm.visible.map((c) => c.name), ['Ali']);
+    vm.setQuery('+92 300 111'); // regression: country-code search must match stored 0300… numbers
+    expect(vm.visible.map((c) => c.name), ['Ali']);
+    vm.setQuery('+92 300 22');
+    expect(vm.visible.map((c) => c.name), ['Sara']);
     vm.setQuery('zzz');
     expect(vm.visible, isEmpty);
     expect(vm.hasNoItems, isFalse, reason: 'no matches is not the same as no customers');

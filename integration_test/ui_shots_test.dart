@@ -92,4 +92,65 @@ void main() {
     await t.tap(find.widgetWithText(ChoiceChip, 'Per Kg'));
     await shot(t, '10_edit_sheet_unit_changed');
   });
+
+  testWidgets('screenshots: customers', (t) async {
+    await FirebaseAuth.instance.signOut();
+    await binding.convertFlutterSurfaceToImage();
+    final repo = FirebaseAuthRepository();
+    await repo.signUp(
+      name: 'Muhammad Afzaal',
+      email: 'cshots${DateTime.now().microsecondsSinceEpoch}@codewingz.com',
+      password: 'secret123',
+    );
+    await t.pumpWidget(DelivTrackApp(
+      repository: repo,
+      productRepository: FirestoreProductRepository(),
+      customerRepository: FirestoreCustomerRepository(),
+    ));
+    await _settle(t);
+    await _settle(t);
+    await shot(t, '11_home_with_customers_tab');
+
+    await t.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('Customers')));
+    await shot(t, '12_customers_empty');
+
+    await t.tap(find.widgetWithText(FloatingActionButton, 'Add Customer'));
+    await shot(t, '13_customer_form');
+    await t.tap(find.byType(FilledButton));
+    await shot(t, '14_customer_form_errors');
+
+    final fields = find.byType(TextFormField);
+    await t.enterText(fields.at(0), 'Ali Raza');
+    await t.enterText(fields.at(1), '+92 300 1111111');
+    await t.enterText(fields.at(2), 'House 5, Street 2, Sahiwal');
+    await t.pump();
+    await t.tap(find.byType(FilledButton));
+    await shot(t, '15_after_save_with_snackbar');
+
+    final customers = FirestoreCustomerRepository();
+    await customers.add(name: 'Muhammad Afzaal Khan Niazi Son Of Abdul Rehman', phone: '0301 2222222', address: 'House 123, Street 45, Block C, Model Town Extension, Near Main Market, Sahiwal, Punjab');
+    await customers.add(name: 'Sara Khan', phone: '0302-3333333', address: 'Shop 4, Main Bazaar, Lahore');
+    await customers.add(name: 'Bilal Traders', phone: '0411234567', address: 'Office 7, Commercial Area, Multan');
+    await shot(t, '16_customers_list');
+
+    await t.enterText(find.byType(TextFormField).first, 'khan');
+    await shot(t, '17_customers_search');
+    await t.tap(find.byTooltip('Clear'));
+    await _settle(t);
+
+    await t.tap(find.text('Sara Khan'));
+    await shot(t, '18_customer_edit');
+    await t.pageBack();
+    await _settle(t);
+
+    await t.tap(find.widgetWithText(FloatingActionButton, 'Add Customer'));
+    await _settle(t);
+    final form = find.byType(TextFormField);
+    await t.enterText(form.at(0), 'Ali Brother');
+    await t.enterText(form.at(1), '03001111111');
+    await t.enterText(form.at(2), 'Another house 9, Sahiwal');
+    await t.pump();
+    await t.tap(find.byType(FilledButton));
+    await shot(t, '19_duplicate_phone_dialog');
+  });
 }

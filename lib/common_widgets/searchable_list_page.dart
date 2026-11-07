@@ -1,0 +1,115 @@
+import 'package:flutter/material.dart';
+import '../core/view_models/live_list_view_model.dart';
+import '../design_system/foundations/spacing/app_spacing.dart';
+import 'app_text_field.dart';
+import 'empty_state.dart';
+import 'list_skeleton.dart';
+
+/// Full page for a live, searchable list: app bar, search box, optional [header],
+/// loading skeleton, error with Retry, the list, and an "Add" button.
+/// The whole page is one scrollable so every part stays reachable on short screens.
+/// Wrap in a ListenableBuilder on [viewModel] so [visible] is recomputed on changes.
+class SearchableListPage<T> extends StatelessWidget {
+  const SearchableListPage({
+    super.key,
+    required this.title,
+    required this.viewModel,
+    required this.visible,
+    required this.searchController,
+    required this.searchHint,
+    required this.onQueryChanged,
+    required this.itemBuilder,
+    required this.emptyBuilder,
+    required this.addLabel,
+    required this.onAdd,
+    this.header,
+  });
+
+  final String title;
+  final LiveListViewModel<T> viewModel;
+
+  /// Items to show (already filtered by the caller's view model).
+  final List<T> visible;
+  final TextEditingController searchController;
+  final String searchHint;
+  final ValueChanged<String> onQueryChanged;
+  final Widget Function(BuildContext context, T item) itemBuilder;
+
+  /// Shown when [visible] is empty; the caller decides between "nothing yet" and "no matches".
+  final Widget Function() emptyBuilder;
+  final String addLabel;
+  final VoidCallback onAdd;
+
+  /// Extra controls under the search box (e.g. segments).
+  final Widget? header;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(title)),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: onAdd,
+        icon: const Icon(Icons.add),
+        label: Text(addLabel),
+      ),
+      body: SafeArea(
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 640),
+            child: CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsetsDirectional.fromSTEB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.sm),
+                    child: AppTextField.search(controller: searchController, hint: searchHint, onChanged: onQueryChanged),
+                  ),
+                ),
+                if (header != null)
+                  SliverToBoxAdapter(
+                    child: Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: Padding(
+                        padding: const EdgeInsetsDirectional.symmetric(horizontal: AppSpacing.lg),
+                        child: header,
+                      ),
+                    ),
+                  ),
+                ..._content(),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _content() {
+    if (viewModel.errorMessage != null) {
+      return [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: EmptyState(
+            icon: Icons.error_outline_rounded,
+            title: "Couldn't load the list",
+            message: viewModel.errorMessage,
+            actionLabel: 'Retry',
+            onAction: viewModel.retry,
+          ),
+        ),
+      ];
+    }
+    if (viewModel.isLoading) return const [SliverToBoxAdapter(child: ListSkeleton())];
+    if (visible.isEmpty) return [SliverFillRemaining(hasScrollBody: false, child: emptyBuilder())];
+    return [
+      SliverPadding(
+        padding: const EdgeInsetsDirectional.only(top: AppSpacing.sm, bottom: AppSpacing.x6l + AppSpacing.lg),
+        sliver: SliverList.separated(
+          itemCount: visible.length,
+          separatorBuilder: (_, _) => const Divider(height: 1),
+          itemBuilder: (context, index) => itemBuilder(context, visible[index]),
+        ),
+      ),
+    ];
+  }
+}

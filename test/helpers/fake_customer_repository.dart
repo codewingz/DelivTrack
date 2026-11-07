@@ -17,7 +17,14 @@ class FakeCustomerRepository implements CustomerRepository {
   int adds = 0;
   int updates = 0;
 
+  /// How many times a list screen subscribed to the live list.
+  int subscriptions = 0;
+
   List<Customer> get items => List.unmodifiable(_items);
+
+  void removeAll() => _items.clear();
+
+  void resetSubscriptions() => subscriptions = 0;
 
   void emitError(Object error) => _controller.addError(error);
 
@@ -25,6 +32,7 @@ class FakeCustomerRepository implements CustomerRepository {
 
   @override
   Stream<List<Customer>> watchAll() async* {
+    subscriptions++;
     yield _sorted();
     yield* _controller.stream;
   }

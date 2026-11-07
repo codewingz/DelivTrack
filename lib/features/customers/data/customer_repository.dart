@@ -54,7 +54,11 @@ class FirestoreCustomerRepository implements CustomerRepository {
 
   @override
   Stream<List<Customer>> watchAll() =>
-      _customers.orderBy('displayNameLower').snapshots().map((snapshot) => [for (final doc in snapshot.docs) _fromDoc(doc)]);
+      _customers
+          .orderBy('displayNameLower')
+          .snapshots()
+          .map((snapshot) => [for (final doc in snapshot.docs) _fromDoc(doc)])
+          .withFirestoreFailures();
 
   @override
   Future<Customer?> findByPhone(String phone, {String? excludeId}) => _run(() async {

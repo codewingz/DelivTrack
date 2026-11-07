@@ -42,11 +42,11 @@ void main() {
     expect(t.widget<TextFormField>(find.byType(TextFormField).first).controller!.text, 'Sara Khan');
   });
 
-  testWidgets('/customers/edit without a customer falls back to Home instead of crashing', (t) async {
+  testWidgets('/customers/edit without a customer falls back to the Customers list instead of crashing', (t) async {
     final router = await _launch(t);
     router.go(AppRoutes.customerEdit);
     await t.pumpAndSettle();
-    expect(find.text('Welcome, Ali'), findsOneWidget);
+    expect(find.widgetWithText(AppBar, 'Customers'), findsOneWidget);
     expect(t.takeException(), isNull);
   });
 }

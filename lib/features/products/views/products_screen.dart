@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../common_widgets/app_choice_field.dart';
-import '../../../common_widgets/app_text_field.dart';
 import '../../../common_widgets/confirm_dialog.dart';
 import '../../../common_widgets/empty_state.dart';
-import '../../../common_widgets/list_skeleton.dart';
+import '../../../common_widgets/searchable_list_page.dart';
 import '../../../constants/app_colors.dart';
-import '../../../design_system/foundations/spacing/app_spacing.dart';
 import '../data/product_repository.dart';
 import '../domain/product.dart';
 import '../viewmodel/product_list_view_model.dart';
@@ -56,91 +54,33 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Products')),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _openForm,
-        icon: const Icon(Icons.add),
-        label: const Text('Add Product'),
-      ),
-      body: SafeArea(
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 640),
-            child: ListenableBuilder(
-              listenable: _viewModel,
-              builder: (context, _) => CustomScrollView(
-                slivers: [
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsetsDirectional.fromSTEB(
-                          AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.sm),
-                      child: AppTextField.search(
-                        controller: _search,
-                        hint: 'Search products',
-                        onChanged: _viewModel.setQuery,
-                      ),
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: Align(
-                      alignment: AlignmentDirectional.centerStart,
-                      child: Padding(
-                        padding: const EdgeInsetsDirectional.symmetric(horizontal: AppSpacing.lg),
-                        child: AppChoiceField<ProductSegment>(
-                          initialValue: _viewModel.segment,
-                          options: const [
-                            (value: ProductSegment.active, label: 'Active'),
-                            (value: ProductSegment.archived, label: 'Archived'),
-                          ],
-                          onChanged: _viewModel.setSegment,
-                        ),
-                      ),
-                    ),
-                  ),
-                  ..._content(),
-                ],
-              ),
-            ),
-          ),
+    return ListenableBuilder(
+      listenable: _viewModel,
+      builder: (context, _) => SearchableListPage<Product>(
+        title: 'Products',
+        viewModel: _viewModel,
+        visible: _viewModel.visible,
+        searchController: _search,
+        searchHint: 'Search products',
+        onQueryChanged: _viewModel.setQuery,
+        addLabel: 'Add Product',
+        onAdd: _openForm,
+        header: AppChoiceField<ProductSegment>(
+          initialValue: _viewModel.segment,
+          options: const [
+            (value: ProductSegment.active, label: 'Active'),
+            (value: ProductSegment.archived, label: 'Archived'),
+          ],
+          onChanged: _viewModel.setSegment,
+        ),
+        emptyBuilder: _emptyState,
+        itemBuilder: (context, product) => _ProductTile(
+          product: product,
+          onEdit: () => _openForm(product: product),
+          onToggleActive: () => _toggleActive(product),
         ),
       ),
     );
-  }
-
-  List<Widget> _content() {
-    if (_viewModel.errorMessage != null) {
-      return [
-        SliverFillRemaining(
-          hasScrollBody: false,
-          child: EmptyState(
-            icon: Icons.error_outline_rounded,
-            title: "Couldn't load products",
-            message: _viewModel.errorMessage,
-            actionLabel: 'Retry',
-            onAction: _viewModel.retry,
-          ),
-        ),
-      ];
-    }
-    if (_viewModel.isLoading) return const [SliverToBoxAdapter(child: ListSkeleton())];
-    final products = _viewModel.visible;
-    if (products.isEmpty) return [SliverFillRemaining(hasScrollBody: false, child: _emptyState())];
-    return [
-      SliverPadding(
-        padding: const EdgeInsetsDirectional.only(top: AppSpacing.sm, bottom: AppSpacing.x6l + AppSpacing.lg),
-        sliver: SliverList.separated(
-          itemCount: products.length,
-          separatorBuilder: (_, _) => const Divider(height: 1),
-          itemBuilder: (context, index) => _ProductTile(
-            product: products[index],
-            onEdit: () => _openForm(product: products[index]),
-            onToggleActive: () => _toggleActive(products[index]),
-          ),
-        ),
-      ),
-    ];
   }
 
   Widget _emptyState() {

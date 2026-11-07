@@ -68,7 +68,7 @@ void main() {
       repo.emitError(const AppFailure('No internet connection.'));
       await t.pump();
       await t.pump();
-      expect(find.text("Couldn't load products"), findsOneWidget);
+      expect(find.text("Couldn't load the list"), findsOneWidget);
       expect(find.text('No internet connection.'), findsOneWidget);
       await t.tap(find.widgetWithText(FilledButton, 'Retry'));
       await t.pump();

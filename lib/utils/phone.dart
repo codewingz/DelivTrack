@@ -17,3 +17,13 @@ bool isValidPhone(String raw) {
   if (digits.startsWith('03') && digits.length != 11) return false;
   return true;
 }
+
+/// Digits to look for when a user searches by phone. Like [normalizePhone] but also works for
+/// partly typed numbers: "+92 301 22" -> "030122" (so it matches stored 0301… numbers).
+String phoneSearchDigits(String raw) {
+  final trimmed = raw.trim();
+  final digits = trimmed.replaceAll(RegExp(r'\D'), '');
+  if (trimmed.startsWith('+92')) return '0${digits.substring(2)}';
+  if (digits.startsWith('0092')) return '0${digits.substring(4)}';
+  return digits;
+}

@@ -17,6 +17,22 @@ void main() {
     });
   });
 
+  group('phoneSearchDigits', () {
+    test('country-code forms (even partly typed) become the stored 0… form', () {
+      expect(phoneSearchDigits('+92 301 2222'), '03012222');
+      expect(phoneSearchDigits('+92'), '0');
+      expect(phoneSearchDigits('0092 300 11'), '030011');
+      expect(phoneSearchDigits('+923001234567'), '03001234567');
+    });
+
+    test('other input keeps its digits only', () {
+      expect(phoneSearchDigits('0300 12'), '030012');
+      expect(phoneSearchDigits('1234'), '1234');
+      expect(phoneSearchDigits('92 30'), '9230', reason: 'without a + the digits are searched as typed');
+      expect(phoneSearchDigits('abc'), '');
+    });
+  });
+
   group('phone validation', () {
     const valid = [
       '03001234567', '0300 1234567', '0300-1234567', '+92 300 1234567', '+923001234567', '923001234567',

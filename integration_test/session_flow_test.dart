@@ -14,18 +14,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
+import 'test_helpers.dart';
+
 const _emulatorHost = '10.0.2.2';
 
 Finder get _onLogin => find.text('Welcome back');
 Finder get _onDashboard => find.byIcon(Icons.logout_rounded);
-
-Future<void> _pumpUntil(WidgetTester t, Finder finder, {int seconds = 10}) async {
-  for (var i = 0; i < seconds * 10; i++) {
-    await t.pump(const Duration(milliseconds: 100));
-    if (finder.evaluate().isNotEmpty) return;
-  }
-  fail('Timed out waiting for $finder');
-}
 
 Future<String?> _latestResetCode(String email) async {
   final client = HttpClient();
@@ -73,33 +67,33 @@ void main() {
       (t) async {
     final email = 'session${DateTime.now().microsecondsSinceEpoch}@codewingz.com';
     await openApp(t);
-    await _pumpUntil(t, _onLogin);
+    await pumpUntil(t, _onLogin);
 
     // Sign up through the UI.
     await t.tap(find.text('Sign up'));
-    await _pumpUntil(t, find.text('Create account'));
+    await pumpUntil(t, find.text('Create account'));
     await _fillAndSubmit(t, ['Muhammad Afzaal', email, 'secret123', 'secret123'], 'Sign Up');
-    await _pumpUntil(t, _onDashboard);
-    await _pumpUntil(t, find.text('Welcome, Muhammad Afzaal'));
+    await pumpUntil(t, _onDashboard);
+    await pumpUntil(t, find.text('Welcome, Muhammad Afzaal'));
     expect(_onLogin, findsNothing);
 
     // "Close and reopen the app": a brand-new app instance with the saved session.
     await t.pumpWidget(const SizedBox());
     await openApp(t);
-    await _pumpUntil(t, _onDashboard);
+    await pumpUntil(t, _onDashboard);
     expect(_onLogin, findsNothing, reason: 'saved user must never see login again');
     expect(find.text('Welcome, Muhammad Afzaal'), findsOneWidget);
 
     // Log out.
     await t.tap(_onDashboard);
-    await _pumpUntil(t, find.text('Log out?'));
+    await pumpUntil(t, find.text('Log out?'));
     await t.tap(find.widgetWithText(TextButton, 'Log out'));
-    await _pumpUntil(t, _onLogin);
+    await pumpUntil(t, _onLogin);
     expect(FirebaseAuth.instance.currentUser, isNull);
 
     // Log in again.
     await _fillAndSubmit(t, [email, 'secret123'], 'Log In');
-    await _pumpUntil(t, _onDashboard);
+    await pumpUntil(t, _onDashboard);
     expect(find.text('Welcome, Muhammad Afzaal'), findsOneWidget);
   });
 
@@ -109,7 +103,7 @@ void main() {
     await repo.signUp(name: 'Muhammad Afzaal', email: email, password: 'secret123');
 
     await t.pumpWidget(DelivTrackApp(repository: repo, productRepository: FirestoreProductRepository(), customerRepository: FirestoreCustomerRepository()));
-    await _pumpUntil(t, _onDashboard);
+    await pumpUntil(t, _onDashboard);
 
     // Someone resets the password from another device.
     await repo.sendPasswordReset(email: email);
@@ -119,7 +113,7 @@ void main() {
 
     // App checks the session (this also runs at launch and on resume).
     await repo.verifySession();
-    await _pumpUntil(t, _onLogin);
+    await pumpUntil(t, _onLogin);
     expect(FirebaseAuth.instance.currentUser, isNull);
   });
 
@@ -128,7 +122,7 @@ void main() {
     final repo = FirebaseAuthRepository();
     await repo.signUp(name: 'Muhammad Afzaal', email: email, password: 'secret123');
     await t.pumpWidget(DelivTrackApp(repository: repo, productRepository: FirestoreProductRepository(), customerRepository: FirestoreCustomerRepository()));
-    await _pumpUntil(t, _onDashboard);
+    await pumpUntil(t, _onDashboard);
 
     await repo.verifySession(); // valid session: must stay signed in
     await t.pump(const Duration(milliseconds: 500));

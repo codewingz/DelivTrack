@@ -106,6 +106,13 @@ class FakeParcelRepository implements ParcelRepository {
 
   List<Parcel> get parcels => List.unmodifiable(_parcels);
 
+  /// Forgets every parcel (a different user signs in).
+  void removeAll() {
+    _parcels.clear();
+    payments.clear();
+    _changes.add(null);
+  }
+
   List<Parcel> _sorted() => [..._parcels]..sort((a, b) => b.orderSequence.compareTo(a.orderSequence));
 
   void emitError(Object error) => _changes.addError(error);

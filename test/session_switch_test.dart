@@ -1,5 +1,7 @@
 import 'package:deliv_track/features/customers/domain/customer.dart';
 import 'package:deliv_track/features/customers/views/customers_screen.dart';
+import 'package:deliv_track/features/dashboard/views/dashboard_screen.dart';
+import 'package:deliv_track/features/parcels/domain/parcel_enums.dart';
 import 'package:deliv_track/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -61,5 +63,32 @@ void main() {
     expect(find.text('Private Customer'), findsNothing);
     expect(find.text('No customers yet'), findsOneWidget);
     expect(t.widget<TextFormField>(find.byType(TextFormField).first).controller!.text, isEmpty);
+  });
+
+  testWidgets("the Home bell never carries one user's reminders over to the next user", (t) async {
+    t.view.physicalSize = const Size(393, 852);
+    t.view.devicePixelRatio = 1;
+    addTearDown(t.view.reset);
+    final auth = FakeAuthRepository(signedIn: true, name: 'Owner One');
+    final parcels = FakeParcelRepository(initial: [
+      testParcel(id: 'a', method: CollectionMethod.payLater, service: PostalService.vpl, payDate: '2000-01-01'),
+    ]);
+    await t.pumpWidget(DelivTrackApp(repository: auth, productRepository: FakeProductRepository(), customerRepository: FakeCustomerRepository(), parcelRepository: parcels));
+    await t.pump(const Duration(milliseconds: 2000));
+    await t.pumpAndSettle();
+    expect(find.byTooltip('Reminders, 1 due'), findsOneWidget);
+    final before = identityHashCode((find.byType(DashboardScreen).evaluate().single as StatefulElement).state);
+
+    auth.emitSignedIn(false);
+    await t.pumpAndSettle();
+    expect(find.byType(DashboardScreen, skipOffstage: false), findsNothing, reason: 'the whole session is destroyed');
+
+    parcels.removeAll();
+    auth.emitSignedIn(true, name: 'Owner Two');
+    await t.pumpAndSettle();
+    final after = identityHashCode((find.byType(DashboardScreen).evaluate().single as StatefulElement).state);
+    expect(after, isNot(before));
+    expect(find.byTooltip('Reminders'), findsOneWidget);
+    expect(find.byTooltip('Reminders, 1 due'), findsNothing);
   });
 }

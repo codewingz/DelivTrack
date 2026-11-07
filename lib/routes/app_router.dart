@@ -16,6 +16,7 @@ import '../features/parcels/domain/parcel.dart';
 import '../features/parcels/views/parcel_details_screen.dart';
 import '../features/parcels/views/parcel_form_screen.dart';
 import '../features/parcels/views/parcels_screen.dart';
+import '../features/reminders/views/reminders_screen.dart';
 import '../features/products/data/product_repository.dart';
 import '../features/products/views/products_screen.dart';
 import '../features/more/views/more_screen.dart';
@@ -37,6 +38,7 @@ class AppRoutes {
   static const String parcelEdit = '/parcels/edit';
 
   static String parcelPath(String id) => '/parcels/$id';
+  static const String reminders = '/reminders';
   static const String products = '/products';
   static const String customerNew = '/customers/new';
   static const String customerEdit = '/customers/edit';
@@ -103,6 +105,14 @@ GoRouter createRouter(
         builder: (context, state) => ProductsScreen(repository: productRepository),
       ),
       GoRoute(
+        path: AppRoutes.reminders,
+        name: 'reminders',
+        builder: (context, state) => RemindersScreen(
+          repository: parcelRepository,
+          onOpen: (parcel) => context.push(AppRoutes.parcelPath(parcel.id)),
+        ),
+      ),
+      GoRoute(
         path: AppRoutes.parcelNew,
         name: 'parcelNew',
         builder: (context, state) => ParcelFormScreen(
@@ -155,7 +165,13 @@ GoRouter createRouter(
             GoRoute(
               path: AppRoutes.home,
               name: 'home',
-              builder: (context, state) => _tabPage(DashboardScreen(repository: repository)),
+              builder: (context, state) => _tabPage(
+                DashboardScreen(
+                  repository: repository,
+                  parcelRepository: parcelRepository,
+                  onOpenReminders: () => context.push(AppRoutes.reminders),
+                ),
+              ),
             ),
           ]),
           StatefulShellBranch(routes: [

@@ -352,7 +352,9 @@ Tests: AT-17/24; list counts match totals; Free excluded; no-date Pay Later not 
 
 ---
 
-## 9. Feature: Pay Later reminders + notifications (FR-08) — ⬜ Size XL
+## 9. Feature: Pay Later reminders + notifications (FR-08) — 🟡 in progress (M5)
+
+> **G1 ✅ (7 Nov 2026):** in-app Reminders screen (`/reminders`: Overdue, Due today, Upcoming, No date set; Mark Received, Change/Set Date, tap opens the parcel) and the Home bell with a due + overdue badge. The list is **derived live from the parcels** (Pay Later, not returned, outstanding > 0), so there is no separate reminder document to keep in step. A date in the past is refused by the rules, so overdue arises only as time passes. **G2:** notification-bar reminders at 9:00 AM Pakistan time (`flutter_local_notifications` + `timezone`, approved; inexact timing).
 
 ### 9.1 Reminder Screen (segment inside Payments) and Notification Center (bell)
 - Sections: **Due today · Overdue · Upcoming · No date set**.

@@ -5,6 +5,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:deliv_track/features/auth/data/auth_repository.dart';
 import 'package:deliv_track/features/customers/data/customer_repository.dart';
+import 'package:deliv_track/core/time/pakistan_time.dart';
 import 'package:deliv_track/features/parcels/data/parcel_repository.dart';
 import 'package:deliv_track/features/parcels/domain/parcel_enums.dart';
 import 'package:deliv_track/features/parcels/domain/parcel_input.dart';
@@ -432,5 +433,54 @@ void main() {
     await _settle(t);
     await t.tap(find.byType(Switch));
     await shot(t, '52_payment_sheet_entered_late');
+  });
+
+  testWidgets('screenshots: reminders', (t) async {
+    await FirebaseAuth.instance.signOut();
+    await binding.convertFlutterSurfaceToImage();
+    final auth = FirebaseAuthRepository();
+    await auth.signUp(
+      name: 'Muhammad Afzaal',
+      email: 'rmshots${DateTime.now().microsecondsSinceEpoch}@codewingz.com',
+      password: 'secret123',
+    );
+    final customers = FirestoreCustomerRepository();
+    final parcels = FirestoreParcelRepository();
+    const address = 'House 123, Street 45, Block C, Model Town Extension, Near Main Market, Sahiwal, Punjab';
+    final aliId = await customers.add(name: 'Ali Raza', phone: '+92 300 1111111', address: 'House 5, Street 2, Sahiwal');
+    final longId = await customers.add(name: 'Muhammad Afzaal Khan Niazi Son Of Abdul Rehman', phone: '0301 2222222', address: address);
+    final ali = Customer(id: aliId, name: 'Ali Raza', phone: '+92 300 1111111', address: 'House 5, Street 2, Sahiwal');
+    final long = Customer(id: longId, name: 'Muhammad Afzaal Khan Niazi Son Of Abdul Rehman', phone: '0301 2222222', address: address);
+    final today = pakistanDate(DateTime.now().toUtc());
+    Future<void> payLater(Customer customer, String reference, int quantity, String? date) => parcels.create(ParcelInput(
+          customer: customer,
+          items: [ParcelItem.pieces(productId: 'p1', productName: 'Mango Box', quantity: quantity, unitPricePaisa: 250000)],
+          method: CollectionMethod.payLater,
+          service: PostalService.vpl,
+          postalReference: reference,
+          deliveryChargePaisa: 15000,
+          estimatedPaymentDate: date,
+          status: ParcelStatus.sent,
+        )).then((_) {});
+    await payLater(ali, 'VPL 11111', 2, today);
+    await payLater(long, 'VPL 22222', 1, today);
+    await payLater(ali, 'VPL 33333', 3, '2030-12-25');
+    await payLater(long, 'VPL 44444', 4, null);
+
+    await t.pumpWidget(DelivTrackApp(
+      repository: auth,
+      productRepository: FirestoreProductRepository(),
+      customerRepository: customers,
+      parcelRepository: parcels,
+    ));
+    await _settle(t);
+    await _settle(t);
+    await shot(t, '60_home_with_bell_badge');
+    await t.tap(find.byTooltip('Reminders, 2 due'));
+    await shot(t, '61_reminders');
+    await t.drag(find.byType(CustomScrollView), const Offset(0, -6000));
+    await shot(t, '62_reminders_bottom');
+    await t.tap(find.text('Set Date'));
+    await shot(t, '63_set_date_sheet');
   });
 }

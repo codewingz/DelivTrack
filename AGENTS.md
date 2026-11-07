@@ -19,7 +19,7 @@ Instructions for AI coding agents working in this repository. These rules are ma
   - UI screenshots you must look at: with the emulators running, `SHOT_DIR=<scratchpad>/shots flutter drive --driver=test_driver/integration_test.dart --target=integration_test/ui_shots_test.dart -d emulator-5554 --dart-define=SHOT_TAG=<tag>`; repeat at other sizes with `adb shell wm size 720x1280; adb shell wm density 320` (small), `1600x2560` / `320` (tablet), `adb shell settings put system font_scale 2.0` (big font). Always reset afterwards: `adb shell wm size reset; adb shell wm density reset; adb shell settings put system font_scale 1.0`. Run one device configuration at a time.
   - Deploy rules: `firebase deploy --only firestore:rules --project delivtrack-codewingz`; then confirm the deployed ruleset equals `firestore.rules`.
 - **Verification per phase:** CLI (`flutter analyze`, `flutter test`), sandbox (Firebase emulators + Android emulator integration tests), and UI (screenshots at several sizes that you actually look at) before moving to the next phase.
-- **Secrets:** never put API secrets in app files or Git history.
+- **Secrets:** never put API secrets in app files or Git history. The Android upload keystore lives outside the repo (`~/.delivtrack-signing/delivtrack-upload.jks`) and `android/key.properties` holds its passwords; both are git-ignored and must never be committed, printed or shared. Release builds use them automatically (`flutter build appbundle --release`); without `key.properties` the build falls back to the debug key.
 
 ---
 

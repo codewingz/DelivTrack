@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -18,6 +19,11 @@ Future<void> main() async {
   );
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  if (const bool.fromEnvironment('USE_EMULATORS')) {
+    // Local testing only: flutter run --dart-define=USE_EMULATORS=true
+    await FirebaseAuth.instance.useAuthEmulator('localhost', 9099);
+    FirebaseFirestore.instance.useFirestoreEmulator('localhost', 8080);
+  }
   // Wait for the saved session to be restored so a logged-in user is never
   // mistaken for a signed-out one at startup.
   await FirebaseAuth.instance.authStateChanges().first;

@@ -78,9 +78,10 @@ void main() {
     final repo = FakeAuthRepository(signedIn: true, name: 'Ali');
     await _launch(t, repo);
     await t.tap(_onDashboard);
-    await t.pump();
-    await t.pump();
-    await t.pump();
+    await t.pumpAndSettle();
+    expect(find.text('Log out?'), findsOneWidget);
+    await t.tap(find.widgetWithText(TextButton, 'Log out'));
+    await t.pumpAndSettle();
     expect(repo.signOuts, 1);
     expect(_onLogin, findsOneWidget);
     expect(_onDashboard, findsNothing);

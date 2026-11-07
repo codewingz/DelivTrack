@@ -4,7 +4,9 @@ import '../features/auth/views/forgot_password_screen.dart';
 import '../features/auth/views/login_screen.dart';
 import '../features/auth/views/sign_up_screen.dart';
 import '../features/dashboard/views/dashboard_screen.dart';
+import '../features/more/views/more_screen.dart';
 import '../screens/splash_screen.dart';
+import 'app_shell.dart';
 import 'stream_listenable.dart';
 
 class AppRoutes {
@@ -13,6 +15,7 @@ class AppRoutes {
   static const String signUp = '/signup';
   static const String forgotPassword = '/forgot-password';
   static const String home = '/home';
+  static const String more = '/more';
 
   static const _public = {login, signUp, forgotPassword};
 }
@@ -61,10 +64,24 @@ GoRouter createRouter(AuthRepository repository) {
           onLogIn: () => context.go(AppRoutes.login),
         ),
       ),
-      GoRoute(
-        path: AppRoutes.home,
-        name: 'home',
-        builder: (context, state) => DashboardScreen(repository: repository),
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) => AppShell(navigationShell: navigationShell),
+        branches: [
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: AppRoutes.home,
+              name: 'home',
+              builder: (context, state) => DashboardScreen(repository: repository),
+            ),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: AppRoutes.more,
+              name: 'more',
+              builder: (context, state) => MoreScreen(repository: repository),
+            ),
+          ]),
+        ],
       ),
     ],
   );

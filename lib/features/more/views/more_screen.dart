@@ -1,0 +1,41 @@
+import 'package:flutter/material.dart';
+import '../../../common_widgets/confirm_dialog.dart';
+import '../../../constants/app_colors.dart';
+import '../../auth/data/auth_repository.dart';
+
+/// Secondary sections. Products, Reports and Settings are added here as they are built.
+class MoreScreen extends StatelessWidget {
+  const MoreScreen({super.key, required this.repository});
+  final AuthRepository repository;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('More')),
+      body: SafeArea(
+        child: ListView(
+          children: [
+            ListTile(
+              minTileHeight: 56,
+              leading: const Icon(Icons.logout_rounded, color: AppColors.error),
+              title: const Text('Log out'),
+              onTap: () => confirmLogout(context, repository),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Confirms, then signs out. The router sends the user to the login screen.
+Future<void> confirmLogout(BuildContext context, AuthRepository repository) async {
+  final confirmed = await showConfirmDialog(
+    context,
+    title: 'Log out?',
+    message: 'You will need to log in again to use DelivTrack.',
+    confirmLabel: 'Log out',
+    destructive: true,
+  );
+  if (confirmed) await repository.signOut();
+}

@@ -16,6 +16,7 @@ Instructions for AI coding agents working in this repository. These rules are ma
   - `flutter analyze` and `flutter test` (unit/widget)
   - Rules (two users, real emulator tokens): `firebase emulators:exec --only auth,firestore --project delivtrack-codewingz "flutter test test/rules"`
   - Real-flow tests on the Android emulator: start `firebase emulators:start --only auth,firestore --project delivtrack-codewingz`, then `flutter test integration_test -d emulator-5554`
+  - UI screenshots you must look at: with the emulators running, `SHOT_DIR=<scratchpad>/shots flutter drive --driver=test_driver/integration_test.dart --target=integration_test/ui_shots_test.dart -d emulator-5554 --dart-define=SHOT_TAG=<tag>`; repeat at other sizes with `adb shell wm size 720x1280; adb shell wm density 320` (small), `1600x2560` / `320` (tablet), `adb shell settings put system font_scale 2.0` (big font). Always reset afterwards: `adb shell wm size reset; adb shell wm density reset; adb shell settings put system font_scale 1.0`. Run one device configuration at a time.
   - Deploy rules: `firebase deploy --only firestore:rules --project delivtrack-codewingz`; then confirm the deployed ruleset equals `firestore.rules`.
 - **Verification per phase:** CLI (`flutter analyze`, `flutter test`), sandbox (Firebase emulators + Android emulator integration tests), and UI (screenshots at several sizes that you actually look at) before moving to the next phase.
 - **Secrets:** never put API secrets in app files or Git history.

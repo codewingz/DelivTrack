@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../constants/app_colors.dart';
 import '../../../design_system/foundations/spacing/app_spacing.dart';
 import '../../auth/data/auth_repository.dart';
+import '../../more/views/more_screen.dart';
 
 /// Placeholder dashboard: greets the user and offers log out.
 /// Parcel and payment totals (FR-11) come with the parcel features.
@@ -18,7 +19,7 @@ class DashboardScreen extends StatelessWidget {
           IconButton(
             tooltip: 'Log out',
             icon: const Icon(Icons.logout_rounded),
-            onPressed: repository.signOut,
+            onPressed: () => confirmLogout(context, repository),
           ),
         ],
       ),

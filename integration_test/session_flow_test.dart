@@ -90,6 +90,8 @@ void main() {
 
     // Log out.
     await t.tap(_onDashboard);
+    await _pumpUntil(t, find.text('Log out?'));
+    await t.tap(find.widgetWithText(TextButton, 'Log out'));
     await _pumpUntil(t, _onLogin);
     expect(FirebaseAuth.instance.currentUser, isNull);
 

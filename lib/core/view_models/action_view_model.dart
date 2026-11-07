@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
-import '../data/auth_repository.dart';
+import '../errors/app_failure.dart';
 
-/// Loading / error state for one auth submit (sign up, log in, reset email...).
-class AuthActionViewModel extends ChangeNotifier {
+/// Loading / error state for one submit action (sign up, save product, ...).
+class ActionViewModel extends ChangeNotifier {
   bool _isLoading = false;
   bool _disposed = false;
   String? _errorMessage;
@@ -21,7 +21,7 @@ class AuthActionViewModel extends ChangeNotifier {
     try {
       await action();
       success = true;
-    } on AuthFailure catch (e) {
+    } on AppFailure catch (e) {
       _errorMessage = e.message;
     }
     _isLoading = false;

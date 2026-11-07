@@ -72,12 +72,13 @@ class AppTextField extends StatefulWidget {
     this.autovalidateMode,
   });
 
-  /// Person name field: word capitalization, required by default.
+  /// Name field (person, product...): word capitalization, 2-60 characters.
   factory AppTextField.name({
     Key? key,
     TextEditingController? controller,
     String label = 'Full Name',
     String hint = 'e.g. Muhammad Afzaal',
+    IconData icon = Icons.person_outline_rounded,
     bool isRequired = true,
     bool enabled = true,
     TextInputAction textInputAction = TextInputAction.next,
@@ -93,8 +94,9 @@ class AppTextField extends StatefulWidget {
       enabled: enabled,
       textCapitalization: TextCapitalization.words,
       textInputAction: textInputAction,
-      prefixIcon: const Icon(Icons.person_outline_rounded, size: 20, color: AppColors.label),
-      validator: isRequired ? (value) => AppValidators.required(value, fieldName: label) : null,
+      prefixIcon: Icon(icon, size: 20, color: AppColors.label),
+      inputFormatters: [LengthLimitingTextInputFormatter(60)],
+      validator: isRequired ? (value) => AppValidators.name(value, fieldName: label) : null,
       onFieldSubmitted: onFieldSubmitted,
       focusNode: focusNode,
     );

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../common_widgets/app_text_field.dart';
 import '../../../common_widgets/primary_button.dart';
 import '../data/auth_repository.dart';
-import '../viewmodel/auth_action_view_model.dart';
+import '../../../core/view_models/action_view_model.dart';
 import 'auth_scaffold.dart';
 
 class SignUpScreen extends StatefulWidget {
@@ -20,7 +20,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   final _confirm = TextEditingController();
-  final _viewModel = AuthActionViewModel();
+  final _viewModel = ActionViewModel();
 
   @override
   void dispose() {

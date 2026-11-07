@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../common_widgets/app_text_field.dart';
 import '../../../common_widgets/primary_button.dart';
 import '../data/auth_repository.dart';
-import '../viewmodel/auth_action_view_model.dart';
+import '../../../core/view_models/action_view_model.dart';
 import 'auth_scaffold.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
@@ -17,7 +17,7 @@ class ForgotPasswordScreen extends StatefulWidget {
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final _email = TextEditingController();
-  final _viewModel = AuthActionViewModel();
+  final _viewModel = ActionViewModel();
   String? _sentTo;
 
   @override

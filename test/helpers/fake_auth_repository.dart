@@ -1,10 +1,11 @@
 import 'dart:async';
+import 'package:deliv_track/core/errors/app_failure.dart';
 import 'package:deliv_track/features/auth/data/auth_repository.dart';
 
 class FakeAuthRepository implements AuthRepository {
   FakeAuthRepository({this.failure, this.signedIn = false, this.name});
 
-  final AuthFailure? failure;
+  final AppFailure? failure;
   Completer<void>? gate;
   final signUps = <({String name, String email, String password})>[];
   final signIns = <({String email, String password})>[];

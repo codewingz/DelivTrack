@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'helpers/fake_auth_repository.dart';
+import 'package:deliv_track/core/errors/app_failure.dart';
 import 'package:deliv_track/features/auth/data/auth_repository.dart';
-import 'package:deliv_track/features/auth/viewmodel/auth_action_view_model.dart';
+import 'package:deliv_track/core/view_models/action_view_model.dart';
 import 'package:deliv_track/features/auth/views/sign_up_screen.dart';
 import 'package:deliv_track/utils/app_validators.dart';
 import 'package:flutter/material.dart';
@@ -52,23 +53,23 @@ void main() {
     });
   });
 
-  group('AuthActionViewModel', () {
+  group('ActionViewModel', () {
     test('success clears error and returns true', () async {
-      final vm = AuthActionViewModel();
+      final vm = ActionViewModel();
       expect(await vm.run(() async {}), isTrue);
       expect(vm.isLoading, isFalse);
       expect(vm.errorMessage, isNull);
     });
 
     test('failure exposes message and returns false', () async {
-      final vm = AuthActionViewModel();
-      expect(await vm.run(() async => throw const AuthFailure('boom')), isFalse);
+      final vm = ActionViewModel();
+      expect(await vm.run(() async => throw const AppFailure('boom')), isFalse);
       expect(vm.errorMessage, 'boom');
     });
 
     test('a new run clears the previous error', () async {
-      final vm = AuthActionViewModel();
-      await vm.run(() async => throw const AuthFailure('boom'));
+      final vm = ActionViewModel();
+      await vm.run(() async => throw const AppFailure('boom'));
       await vm.run(() async {});
       expect(vm.errorMessage, isNull);
     });
@@ -76,7 +77,7 @@ void main() {
     test('second call while loading is ignored', () async {
       final gate = Completer<void>();
       var calls = 0;
-      final vm = AuthActionViewModel();
+      final vm = ActionViewModel();
       final first = vm.run(() async {
         calls++;
         await gate.future;
@@ -89,7 +90,7 @@ void main() {
 
     test('disposing while a request runs does not throw', () async {
       final gate = Completer<void>();
-      final vm = AuthActionViewModel();
+      final vm = ActionViewModel();
       final pending = vm.run(() => gate.future);
       vm.dispose();
       gate.complete();
@@ -159,7 +160,7 @@ void main() {
     });
 
     testWidgets('already-registered email shows server message and keeps form', (t) async {
-      final repo = FakeAuthRepository(failure: const AuthFailure('This email is already registered. Try logging in instead.'));
+      final repo = FakeAuthRepository(failure: const AppFailure('This email is already registered. Try logging in instead.'));
       await _pump(t, repo);
       await _fill(t);
       await t.tap(_signUpButton);
@@ -183,7 +184,7 @@ void main() {
     for (final size in sizes) {
       for (final scale in [1.0, 1.3, 2.0]) {
         testWidgets('no overflow at $size text x$scale (with errors shown)', (t) async {
-          await _pump(t, FakeAuthRepository(failure: const AuthFailure('Something went wrong. Please try again.')), size: size, scale: scale);
+          await _pump(t, FakeAuthRepository(failure: const AppFailure('Something went wrong. Please try again.')), size: size, scale: scale);
           await _fill(t, confirm: 'different');
           await t.tap(_signUpButton, warnIfMissed: false);
           await t.pump();

@@ -11,6 +11,15 @@ class AppValidators {
     return null;
   }
 
+  /// Validates a person or item name: required, 2-60 characters after trimming and
+  /// collapsing inner whitespace.
+  static String? name(String? value, {String fieldName = 'Name'}) {
+    final normalized = (value ?? '').trim().replaceAll(RegExp(r'\s+'), ' ');
+    if (normalized.isEmpty) return '$fieldName is required';
+    if (normalized.length < 2 || normalized.length > 60) return 'Use 2–60 characters';
+    return null;
+  }
+
   /// Validates email address format and optional emptiness check.
   static String? email(String? value, {bool isRequired = true}) {
     final trimmed = value?.trim() ?? '';

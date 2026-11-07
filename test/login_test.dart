@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:deliv_track/core/errors/app_failure.dart';
 import 'package:deliv_track/features/auth/data/auth_repository.dart';
 import 'package:deliv_track/features/auth/views/login_screen.dart';
 import 'package:flutter/material.dart';
@@ -70,7 +71,7 @@ void main() {
     });
 
     testWidgets('wrong credentials show one generic message and keep the form', (t) async {
-      final repo = FakeAuthRepository(failure: AuthFailure(authErrorMessage('invalid-credential')));
+      final repo = FakeAuthRepository(failure: AppFailure(authErrorMessage('invalid-credential')));
       await _pump(t, repo);
       await _fill(t);
       await t.tap(_logIn);
@@ -116,7 +117,7 @@ void main() {
     for (final size in sizes) {
       for (final scale in [1.0, 1.3, 2.0]) {
         testWidgets('no overflow at $size text x$scale (with error shown)', (t) async {
-          await _pump(t, FakeAuthRepository(failure: const AuthFailure('Incorrect email or password.')), size: size, scale: scale);
+          await _pump(t, FakeAuthRepository(failure: const AppFailure('Incorrect email or password.')), size: size, scale: scale);
           await _fill(t);
           await t.tap(_logIn, warnIfMissed: false);
           await t.pump();

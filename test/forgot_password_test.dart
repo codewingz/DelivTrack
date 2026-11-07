@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:deliv_track/core/errors/app_failure.dart';
 import 'package:deliv_track/features/auth/data/auth_repository.dart';
 import 'package:deliv_track/features/auth/views/forgot_password_screen.dart';
 import 'package:flutter/material.dart';
@@ -55,7 +56,7 @@ void main() {
     });
 
     testWidgets('failure shows error and no confirmation', (t) async {
-      final repo = FakeAuthRepository(failure: AuthFailure(authErrorMessage('network-request-failed')));
+      final repo = FakeAuthRepository(failure: AppFailure(authErrorMessage('network-request-failed')));
       await _pump(t, repo);
       await t.enterText(find.byType(TextFormField), 'owner@codewingz.com');
       await t.tap(_send);

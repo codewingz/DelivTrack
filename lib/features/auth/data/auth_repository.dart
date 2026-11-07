@@ -1,13 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
-
-/// A user-presentable authentication failure.
-class AuthFailure implements Exception {
-  const AuthFailure(this.message);
-  final String message;
-
-  @override
-  String toString() => message;
-}
+import '../../../core/errors/app_failure.dart';
 
 abstract class AuthRepository {
   bool get isSignedIn;
@@ -28,14 +20,14 @@ abstract class AuthRepository {
   Future<void> verifySession();
 
   /// Creates the account (saving [name] as the display name) and leaves the user signed in.
-  /// Throws [AuthFailure] with a user-presentable message on failure.
+  /// Throws [AppFailure] with a user-presentable message on failure.
   Future<void> signUp({required String name, required String email, required String password});
 
-  /// Signs in an existing user. Throws [AuthFailure] with a user-presentable message.
+  /// Signs in an existing user. Throws [AppFailure] with a user-presentable message.
   Future<void> signIn({required String email, required String password});
 
   /// Sends a password-reset link. An unknown email is reported as success so the
-  /// app never reveals which emails are registered. Throws [AuthFailure] otherwise.
+  /// app never reveals which emails are registered. Throws [AppFailure] otherwise.
   Future<void> sendPasswordReset({required String email});
 }
 
@@ -82,12 +74,12 @@ class FirebaseAuthRepository implements AuthRepository {
     try {
       credential = await _auth.createUserWithEmailAndPassword(email: email.trim(), password: password);
     } on FirebaseAuthException catch (e) {
-      throw AuthFailure(authErrorMessage(e.code));
+      throw AppFailure(authErrorMessage(e.code));
     }
     try {
       await credential.user?.updateDisplayName(name.trim());
     } on FirebaseAuthException {
-      throw const AuthFailure('Account created, but your name could not be saved. Please log in and try again.');
+      throw const AppFailure('Account created, but your name could not be saved. Please log in and try again.');
     }
   }
 
@@ -96,7 +88,7 @@ class FirebaseAuthRepository implements AuthRepository {
     try {
       await _auth.signInWithEmailAndPassword(email: email.trim(), password: password);
     } on FirebaseAuthException catch (e) {
-      throw AuthFailure(authErrorMessage(e.code));
+      throw AppFailure(authErrorMessage(e.code));
     }
   }
 
@@ -106,7 +98,7 @@ class FirebaseAuthRepository implements AuthRepository {
       await _auth.sendPasswordResetEmail(email: email.trim());
     } on FirebaseAuthException catch (e) {
       if (e.code == 'user-not-found') return;
-      throw AuthFailure(authErrorMessage(e.code));
+      throw AppFailure(authErrorMessage(e.code));
     }
   }
 }

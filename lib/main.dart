@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'constants/app_colors.dart';
 import 'features/auth/data/auth_repository.dart';
 import 'features/customers/data/customer_repository.dart';
+import 'features/parcels/data/parcel_repository.dart';
 import 'features/products/data/product_repository.dart';
 import 'firebase_options.dart';
 import 'routes/app_router.dart';
@@ -36,6 +37,7 @@ Future<void> main() async {
       repository: FirebaseAuthRepository(),
       productRepository: FirestoreProductRepository(),
       customerRepository: FirestoreCustomerRepository(),
+      parcelRepository: FirestoreParcelRepository(),
     ),
   );
 }
@@ -46,10 +48,12 @@ class DelivTrackApp extends StatefulWidget {
     required this.repository,
     required this.productRepository,
     required this.customerRepository,
+    required this.parcelRepository,
   });
   final AuthRepository repository;
   final ProductRepository productRepository;
   final CustomerRepository customerRepository;
+  final ParcelRepository parcelRepository;
 
   @override
   State<DelivTrackApp> createState() => _DelivTrackAppState();
@@ -61,6 +65,7 @@ class _DelivTrackAppState extends State<DelivTrackApp>
     widget.repository,
     widget.productRepository,
     widget.customerRepository,
+    widget.parcelRepository,
   );
 
   @override

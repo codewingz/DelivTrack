@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'helpers/fake_auth_repository.dart';
 import 'helpers/fake_customer_repository.dart';
+import 'helpers/fake_parcel_repository.dart';
 import 'helpers/fake_product_repository.dart';
 
 Future<FakeCustomerRepository> _launch(WidgetTester t, {List<Customer> customers = const []}) async {
@@ -15,6 +16,7 @@ Future<FakeCustomerRepository> _launch(WidgetTester t, {List<Customer> customers
     repository: FakeAuthRepository(signedIn: true, name: 'Ali'),
     productRepository: FakeProductRepository(),
     customerRepository: repo,
+    parcelRepository: FakeParcelRepository(),
   ));
   await t.pump(const Duration(milliseconds: 2000));
   await t.pumpAndSettle();

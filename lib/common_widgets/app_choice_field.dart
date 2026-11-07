@@ -15,6 +15,8 @@ class AppChoiceField<T> extends FormField<T> {
     super.validator,
     super.enabled,
   }) : super(
+          // Re-check after every choice, so a "Select ..." error goes away once the user fixes it.
+          autovalidateMode: AutovalidateMode.onUserInteraction,
           builder: (state) => Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

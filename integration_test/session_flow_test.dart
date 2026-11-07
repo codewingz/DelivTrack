@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:deliv_track/features/auth/data/auth_repository.dart';
 import 'package:deliv_track/features/customers/data/customer_repository.dart';
+import 'package:deliv_track/features/parcels/data/parcel_repository.dart';
 import 'package:deliv_track/features/products/data/product_repository.dart';
 import 'package:deliv_track/firebase_options.dart';
 import 'package:deliv_track/main.dart';
@@ -60,7 +61,7 @@ void main() {
   setUp(() => FirebaseAuth.instance.signOut());
 
   Future<void> openApp(WidgetTester t) async {
-    await t.pumpWidget(DelivTrackApp(repository: FirebaseAuthRepository(), productRepository: FirestoreProductRepository(), customerRepository: FirestoreCustomerRepository()));
+    await t.pumpWidget(DelivTrackApp(repository: FirebaseAuthRepository(), productRepository: FirestoreProductRepository(), customerRepository: FirestoreCustomerRepository(), parcelRepository: FirestoreParcelRepository()));
   }
 
   testWidgets('sign up -> dashboard with name; reopening app stays on dashboard; logout -> login; login -> dashboard',
@@ -102,7 +103,7 @@ void main() {
     final repo = FirebaseAuthRepository();
     await repo.signUp(name: 'Muhammad Afzaal', email: email, password: 'secret123');
 
-    await t.pumpWidget(DelivTrackApp(repository: repo, productRepository: FirestoreProductRepository(), customerRepository: FirestoreCustomerRepository()));
+    await t.pumpWidget(DelivTrackApp(repository: repo, productRepository: FirestoreProductRepository(), customerRepository: FirestoreCustomerRepository(), parcelRepository: FirestoreParcelRepository()));
     await pumpUntil(t, _onDashboard);
 
     // Someone resets the password from another device.
@@ -121,7 +122,7 @@ void main() {
     final email = 'keep${DateTime.now().microsecondsSinceEpoch}@codewingz.com';
     final repo = FirebaseAuthRepository();
     await repo.signUp(name: 'Muhammad Afzaal', email: email, password: 'secret123');
-    await t.pumpWidget(DelivTrackApp(repository: repo, productRepository: FirestoreProductRepository(), customerRepository: FirestoreCustomerRepository()));
+    await t.pumpWidget(DelivTrackApp(repository: repo, productRepository: FirestoreProductRepository(), customerRepository: FirestoreCustomerRepository(), parcelRepository: FirestoreParcelRepository()));
     await pumpUntil(t, _onDashboard);
 
     await repo.verifySession(); // valid session: must stay signed in

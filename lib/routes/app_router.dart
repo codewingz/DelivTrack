@@ -9,6 +9,8 @@ import '../features/customers/domain/customer.dart';
 import '../features/customers/views/customer_form_screen.dart';
 import '../features/customers/views/customers_screen.dart';
 import '../features/dashboard/views/dashboard_screen.dart';
+import '../features/parcels/data/parcel_repository.dart';
+import '../features/parcels/views/parcel_form_screen.dart';
 import '../features/products/data/product_repository.dart';
 import '../features/products/views/products_screen.dart';
 import '../features/more/views/more_screen.dart';
@@ -24,6 +26,7 @@ class AppRoutes {
   static const String home = '/home';
   static const String more = '/more';
   static const String customers = '/customers';
+  static const String parcelNew = '/parcels/new';
   static const String products = '/products';
   static const String customerNew = '/customers/new';
   static const String customerEdit = '/customers/edit';
@@ -41,6 +44,7 @@ GoRouter createRouter(
   AuthRepository repository,
   ProductRepository productRepository,
   CustomerRepository customerRepository,
+  ParcelRepository parcelRepository,
 ) {
   return GoRouter(
     initialLocation: AppRoutes.splash,
@@ -87,6 +91,16 @@ GoRouter createRouter(
         path: AppRoutes.products,
         name: 'products',
         builder: (context, state) => ProductsScreen(repository: productRepository),
+      ),
+      GoRoute(
+        path: AppRoutes.parcelNew,
+        name: 'parcelNew',
+        builder: (context, state) => ParcelFormScreen(
+          parcelRepository: parcelRepository,
+          customerRepository: customerRepository,
+          productRepository: productRepository,
+          onAddCustomer: () => context.push<String>(AppRoutes.customerNew),
+        ),
       ),
       GoRoute(
         path: AppRoutes.customerNew,

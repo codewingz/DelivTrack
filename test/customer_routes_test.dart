@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'helpers/fake_auth_repository.dart';
 import 'helpers/fake_customer_repository.dart';
+import 'helpers/fake_parcel_repository.dart';
 import 'helpers/fake_product_repository.dart';
 
 Future<GoRouter> _launch(WidgetTester t) async {
@@ -13,6 +14,7 @@ Future<GoRouter> _launch(WidgetTester t) async {
     repository: FakeAuthRepository(signedIn: true, name: 'Ali'),
     productRepository: FakeProductRepository(),
     customerRepository: FakeCustomerRepository(),
+    parcelRepository: FakeParcelRepository(),
   ));
   await t.pump(const Duration(milliseconds: 2000));
   await t.pumpAndSettle();
@@ -48,5 +50,19 @@ void main() {
     await t.pumpAndSettle();
     expect(find.widgetWithText(AppBar, 'Customers'), findsOneWidget);
     expect(t.takeException(), isNull);
+  });
+
+  testWidgets('/parcels/new opens the full-screen Add parcel form; New Customer from the picker opens the customer form', (t) async {
+    final router = await _launch(t);
+    router.push(AppRoutes.parcelNew);
+    await t.pumpAndSettle();
+    expect(find.widgetWithText(AppBar, 'Add parcel'), findsOneWidget);
+    expect(find.byType(NavigationBar), findsNothing);
+
+    await t.tap(find.widgetWithText(TextFormField, 'Select a customer').first);
+    await t.pumpAndSettle();
+    await t.tap(find.widgetWithText(FloatingActionButton, 'New Customer'));
+    await t.pumpAndSettle();
+    expect(find.widgetWithText(AppBar, 'Add customer'), findsOneWidget, reason: 'a full screen, not a dialog');
   });
 }

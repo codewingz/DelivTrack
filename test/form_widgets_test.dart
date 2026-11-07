@@ -1,3 +1,4 @@
+import 'package:deliv_track/common_widgets/app_choice_field.dart';
 import 'package:deliv_track/common_widgets/app_date_field.dart';
 import 'package:deliv_track/common_widgets/app_select_field.dart';
 import 'package:deliv_track/common_widgets/app_text_field.dart';
@@ -152,6 +153,41 @@ void main() {
       await t.pumpAndSettle();
       expect(find.byType(DatePickerDialog), findsOneWidget);
       expect(t.takeException(), isNull);
+    });
+  });
+
+  group('AppChoiceField', () {
+    testWidgets('a validation error disappears as soon as an option is chosen', (t) async {
+      final key = GlobalKey<FormState>();
+      await t.pumpWidget(_wrap(Form(
+        key: key,
+        child: AppChoiceField<String>(
+          label: 'Parcel type',
+          options: const [(value: 'a', label: 'Alpha'), (value: 'b', label: 'Beta')],
+          onChanged: (_) {},
+          validator: (value) => value == null ? 'Select a parcel type' : null,
+        ),
+      )));
+      expect(key.currentState!.validate(), isFalse);
+      await t.pump();
+      expect(find.text('Select a parcel type'), findsOneWidget);
+
+      await t.tap(find.widgetWithText(ChoiceChip, 'Beta'));
+      await t.pump();
+      expect(find.text('Select a parcel type'), findsNothing, reason: 'the error must not outlive the fix');
+      expect(t.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'Beta')).selected, isTrue);
+    });
+
+    testWidgets('no error is shown before the user has interacted or validated', (t) async {
+      await t.pumpWidget(_wrap(Form(
+        child: AppChoiceField<String>(
+          label: 'Parcel type',
+          options: const [(value: 'a', label: 'Alpha')],
+          onChanged: (_) {},
+          validator: (value) => value == null ? 'Select a parcel type' : null,
+        ),
+      )));
+      expect(find.text('Select a parcel type'), findsNothing);
     });
   });
 }

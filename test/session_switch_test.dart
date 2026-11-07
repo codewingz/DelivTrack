@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'helpers/fake_auth_repository.dart';
 import 'helpers/fake_customer_repository.dart';
+import 'helpers/fake_parcel_repository.dart';
 import 'helpers/fake_product_repository.dart';
 
 Finder get _customersTab => find.descendant(of: find.byType(NavigationBar), matching: find.text('Customers'));
@@ -20,7 +21,7 @@ void main() {
     final customers = FakeCustomerRepository(
       initial: [const Customer(id: 'c1', name: 'Private Customer', phone: '03001111111', address: 'Owner one street 1')],
     );
-    await t.pumpWidget(DelivTrackApp(repository: auth, productRepository: FakeProductRepository(), customerRepository: customers));
+    await t.pumpWidget(DelivTrackApp(repository: auth, productRepository: FakeProductRepository(), customerRepository: customers, parcelRepository: FakeParcelRepository()));
     await t.pump(const Duration(milliseconds: 2000));
     await t.pumpAndSettle();
 

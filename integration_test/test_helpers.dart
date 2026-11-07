@@ -27,7 +27,10 @@ Future<void> tapVisible(WidgetTester t, Finder target) async {
 
 /// Focuses a text field like a user would, then types (typing before focus settles can be lost).
 Future<void> typeInto(WidgetTester t, Finder field, String text) async {
+  await t.ensureVisible(field);
+  await t.pump();
   await t.tap(field);
   await t.pump(const Duration(milliseconds: 200));
   await t.enterText(field, text);
+  await t.pump(); // let the screen redraw with the new value
 }

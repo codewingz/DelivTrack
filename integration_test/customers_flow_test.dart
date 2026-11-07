@@ -4,6 +4,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:deliv_track/features/auth/data/auth_repository.dart';
 import 'package:deliv_track/features/customers/data/customer_repository.dart';
+import 'package:deliv_track/features/parcels/data/parcel_repository.dart';
 import 'package:deliv_track/features/products/data/product_repository.dart';
 import 'package:deliv_track/firebase_options.dart';
 import 'package:deliv_track/main.dart';
@@ -49,6 +50,7 @@ void main() {
       repository: auth,
       productRepository: FirestoreProductRepository(),
       customerRepository: FirestoreCustomerRepository(),
+      parcelRepository: FirestoreParcelRepository(),
     ));
     await pumpUntil(t, find.text('Welcome, Owner One'));
     await t.tap(_customersTab);

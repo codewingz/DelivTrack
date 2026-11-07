@@ -4,6 +4,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:deliv_track/features/auth/data/auth_repository.dart';
 import 'package:deliv_track/features/customers/data/customer_repository.dart';
+import 'package:deliv_track/features/parcels/data/parcel_repository.dart';
 import 'package:deliv_track/features/products/data/product_repository.dart';
 import 'package:deliv_track/features/products/views/product_form_sheet.dart';
 import 'package:deliv_track/firebase_options.dart';
@@ -59,7 +60,7 @@ void main() {
     final products = FirestoreProductRepository();
     await auth.signUp(name: 'Owner One', email: 'one${DateTime.now().microsecondsSinceEpoch}@codewingz.com', password: 'secret123');
 
-    await t.pumpWidget(DelivTrackApp(repository: auth, productRepository: products, customerRepository: FirestoreCustomerRepository()));
+    await t.pumpWidget(DelivTrackApp(repository: auth, productRepository: products, customerRepository: FirestoreCustomerRepository(), parcelRepository: FirestoreParcelRepository()));
     await pumpUntil(t, find.text('Welcome, Owner One'));
     await openProducts(t);
     await pumpUntil(t, find.text('No products yet'));

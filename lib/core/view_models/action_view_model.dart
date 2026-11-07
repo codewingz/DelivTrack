@@ -29,6 +29,12 @@ class ActionViewModel extends ChangeNotifier {
     return success;
   }
 
+  /// Shows [message] as the current error without running anything.
+  void fail(String message) {
+    _errorMessage = message;
+    notifyListeners();
+  }
+
   @override
   void dispose() {
     _disposed = true;

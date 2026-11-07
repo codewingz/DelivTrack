@@ -1,4 +1,3 @@
-import '../../../core/time/pakistan_time.dart';
 import '../../customers/domain/customer.dart';
 import 'parcel_enums.dart';
 import 'parcel_item.dart';
@@ -62,7 +61,4 @@ class ParcelInput {
     }
     return found;
   }
-
-  /// The Pakistan date used to check [estimatedPaymentDate].
-  static String todayPakistan(Clock clock) => pakistanDate(clock.nowUtc());
 }

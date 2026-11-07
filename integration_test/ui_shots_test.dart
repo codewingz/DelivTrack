@@ -5,10 +5,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:deliv_track/features/auth/data/auth_repository.dart';
 import 'package:deliv_track/features/customers/data/customer_repository.dart';
+import 'package:deliv_track/features/parcels/data/parcel_repository.dart';
 import 'package:deliv_track/features/products/data/product_repository.dart';
 import 'package:deliv_track/features/products/domain/product.dart';
 import 'package:deliv_track/features/products/views/product_form_sheet.dart';
+import 'package:deliv_track/routes/app_router.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:deliv_track/firebase_options.dart';
 import 'package:deliv_track/main.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -42,7 +45,7 @@ void main() {
     await FirebaseAuth.instance.signOut();
     await binding.convertFlutterSurfaceToImage();
     final repo = FirebaseAuthRepository();
-    await t.pumpWidget(DelivTrackApp(repository: repo, productRepository: FirestoreProductRepository(), customerRepository: FirestoreCustomerRepository()));
+    await t.pumpWidget(DelivTrackApp(repository: repo, productRepository: FirestoreProductRepository(), customerRepository: FirestoreCustomerRepository(), parcelRepository: FirestoreParcelRepository()));
     await _settle(t);
     await _settle(t);
     await shot(t, '01_login');
@@ -106,6 +109,7 @@ void main() {
       repository: repo,
       productRepository: FirestoreProductRepository(),
       customerRepository: FirestoreCustomerRepository(),
+      parcelRepository: FirestoreParcelRepository(),
     ));
     await _settle(t);
     await _settle(t);
@@ -152,5 +156,91 @@ void main() {
     await t.pump();
     await t.tap(find.byType(FilledButton));
     await shot(t, '19_duplicate_phone_dialog');
+  });
+
+  testWidgets('screenshots: parcel form', (t) async {
+    await FirebaseAuth.instance.signOut();
+    await binding.convertFlutterSurfaceToImage();
+    final auth = FirebaseAuthRepository();
+    await auth.signUp(
+      name: 'Muhammad Afzaal',
+      email: 'pshots${DateTime.now().microsecondsSinceEpoch}@codewingz.com',
+      password: 'secret123',
+    );
+    final customers = FirestoreCustomerRepository();
+    final products = FirestoreProductRepository();
+    await customers.add(name: 'Ali Raza', phone: '+92 300 1111111', address: 'House 5, Street 2, Sahiwal');
+    await customers.add(name: 'Muhammad Afzaal Khan Niazi Son Of Abdul Rehman', phone: '0301 2222222', address: 'House 123, Street 45, Block C, Model Town Extension, Sahiwal');
+    await products.add(name: 'Mango Box', saleUnit: SaleUnit.perPiece);
+    await products.add(name: 'Dry Fruits Premium Gift Hamper With A Long Name', saleUnit: SaleUnit.perKg);
+    await t.pumpWidget(DelivTrackApp(
+      repository: auth,
+      productRepository: products,
+      customerRepository: customers,
+      parcelRepository: FirestoreParcelRepository(),
+    ));
+    await _settle(t);
+    await _settle(t);
+    GoRouter.of(t.element(find.byType(Scaffold).first)).push(AppRoutes.parcelNew);
+    await _settle(t);
+    final scroll = find.byType(SingleChildScrollView).first;
+    Future<void> top() async {
+      await t.drag(scroll, const Offset(0, 6000));
+      await _settle(t);
+    }
+
+    Future<void> bottom() async {
+      await t.drag(scroll, const Offset(0, -6000));
+      await _settle(t);
+    }
+
+    await shot(t, '20_parcel_form_empty');
+    await bottom();
+    await shot(t, '21_parcel_form_bottom');
+    await t.tap(find.byType(FilledButton));
+    await top();
+    await shot(t, '22_parcel_form_errors');
+
+    await t.tap(find.widgetWithText(TextFormField, 'Select a customer').first);
+    await shot(t, '23_customer_picker');
+    await t.tap(find.text('Muhammad Afzaal Khan Niazi Son Of Abdul Rehman'));
+    await _settle(t);
+
+    await t.tap(find.widgetWithText(ChoiceChip, 'Pay Later'));
+    await _settle(t);
+    await t.tap(find.widgetWithText(TextFormField, 'Select a product').first);
+    await shot(t, '24_product_picker');
+    await t.tap(find.text('Mango Box'));
+    await _settle(t);
+    await t.enterText(find.widgetWithText(TextFormField, 'e.g. 2'), '3');
+    await t.enterText(find.widgetWithText(TextFormField, 'Agreed price'), '2500.50');
+    await t.pump();
+    await t.ensureVisible(find.text('Add another product'));
+    await t.tap(find.text('Add another product'));
+    await _settle(t);
+    await t.tap(find.widgetWithText(TextFormField, 'Select a product').at(1));
+    await _settle(t);
+    await t.tap(find.text('Dry Fruits Premium Gift Hamper With A Long Name'));
+    await _settle(t);
+    await t.enterText(find.widgetWithText(TextFormField, 'e.g. 1.5'), '1.25');
+    await t.enterText(find.widgetWithText(TextFormField, 'Agreed price').last, '800');
+    await t.pump();
+    await top();
+    await shot(t, '25_parcel_form_filled_top');
+    await bottom();
+    await shot(t, '26_parcel_form_pay_later_bottom');
+
+    await t.tap(find.widgetWithText(TextFormField, 'Leave empty if the customer gave no date'));
+    await shot(t, '27_date_picker');
+    await t.tap(find.text('OK'));
+    await _settle(t);
+
+    await t.tap(find.widgetWithText(ChoiceChip, 'Other'));
+    await _settle(t);
+    await t.enterText(find.widgetWithText(TextFormField, 'Enter VPP / VPL / VPR reference from slip'), 'ZZ 998877');
+    await t.enterText(find.widgetWithText(TextFormField, 'Amount on slip'), '150');
+    await t.pump();
+    await bottom();
+    await shot(t, '28_other_service_ready_to_send');
   });
 }

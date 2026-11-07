@@ -48,6 +48,31 @@ service cloud.firestore {
       allow update: if false;
     }
 
+    function validCustomer(data) {
+      return data.keys().hasOnly(['displayName', 'displayNameLower', 'phone', 'phoneNormalized', 'address', 'createdAt', 'updatedAt'])
+        && data.keys().hasAll(['displayName', 'displayNameLower', 'phone', 'phoneNormalized', 'address', 'createdAt', 'updatedAt'])
+        && trimmedText(data.displayName, 2, 60)
+        && data.displayNameLower == data.displayName.lower()
+        && trimmedText(data.phone, 10, 20)
+        && data.phoneNormalized is string
+        && data.phoneNormalized.matches('^[0-9]{10,15}$')
+        && trimmedText(data.address, 5, 200)
+        && data.createdAt is timestamp
+        && data.updatedAt == request.time;
+    }
+
+    // Customers: name, phone and address are all mandatory. Never deleted.
+    match /users/{uid}/customers/{customerId} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid)
+        && validCustomer(request.resource.data)
+        && request.resource.data.createdAt == request.time;
+      allow update: if isOwner(uid)
+        && validCustomer(request.resource.data)
+        && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if false;
+    }
+
     // Everything else is closed.
     match /{document=**} {
       allow read, write: if false;

@@ -11,6 +11,21 @@ Map<String, Object?> _product({String name = 'Mango Box', String? nameLower, Str
       'isActive': active,
     };
 
+Map<String, Object?> _customer({
+  String name = 'Ali Khan',
+  String? nameLower,
+  String phone = '0300 1234567',
+  String phoneNormalized = '03001234567',
+  String address = 'House 5, Street 2, Sahiwal',
+}) =>
+    {
+      'displayName': name,
+      'displayNameLower': nameLower ?? name.toLowerCase(),
+      'phone': phone,
+      'phoneNormalized': phoneNormalized,
+      'address': address,
+    };
+
 void main() {
   final emu = EmulatorClient();
   final skip = emu.available ? null : 'Needs Firebase emulators (use firebase emulators:exec)';
@@ -133,6 +148,84 @@ void main() {
       expect(await emu.set(alice.token, 'users/${alice.uid}/parcels/p1', {'a': 'b'}), 403);
       expect(await emu.set(alice.token, 'products/p1', {'a': 'b'}), 403);
       expect(await emu.get(alice.token, 'app_settings/main'), 403);
+    }, skip: skip);
+  });
+
+  group('customers', () {
+    Future<int> create(String? token, String uid, String id, Map<String, Object?> fields,
+            {List<String> serverTimes = const ['createdAt', 'updatedAt']}) =>
+        emu.set(token, 'users/$uid/customers/$id', fields, serverTimes: serverTimes);
+
+    test('owner can create, read, list and update; others are denied everything', () async {
+      final cid = id();
+      expect(await create(alice.token, alice.uid, cid, _customer()), 200);
+      expect(await emu.get(alice.token, 'users/${alice.uid}/customers/$cid'), 200);
+      expect((await emu.list(alice.token, 'users/${alice.uid}/customers')).status, 200);
+
+      expect(await emu.get(bob.token, 'users/${alice.uid}/customers/$cid'), 403, reason: 'read');
+      expect((await emu.list(bob.token, 'users/${alice.uid}/customers')).status, 403, reason: 'list');
+      expect(await create(bob.token, alice.uid, id(), _customer(name: 'Injected')), 403, reason: 'create');
+      expect(await create(bob.token, alice.uid, cid, _customer(name: 'Hijacked'), serverTimes: const ['updatedAt']), 403,
+          reason: 'update');
+      expect(await emu.delete(bob.token, 'users/${alice.uid}/customers/$cid'), 403, reason: 'delete');
+      expect(await create(null, alice.uid, id(), _customer()), 403, reason: 'signed out create');
+      expect(await emu.get(null, 'users/${alice.uid}/customers/$cid'), 403, reason: 'signed out read');
+    }, skip: skip);
+
+    test('two users keep separate customer lists even with identical data', () async {
+      expect(await create(bob.token, bob.uid, id(), _customer()), 200);
+      expect((await emu.list(bob.token, 'users/${bob.uid}/customers')).status, 200);
+      expect((await emu.list(alice.token, 'users/${bob.uid}/customers')).status, 403);
+    }, skip: skip);
+
+    test('name, phone and address are mandatory and length-checked', () async {
+      Future<void> denied(Map<String, Object?> fields) async =>
+          expect(await create(alice.token, alice.uid, id(), fields), 403, reason: '$fields');
+      await denied(_customer(name: 'A'));
+      await denied(_customer(name: 'A' * 61));
+      await denied(_customer(name: ' Ali'));
+      await denied(_customer(name: 'Ali', nameLower: 'ALI'));
+      await denied(_customer(phone: '12345'));
+      await denied(_customer(phone: '0300 1234567 '));
+      await denied(_customer(phoneNormalized: '0300-1234567'));
+      await denied(_customer(phoneNormalized: '123456789'));
+      await denied(_customer(phoneNormalized: '1' * 16));
+      await denied(_customer(address: 'abcd'));
+      await denied(_customer(address: 'x' * 201));
+      await denied(_customer(address: ' padded address'));
+      await denied(_customer()..remove('address'));
+      await denied({..._customer(), 'email': 'a@b.c'});
+
+      expect(
+        await create(alice.token, alice.uid, id(),
+            _customer(name: 'Al', phone: '1234567890', phoneNormalized: '1234567890', address: '12345')),
+        200,
+        reason: 'minimums are allowed',
+      );
+      expect(
+        await create(alice.token, alice.uid, id(),
+            _customer(name: 'A' * 60, address: 'x' * 200, phone: '+92 300 1234567', phoneNormalized: '03001234567')),
+        200,
+        reason: 'maximums are allowed',
+      );
+    }, skip: skip);
+
+    test('createdAt/updatedAt must be server time; createdAt cannot change; delete never allowed', () async {
+      expect(
+        await create(alice.token, alice.uid, id(), {..._customer(), 'createdAt': DateTime.utc(2000), 'updatedAt': DateTime.utc(2000)},
+            serverTimes: const []),
+        403,
+      );
+      final cid = id();
+      expect(await create(alice.token, alice.uid, cid, _customer()), 200);
+      expect(await create(alice.token, alice.uid, cid, _customer(name: 'Renamed')), 403, reason: 'createdAt would change');
+      final original = await emu.createdAt(alice.token, 'users/${alice.uid}/customers/$cid');
+      expect(
+        await emu.set(alice.token, 'users/${alice.uid}/customers/$cid',
+            {..._customer(name: 'Renamed Ali'), 'createdAt': original}, serverTimes: const ['updatedAt']),
+        200,
+      );
+      expect(await emu.delete(alice.token, 'users/${alice.uid}/customers/$cid'), 403);
     }, skip: skip);
   });
 }

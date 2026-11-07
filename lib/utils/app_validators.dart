@@ -1,3 +1,4 @@
+import '../core/money/money.dart';
 import 'phone.dart';
 import 'text.dart';
 
@@ -58,42 +59,33 @@ class AppValidators {
     return null;
   }
 
-  /// Validates numeric currency / payment amounts.
+  /// Validates a money amount in rupees (up to 2 decimals). Bounds are in paisa.
   static String? amount(
     String? value, {
     bool isRequired = true,
-    double? min,
-    double? max,
+    String fieldName = 'Amount',
+    int minPaisa = 0,
+    int maxPaisa = maxMoneyPaisa,
   }) {
     final trimmed = value?.trim() ?? '';
     if (trimmed.isEmpty) {
-      return isRequired ? 'Amount is required' : null;
+      return isRequired ? '$fieldName is required' : null;
     }
-
-    final numVal = double.tryParse(trimmed);
-    if (numVal == null) {
-      return 'Enter a valid amount';
-    }
-    if (min != null && numVal < min) {
-      return 'Minimum amount is Rs. $min';
-    }
-    if (max != null && numVal > max) {
-      return 'Maximum amount is Rs. $max';
-    }
+    final paisa = parseRupeesToPaisa(trimmed);
+    if (paisa == null) return 'Enter a valid amount';
+    if (paisa < minPaisa) return minPaisa <= 1 ? 'Enter an amount above zero' : 'Minimum amount is ${formatRupees(minPaisa)}';
+    if (paisa > maxPaisa) return 'Maximum amount is ${formatRupees(maxPaisa)}';
     return null;
   }
 
-  /// Validates weight in kilograms.
-  static String? weight(String? value, {bool isRequired = false}) {
+  /// Validates a weight in kilograms (up to 3 decimals, above zero, at most 9,999.999).
+  static String? weight(String? value, {bool isRequired = false, String fieldName = 'Weight'}) {
     final trimmed = value?.trim() ?? '';
     if (trimmed.isEmpty) {
-      return isRequired ? 'Weight is required' : null;
+      return isRequired ? '$fieldName is required' : null;
     }
-
-    final numVal = double.tryParse(trimmed);
-    if (numVal == null || numVal <= 0) {
-      return 'Enter a valid weight in kg';
-    }
+    final grams = parseKgToGrams(trimmed);
+    if (grams == null || grams <= 0) return 'Enter a valid weight in kg';
     return null;
   }
 

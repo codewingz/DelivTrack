@@ -28,8 +28,8 @@ void main() {
     test('amount validator', () {
       expect(AppValidators.amount(null, isRequired: true), 'Amount is required');
       expect(AppValidators.amount('abc', isRequired: true), 'Enter a valid amount');
-      expect(AppValidators.amount('50', min: 100), 'Minimum amount is Rs. 100.0');
-      expect(AppValidators.amount('150', max: 100), 'Maximum amount is Rs. 100.0');
+      expect(AppValidators.amount('50', minPaisa: 10000), 'Minimum amount is Rs. 100');
+      expect(AppValidators.amount('150', maxPaisa: 10000), 'Maximum amount is Rs. 100');
       expect(AppValidators.amount('1200.50'), isNull);
     });
 

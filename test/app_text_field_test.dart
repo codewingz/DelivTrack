@@ -98,7 +98,7 @@ void main() {
             key: formKey,
             child: AppTextField.amount(
               controller: controller,
-              min: 100,
+              minPaisa: 10000,
             ),
           ),
         ),
@@ -109,12 +109,12 @@ void main() {
       controller.text = '50';
       formKey.currentState!.validate();
       await tester.pumpAndSettle();
-      expect(find.text('Minimum amount is Rs. 100.0'), findsOneWidget);
+      expect(find.text('Minimum amount is Rs. 100'), findsOneWidget);
 
       controller.text = '250.50';
       formKey.currentState!.validate();
       await tester.pumpAndSettle();
-      expect(find.text('Minimum amount is Rs. 100.0'), findsNothing);
+      expect(find.text('Minimum amount is Rs. 100'), findsNothing);
     });
 
     testWidgets('Weight field displays kg suffix and validates positive weight', (tester) async {

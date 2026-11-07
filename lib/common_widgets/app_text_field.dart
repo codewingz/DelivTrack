@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../constants/app_colors.dart';
+import '../core/money/money.dart';
 import 'app_field_label.dart';
 import '../design_system/foundations/radius/app_radius.dart';
 import '../design_system/foundations/spacing/app_spacing.dart';
@@ -245,8 +246,8 @@ class AppTextField extends StatefulWidget {
     String? helperText,
     bool isRequired = true,
     bool enabled = true,
-    double? min,
-    double? max,
+    int minPaisa = 0,
+    int maxPaisa = maxMoneyPaisa,
     TextInputAction textInputAction = TextInputAction.next,
     String? Function(String?)? validator,
     ValueChanged<String>? onChanged,
@@ -269,7 +270,7 @@ class AppTextField extends StatefulWidget {
         FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
       ],
       validator: (value) {
-        final err = AppValidators.amount(value, isRequired: isRequired, min: min, max: max);
+        final err = AppValidators.amount(value, isRequired: isRequired, fieldName: label.replaceAll(' (Rs.)', ''), minPaisa: minPaisa, maxPaisa: maxPaisa);
         if (err != null) return err;
         return validator?.call(value);
       },
@@ -307,7 +308,7 @@ class AppTextField extends StatefulWidget {
       suffixText: 'kg',
       prefixIcon: const Icon(Icons.scale_outlined, size: 20, color: AppColors.label),
       inputFormatters: [
-        FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+        FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,3}')),
       ],
       validator: (value) {
         final err = AppValidators.weight(value, isRequired: isRequired);

@@ -72,9 +72,12 @@ void main() {
       expect(find.text('Fast Courier · XYZ 12345'), findsOneWidget);
     });
 
-    testWidgets('there is no search box yet (search is a later feature)', (t) async {
+    testWidgets('the list has a search box and a Filters button', (t) async {
       await _pump(t, FakeParcelRepository(initial: [testParcel()]));
-      expect(find.byType(TextFormField), findsNothing);
+      expect(find.byType(TextFormField), findsOneWidget);
+      expect(find.text('Order, VPP number, customer, product'), findsOneWidget);
+      expect(find.widgetWithText(OutlinedButton, 'Filters'), findsOneWidget);
+      expect(find.text('1 parcel'), findsOneWidget);
     });
 
     testWidgets('tapping a parcel opens it; Add Parcel calls onAdd', (t) async {

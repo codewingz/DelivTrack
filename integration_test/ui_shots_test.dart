@@ -539,4 +539,59 @@ void main() {
     await t.tap(find.widgetWithText(ChoiceChip, 'Overdue'));
     await shot(t, '73_payments_overdue_empty');
   });
+
+  testWidgets('screenshots: search and filters', (t) async {
+    await FirebaseAuth.instance.signOut();
+    await binding.convertFlutterSurfaceToImage();
+    final auth = FirebaseAuthRepository();
+    await auth.signUp(
+      name: 'Muhammad Afzaal',
+      email: 'srshots${DateTime.now().microsecondsSinceEpoch}@codewingz.com',
+      password: 'secret123',
+    );
+    final customers = FirestoreCustomerRepository();
+    final parcels = FirestoreParcelRepository();
+    final aliId = await customers.add(name: 'Ali Raza', phone: '+92 300 1111111', address: 'House 5, Street 2, Sahiwal');
+    final saraId = await customers.add(name: 'Sara Khan', phone: '0301 2222222', address: 'Flat 9, Block C, Multan');
+    final ali = Customer(id: aliId, name: 'Ali Raza', phone: '+92 300 1111111', address: 'House 5, Street 2, Sahiwal');
+    final sara = Customer(id: saraId, name: 'Sara Khan', phone: '0301 2222222', address: 'Flat 9, Block C, Multan');
+    Future<String> create(Customer customer, String reference, String product, CollectionMethod method) => parcels.create(ParcelInput(
+          customer: customer,
+          items: [ParcelItem.pieces(productId: product, productName: product == 'p1' ? 'Mango Box' : 'Honey Jar', quantity: 2, unitPricePaisa: 250000)],
+          method: method,
+          service: PostalService.vpp,
+          postalReference: reference,
+          deliveryChargePaisa: 15000,
+          status: ParcelStatus.sent,
+        ));
+    await create(ali, 'VPP 11111', 'p1', CollectionMethod.postalCollection);
+    await create(sara, 'VPP 22222', 'p2', CollectionMethod.advance);
+    await create(ali, 'VPP 33333', 'p2', CollectionMethod.postalCollection);
+
+    await t.pumpWidget(DelivTrackApp(
+      repository: auth,
+      productRepository: FirestoreProductRepository(),
+      customerRepository: customers,
+      parcelRepository: parcels,
+    ));
+    await _settle(t);
+    await _settle(t);
+    await t.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('Parcels')));
+    await shot(t, '80_parcels_list_with_search');
+    await t.enterText(find.byType(TextFormField).first, 'ali');
+    await t.pump(const Duration(milliseconds: 400));
+    await shot(t, '81_search_results');
+    await t.tap(find.widgetWithText(OutlinedButton, 'Filters'));
+    await shot(t, '82_filter_sheet');
+    await t.tap(find.widgetWithText(FilterChip, 'Post office collection'));
+    await t.tap(find.widgetWithText(FilterChip, 'Pending'));
+    await t.pump();
+    await shot(t, '83_filter_sheet_choices');
+    await _tapButton(t, find.widgetWithText(FilledButton, 'Apply Filters'));
+    await _settle(t);
+    await shot(t, '84_filters_applied_with_chips');
+    await t.enterText(find.byType(TextFormField).first, 'zzz');
+    await t.pump(const Duration(milliseconds: 400));
+    await shot(t, '85_no_matches');
+  });
 }

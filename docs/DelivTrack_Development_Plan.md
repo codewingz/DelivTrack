@@ -391,7 +391,9 @@ AT-17…20, 42, 43; unit tests with a fake scheduler (schedule/replace/cancel; n
 
 ---
 
-## 10. Feature: All Parcels — search and filters (FR-10) — ⬜ Size L
+## 10. Feature: All Parcels — search and filters (FR-10) — ✅ DONE 7 Nov 2026 (CLI, real-Firestore two-user flow; screenshots in the batched run)
+
+> **Built, with one decision [D20 changed]:** all of a user's parcels are already loaded live, so search and filters run **in memory over every parcel** (no prefix-only Firestore queries, no "newest N results" caveat): substring search over order number (also just the digits), postal reference (spaces/case ignored), customer name, customer phone (any written form) and product names; 300 ms debounce with an owned timer; ≤ 60 characters. Filters (groups AND together, choices within a group are alternatives): sending date range, payment received date range, product (every product on any parcel, archived included), parcel type, payment status (incl. Overdue and Not required), parcel status. The payment-date range reads the payments of parcels that received money (10 at a time, reversed payments ignored, newest lookup wins). Active filters show as removable chips with a badge count; the screen says how many parcels/matches; Load more adds 20. The older plan text below describes the Firestore-query design that is no longer used.
 
 ### 10.1 Screen layout
 Search field → filter button (badge with active filter count) → active-filter chips (removable) → list → "Load more".

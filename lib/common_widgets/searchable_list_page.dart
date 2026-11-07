@@ -23,6 +23,7 @@ class SearchableListPage<T> extends StatelessWidget {
     this.addLabel,
     this.onAdd,
     this.header,
+    this.footer,
   });
 
   final String title;
@@ -44,6 +45,9 @@ class SearchableListPage<T> extends StatelessWidget {
 
   /// Extra controls under the search box (e.g. segments).
   final Widget? header;
+
+  /// Shown after the list when there are items (e.g. a "Load more" button).
+  final Widget? footer;
 
   @override
   Widget build(BuildContext context) {
@@ -104,13 +108,18 @@ class SearchableListPage<T> extends StatelessWidget {
     if (visible.isEmpty) return [SliverFillRemaining(hasScrollBody: false, child: emptyBuilder())];
     return [
       SliverPadding(
-        padding: const EdgeInsetsDirectional.only(top: AppSpacing.sm, bottom: AppSpacing.x6l + AppSpacing.lg),
+        padding: EdgeInsetsDirectional.only(top: AppSpacing.sm, bottom: footer == null ? AppSpacing.x6l + AppSpacing.lg : AppSpacing.xs),
         sliver: SliverList.separated(
           itemCount: visible.length,
           separatorBuilder: (_, _) => const Divider(height: 1),
           itemBuilder: (context, index) => itemBuilder(context, visible[index]),
         ),
       ),
+      if (footer != null)
+        SliverPadding(
+          padding: const EdgeInsetsDirectional.only(bottom: AppSpacing.x6l + AppSpacing.lg),
+          sliver: SliverToBoxAdapter(child: Center(child: footer)),
+        ),
     ];
   }
 }

@@ -184,6 +184,23 @@ class FakeParcelRepository implements ParcelRepository {
 
   String get _today => pakistanDate(DateTime.now().toUtc());
 
+  int paymentDateLookups = 0;
+
+  @override
+  Future<Map<String, Set<String>>> paymentDates(Iterable<String> parcelIds) async {
+    paymentDateLookups++;
+    await gate?.future;
+    if (failure != null) throw failure!;
+    final result = <String, Set<String>>{};
+    for (final id in parcelIds) {
+      final list = payments[id] ?? const <Payment>[];
+      final reversed = {for (final p in list) ?p.reversalOfPaymentId};
+      final dates = {for (final p in list) if (p.amountPaisa > 0 && !reversed.contains(p.id)) pakistanDate(p.receivedAt)};
+      if (dates.isNotEmpty) result[id] = dates;
+    }
+    return result;
+  }
+
   @override
   Future<void> recordPayment(String parcelId, {required int amountPaisa, required PaymentType type, String? note, String? receivedOn}) async {
     paymentRecords++;

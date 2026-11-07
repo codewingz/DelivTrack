@@ -35,6 +35,10 @@ abstract class ParcelRepository {
   /// A parcel's payments, newest first.
   Stream<List<Payment>> watchPayments(String parcelId);
 
+  /// The Pakistan dates ("yyyy-MM-dd") on which each parcel received money. Payments that were
+  /// reversed by a correction do not count. Parcels without payments are left out of the result.
+  Future<Map<String, Set<String>>> paymentDates(Iterable<String> parcelIds);
+
   /// Records a payment and moves the parcel's received / outstanding / payment status in one
   /// transaction. Throws [AppFailure] (amount not above 0 or above the outstanding balance, Gift / Free
   /// or returned parcel, note too long, no connection...).
@@ -239,6 +243,30 @@ class FirestoreParcelRepository implements ParcelRepository {
               ),
           ])
       .withFirestoreFailures();
+
+  @override
+  Future<Map<String, Set<String>>> paymentDates(Iterable<String> parcelIds) async {
+    final ids = parcelIds.toList();
+    final result = <String, Set<String>>{};
+    try {
+      // A few parcels at a time, so a long list does not open hundreds of requests at once.
+      for (var start = 0; start < ids.length; start += 10) {
+        final batch = ids.skip(start).take(10);
+        final snapshots = await Future.wait([for (final id in batch) _parcels.doc(id).collection('payments').get()]);
+        for (final (index, snapshot) in snapshots.indexed) {
+          final reversed = {for (final doc in snapshot.docs) ?(doc.data()['reversalOfPaymentId'] as String?)};
+          final dates = {
+            for (final doc in snapshot.docs)
+              if ((doc['amountPaisa'] as int) > 0 && !reversed.contains(doc.id)) pakistanDate((doc['receivedAt'] as Timestamp).toDate()),
+          };
+          if (dates.isNotEmpty) result[batch.elementAt(index)] = dates;
+        }
+      }
+    } on FirebaseException catch (e) {
+      throw firestoreFailure(e);
+    }
+    return result;
+  }
 
   @override
   Future<void> recordPayment(String parcelId, {required int amountPaisa, required PaymentType type, String? note, String? receivedOn}) async {

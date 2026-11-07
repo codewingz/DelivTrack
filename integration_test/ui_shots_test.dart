@@ -679,5 +679,47 @@ void main() {
     await _settle(t);
     await t.tap(find.text('Returned parcels'));
     await shot(t, '95_report_returned');
+    await t.pageBack();
+    await _settle(t);
+    await t.pageBack();
+    await _settle(t);
+
+    // --- Settings
+    await t.tap(find.widgetWithText(ListTile, 'Settings'));
+    await shot(t, '96_settings');
+    await t.pageBack();
+    await _settle(t);
+
+    // --- Customers: figures on each row, then a customer's details
+    await t.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('Customers')));
+    await shot(t, '97_customers_with_figures');
+    await _tapRow(t, 'Ali Raza');
+    await shot(t, '98_customer_details');
+    await t.drag(find.byType(CustomScrollView).first, const Offset(0, -6000));
+    await shot(t, '99_customer_details_bottom');
+    await t.pageBack();
+    await _settle(t);
+
+    // --- Archive: the action on a returned parcel, the banner, and the archived list
+    await t.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('Parcels')));
+    await _settle(t);
+    await _tapRow(t, 'ADT-000005');
+    await _settle(t);
+    final archive = find.widgetWithText(OutlinedButton, 'Archive Parcel');
+    await t.ensureVisible(archive);
+    await t.pump();
+    await shot(t, '100_details_archive_action');
+    await t.tap(archive);
+    await shot(t, '101_archive_confirm');
+    await _tapButton(t, find.widgetWithText(TextButton, 'Archive'));
+    await _settle(t);
+    await t.drag(find.byType(SingleChildScrollView).first, const Offset(0, 6000));
+    await shot(t, '102_archived_banner');
+    await t.pageBack();
+    await _settle(t);
+    await t.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('More')));
+    await _settle(t);
+    await t.tap(find.widgetWithText(ListTile, 'Archived parcels'));
+    await shot(t, '103_archived_list');
   });
 }

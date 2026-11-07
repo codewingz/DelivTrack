@@ -460,7 +460,9 @@ Tests: AT-24 and totals equal the Payments screen; Free excluded.
 
 ---
 
-## 13. Feature: Settings, Auth leftovers, Backup — ⬜ Size S–M
+## 13. Feature: Settings, Auth leftovers, Backup — 🟡 DONE except scheduled backups (needs Blaze, owner decision D23)
+
+> **Built 7 Nov 2026:** Settings (More → Settings): account email, reminder time (9:00 AM Pakistan time), phone-notification status with Turn On / system settings, last reminder-scheduling problem (if any), backup note, app version (checked against pubspec by a test), Log out with confirm. Logout also clears every scheduled notification on the phone [D22 done]. Sign Up kept [D1]. **Backup:** delete protection enabled on the database; scheduled backups and point-in-time recovery cannot be turned on without the Blaze plan; `docs/BACKUP_AND_RESTORE.md` has the exact commands and the restore test (AT-30), and Settings says plainly that scheduled backups are not on yet. See also `docs/REQUIREMENTS_TRACEABILITY.md` and `docs/MANUAL_DEVICE_CHECKLIST.md`.
 
 ### 13.1 Settings screen (no text inputs)
 Account email (read-only) · Notification permission status + **Open system settings / Enable** button · Reminder time "9:00 AM (Pakistan time)" (info) · Last reminder scheduling error (if any) · Backup info text · App version · **Log out** (confirm) .

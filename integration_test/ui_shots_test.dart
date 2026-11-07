@@ -6,6 +6,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:deliv_track/features/auth/data/auth_repository.dart';
 import 'package:deliv_track/features/customers/data/customer_repository.dart';
 import 'package:deliv_track/features/parcels/data/parcel_repository.dart';
+import 'package:deliv_track/features/parcels/domain/parcel_enums.dart';
+import 'package:deliv_track/features/parcels/domain/parcel_input.dart';
+import 'package:deliv_track/features/parcels/domain/parcel_item.dart';
+import 'package:deliv_track/features/customers/domain/customer.dart';
 import 'package:deliv_track/features/products/data/product_repository.dart';
 import 'package:deliv_track/features/products/domain/product.dart';
 import 'package:deliv_track/features/products/views/product_form_sheet.dart';
@@ -242,5 +246,81 @@ void main() {
     await t.pump();
     await bottom();
     await shot(t, '28_other_service_ready_to_send');
+  });
+
+  testWidgets('screenshots: parcels list and details', (t) async {
+    await FirebaseAuth.instance.signOut();
+    await binding.convertFlutterSurfaceToImage();
+    final auth = FirebaseAuthRepository();
+    await auth.signUp(
+      name: 'Muhammad Afzaal',
+      email: 'plshots${DateTime.now().microsecondsSinceEpoch}@codewingz.com',
+      password: 'secret123',
+    );
+    final customers = FirestoreCustomerRepository();
+    final parcels = FirestoreParcelRepository();
+    const address = 'House 123, Street 45, Block C, Model Town Extension, Near Main Market, Sahiwal, Punjab';
+    final aliId = await customers.add(name: 'Ali Raza', phone: '+92 300 1111111', address: 'House 5, Street 2, Sahiwal');
+    final longId = await customers.add(name: 'Muhammad Afzaal Khan Niazi Son Of Abdul Rehman', phone: '0301 2222222', address: address);
+    final ali = Customer(id: aliId, name: 'Ali Raza', phone: '+92 300 1111111', address: 'House 5, Street 2, Sahiwal');
+    final long = Customer(id: longId, name: 'Muhammad Afzaal Khan Niazi Son Of Abdul Rehman', phone: '0301 2222222', address: address);
+
+    await parcels.create(ParcelInput(
+      customer: ali,
+      items: [
+        ParcelItem.pieces(productId: 'p1', productName: 'Mango Box', quantity: 2, unitPricePaisa: 250000),
+        ParcelItem.weight(productId: 'p2', productName: 'Dry Fruits', weightGrams: 1250, unitPricePaisa: 80000),
+      ],
+      method: CollectionMethod.postalCollection,
+      service: PostalService.vpp,
+      postalReference: 'VPP 12345',
+      deliveryChargePaisa: 15050,
+      packedWeightGrams: 3200,
+      status: ParcelStatus.sent,
+    ));
+    await parcels.create(ParcelInput(
+      customer: long,
+      items: [ParcelItem.pieces(productId: 'p1', productName: 'Premium Gift Hamper With A Very Long Descriptive Name', quantity: 1, unitPricePaisa: 99900)],
+      method: CollectionMethod.payLater,
+      service: PostalService.other,
+      otherServiceName: 'Fast Courier Service',
+      postalReference: 'ZZ 998877 / 2026',
+      deliveryChargePaisa: 20000,
+      estimatedPaymentDate: '2030-12-25',
+      status: ParcelStatus.sent,
+    ));
+    await parcels.create(ParcelInput(
+      customer: ali,
+      items: [ParcelItem.pieces(productId: 'p1', productName: 'Mango Box', quantity: 3, unitPricePaisa: 0)],
+      method: CollectionMethod.giftFree,
+      service: PostalService.vpl,
+      status: ParcelStatus.draft,
+    ));
+
+    await t.pumpWidget(DelivTrackApp(
+      repository: auth,
+      productRepository: FirestoreProductRepository(),
+      customerRepository: customers,
+      parcelRepository: parcels,
+    ));
+    await _settle(t);
+    await _settle(t);
+    await t.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('Parcels')));
+    await shot(t, '30_parcels_list');
+
+    await t.tap(find.text('ADT-000001'));
+    await shot(t, '31_details_top');
+    await t.drag(find.byType(SingleChildScrollView).first, const Offset(0, -6000));
+    await shot(t, '32_details_bottom');
+    await t.pageBack();
+    await _settle(t);
+
+    await t.tap(find.text('ADT-000002'));
+    await shot(t, '33_details_pay_later_other_service');
+    await t.pageBack();
+    await _settle(t);
+
+    await t.tap(find.text('ADT-000003'));
+    await shot(t, '34_details_gift_draft');
   });
 }

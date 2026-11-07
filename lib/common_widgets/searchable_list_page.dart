@@ -5,7 +5,7 @@ import 'app_text_field.dart';
 import 'empty_state.dart';
 import 'list_skeleton.dart';
 
-/// Full page for a live, searchable list: app bar, search box, optional [header],
+/// Full page for a live list (searchable when a search controller is given): app bar, search box, optional [header],
 /// loading skeleton, error with Retry, the list, and an "Add" button.
 /// The whole page is one scrollable so every part stays reachable on short screens.
 /// Wrap in a ListenableBuilder on [viewModel] so [visible] is recomputed on changes.
@@ -15,9 +15,9 @@ class SearchableListPage<T> extends StatelessWidget {
     required this.title,
     required this.viewModel,
     required this.visible,
-    required this.searchController,
-    required this.searchHint,
-    required this.onQueryChanged,
+    this.searchController,
+    this.searchHint = 'Search',
+    this.onQueryChanged,
     required this.itemBuilder,
     required this.emptyBuilder,
     this.addLabel,
@@ -30,9 +30,10 @@ class SearchableListPage<T> extends StatelessWidget {
 
   /// Items to show (already filtered by the caller's view model).
   final List<T> visible;
-  final TextEditingController searchController;
+  /// The search box is shown only when a [searchController] is given.
+  final TextEditingController? searchController;
   final String searchHint;
-  final ValueChanged<String> onQueryChanged;
+  final ValueChanged<String>? onQueryChanged;
   final Widget Function(BuildContext context, T item) itemBuilder;
 
   /// Shown when [visible] is empty; the caller decides between "nothing yet" and "no matches".
@@ -58,12 +59,13 @@ class SearchableListPage<T> extends StatelessWidget {
             constraints: const BoxConstraints(maxWidth: 640),
             child: CustomScrollView(
               slivers: [
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsetsDirectional.fromSTEB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.sm),
-                    child: AppTextField.search(controller: searchController, hint: searchHint, onChanged: onQueryChanged),
+                if (searchController != null)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsetsDirectional.fromSTEB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.sm),
+                      child: AppTextField.search(controller: searchController!, hint: searchHint, onChanged: onQueryChanged),
+                    ),
                   ),
-                ),
                 if (header != null)
                   SliverToBoxAdapter(
                     child: Align(

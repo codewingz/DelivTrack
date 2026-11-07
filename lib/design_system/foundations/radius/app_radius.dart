@@ -4,4 +4,7 @@ class AppRadius {
 
   /// Inputs and buttons.
   static const double control = 12;
+
+  /// Small status chips.
+  static const double chip = 8;
 }

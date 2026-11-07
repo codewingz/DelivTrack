@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../features/auth/data/auth_repository.dart';
@@ -10,7 +12,9 @@ import '../features/customers/views/customer_form_screen.dart';
 import '../features/customers/views/customers_screen.dart';
 import '../features/dashboard/views/dashboard_screen.dart';
 import '../features/parcels/data/parcel_repository.dart';
+import '../features/parcels/views/parcel_details_screen.dart';
 import '../features/parcels/views/parcel_form_screen.dart';
+import '../features/parcels/views/parcels_screen.dart';
 import '../features/products/data/product_repository.dart';
 import '../features/products/views/products_screen.dart';
 import '../features/more/views/more_screen.dart';
@@ -26,7 +30,11 @@ class AppRoutes {
   static const String home = '/home';
   static const String more = '/more';
   static const String customers = '/customers';
+  static const String parcels = '/parcels';
   static const String parcelNew = '/parcels/new';
+  static const String parcelDetails = '/parcels/:id';
+
+  static String parcelPath(String id) => '/parcels/$id';
   static const String products = '/products';
   static const String customerNew = '/customers/new';
   static const String customerEdit = '/customers/edit';
@@ -103,6 +111,11 @@ GoRouter createRouter(
         ),
       ),
       GoRoute(
+        path: AppRoutes.parcelDetails,
+        name: 'parcelDetails',
+        builder: (context, state) => ParcelDetailsScreen(repository: parcelRepository, parcelId: state.pathParameters['id']!),
+      ),
+      GoRoute(
         path: AppRoutes.customerNew,
         name: 'customerNew',
         builder: (context, state) => CustomerFormScreen(repository: customerRepository),
@@ -123,6 +136,23 @@ GoRouter createRouter(
               path: AppRoutes.home,
               name: 'home',
               builder: (context, state) => _tabPage(DashboardScreen(repository: repository)),
+            ),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: AppRoutes.parcels,
+              name: 'parcels',
+              builder: (context, state) => _tabPage(
+                ParcelsScreen(
+                  repository: parcelRepository,
+                  // After saving, open the new parcel's details (the list stays underneath).
+                  onAdd: () async {
+                    final id = await context.push<String>(AppRoutes.parcelNew);
+                    if (id != null && context.mounted) unawaited(context.push(AppRoutes.parcelPath(id)));
+                  },
+                  onOpen: (parcel) => context.push(AppRoutes.parcelPath(parcel.id)),
+                ),
+              ),
             ),
           ]),
           StatefulShellBranch(routes: [

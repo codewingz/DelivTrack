@@ -16,6 +16,17 @@ val keystoreProperties = Properties().apply {
 }
 val hasReleaseKey = keystoreProperties.containsKey("storeFile")
 
+// A release build must never be signed with the debug key by accident (a fresh clone has no key.properties).
+// Debug builds are unaffected; `-PallowDebugSigning=true` opts in to a debug-signed release for local tests.
+val buildsRelease = gradle.startParameter.taskNames.any { it.contains("release", ignoreCase = true) }
+if (buildsRelease && !hasReleaseKey && !project.hasProperty("allowDebugSigning")) {
+    throw GradleException(
+        "Release signing is not configured: android/key.properties is missing (or has no storeFile). " +
+            "Create it from your upload keystore (see AGENTS.md, Secrets), " +
+            "or pass -PallowDebugSigning=true for a local, debug-signed release build that must not be published.",
+    )
+}
+
 android {
     namespace = "com.codewingz.delivtrack"
     // flutter_local_notifications 23 needs compileSdk 37 at least.
@@ -57,7 +68,7 @@ android {
 
     buildTypes {
         release {
-            // Without key.properties (e.g. a fresh clone) fall back to the debug key so builds still run.
+            // The release key; the debug key is only reachable with the explicit -PallowDebugSigning=true opt-in above.
             signingConfig = signingConfigs.getByName(if (hasReleaseKey) "release" else "debug")
         }
     }

@@ -39,8 +39,16 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
   final _formKey = GlobalKey<FormState>();
   late final _name = TextEditingController(text: widget.customer?.name);
   late final _phone = TextEditingController(text: widget.customer?.phone);
+  late final _phone2 = TextEditingController(text: widget.customer?.phone2);
   late final _address = TextEditingController(text: widget.customer?.address);
+  late final _details = TextEditingController(
+    text: widget.customer?.businessDetails,
+  );
   final _viewModel = ActionViewModel();
+
+  /// The name last filled in from a contact. While the name field still holds exactly this, the
+  /// user has not typed their own, so choosing another contact may replace it.
+  String? _autoName;
   bool _saved = false;
   bool _picking = false;
   bool _triedToSave = false;
@@ -50,19 +58,28 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
   bool get _isDirty =>
       _name.text != (widget.customer?.name ?? '') ||
       _phone.text != (widget.customer?.phone ?? '') ||
-      _address.text != (widget.customer?.address ?? '');
+      _phone2.text != (widget.customer?.phone2 ?? '') ||
+      _address.text != (widget.customer?.address ?? '') ||
+      _details.text != (widget.customer?.businessDetails ?? '');
 
   @override
   void dispose() {
     _name.dispose();
     _phone.dispose();
+    _phone2.dispose();
     _address.dispose();
+    _details.dispose();
     _viewModel.dispose();
     super.dispose();
   }
 
-  /// Fills the phone number (and the name, when it is still empty) from a contact the user picks.
-  Future<void> _pickContact() async {
+  /// Fills [target] with the number of a contact the user picks. Only the first number also fills
+  /// the name, and only while the name is empty or still the one a previous pick filled in, so a
+  /// name the user typed (or the first contact's name) is never replaced by the second number.
+  Future<void> _pickContact(
+    TextEditingController target, {
+    bool fillName = false,
+  }) async {
     if (_picking) return;
     _picking = true;
     PickedContact? picked;
@@ -77,10 +94,13 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
     if (!mounted) return;
     if (problem != null) return _viewModel.fail(problem);
     if (picked == null) return;
-    _phone.text = cleanContactPhone(picked.phone);
+    target.text = cleanContactPhone(picked.phone);
     final name = collapseSpaces(picked.name);
-    if (_name.text.trim().isEmpty && name.isNotEmpty) {
-      _name.text = name.length > 60 ? name.substring(0, 60).trim() : name;
+    if (fillName &&
+        name.isNotEmpty &&
+        (_name.text.trim().isEmpty || _name.text == _autoName)) {
+      _autoName = name.length > 60 ? name.substring(0, 60).trim() : name;
+      _name.text = _autoName!;
     }
     // Once Save has shown errors, picking a number should clear the phone error right away.
     if (_triedToSave) _formKey.currentState?.validate();
@@ -119,6 +139,8 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
           name: _name.text,
           phone: _phone.text,
           address: _address.text,
+          phone2: _phone2.text,
+          businessDetails: _details.text,
         );
       } else {
         await widget.repository.update(
@@ -126,6 +148,8 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
           name: _name.text,
           phone: _phone.text,
           address: _address.text,
+          phone2: _phone2.text,
+          businessDetails: _details.text,
         );
         savedId = existingCustomer.id;
       }
@@ -150,7 +174,14 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([_name, _phone, _address, _viewModel]),
+      listenable: Listenable.merge([
+        _name,
+        _phone,
+        _phone2,
+        _address,
+        _details,
+        _viewModel,
+      ]),
       builder: (context, _) {
         final busy = _viewModel.isLoading;
         return PopScope(
@@ -187,7 +218,23 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
                             controller: _phone,
                             label: 'Phone number',
                             enabled: !busy,
-                            onPickContact: _pickContact,
+                            onPickContact: () =>
+                                _pickContact(_phone, fillName: true),
+                          ),
+                          const SizedBox(height: AppSpacing.lg),
+                          AppTextField.phone(
+                            controller: _phone2,
+                            label: 'Second phone number (optional)',
+                            hint: 'Another number',
+                            isRequired: false,
+                            enabled: !busy,
+                            onPickContact: () => _pickContact(_phone2),
+                            validator: (value) =>
+                                (value ?? '').trim().isNotEmpty &&
+                                    normalizePhone(value!) ==
+                                        normalizePhone(_phone.text)
+                                ? 'This is the same as the first number'
+                                : null,
                           ),
                           const SizedBox(height: AppSpacing.lg),
                           AppTextField.multiline(
@@ -201,6 +248,15 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
                               value,
                               fieldName: 'Full address',
                             ),
+                          ),
+                          const SizedBox(height: AppSpacing.lg),
+                          AppTextField.multiline(
+                            controller: _details,
+                            label: 'Business details (optional)',
+                            hint: 'e.g. Animate Dairy Farm, buyer of high-protein feed',
+                            minLines: 2,
+                            maxLength: 200,
+                            enabled: !busy,
                           ),
                           if (_viewModel.errorMessage != null) ...[
                             const SizedBox(height: AppSpacing.lg),

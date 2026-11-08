@@ -68,7 +68,9 @@ Future<_Harness> _pump(
 
 Finder get _name => find.byType(TextFormField).at(0);
 Finder get _phone => find.byType(TextFormField).at(1);
-Finder get _address => find.byType(TextFormField).at(2);
+Finder get _phone2 => find.byType(TextFormField).at(2);
+Finder get _address => find.byType(TextFormField).at(3);
+Finder get _details => find.byType(TextFormField).at(4);
 Finder get _save => find.byType(FilledButton);
 
 Future<void> _fill(
@@ -88,17 +90,24 @@ Future<void> _tapSave(WidgetTester t) async {
   await t.tap(_save);
 }
 
+late WidgetTester t0;
+
 void main() {
   group('add customer', () {
-    testWidgets('is a full screen with three required fields', (t) async {
-      await _pump(t, FakeCustomerRepository());
-      expect(find.widgetWithText(AppBar, 'Add customer'), findsOneWidget);
-      expect(find.byType(Dialog), findsNothing);
-      expect(find.text('Customer name *'), findsOneWidget);
-      expect(find.text('Phone number *'), findsOneWidget);
-      expect(find.text('Full address *'), findsOneWidget);
-      expect(find.byType(TextFormField), findsNWidgets(3));
-    });
+    testWidgets(
+      'is a full screen with three required and two optional fields',
+      (t) async {
+        await _pump(t, FakeCustomerRepository());
+        expect(find.widgetWithText(AppBar, 'Add customer'), findsOneWidget);
+        expect(find.byType(Dialog), findsNothing);
+        expect(find.text('Customer name *'), findsOneWidget);
+        expect(find.text('Phone number *'), findsOneWidget);
+        expect(find.text('Full address *'), findsOneWidget);
+        expect(find.text('Second phone number (optional)'), findsOneWidget);
+        expect(find.text('Business details (optional)'), findsOneWidget);
+        expect(find.byType(TextFormField), findsNWidgets(5));
+      },
+    );
 
     testWidgets('empty submit shows all three errors and saves nothing', (
       t,
@@ -252,14 +261,14 @@ void main() {
   });
 
   group('choose from contacts', () {
-    Finder contactsButton() => find.byTooltip('Choose from contacts');
+    Finder contactsButton() => find.byTooltip('Choose from contacts').first;
 
     testWidgets(
-      'the phone field has a contacts button; the other fields do not',
+      'both phone fields have a contacts button; the other fields do not',
       (t) async {
         await _pump(t, FakeCustomerRepository());
-        expect(contactsButton(), findsOneWidget);
-        expect(find.byIcon(Icons.contacts_outlined), findsOneWidget);
+        expect(find.byTooltip('Choose from contacts'), findsNWidgets(2));
+        expect(find.byIcon(Icons.contacts_outlined), findsNWidgets(2));
         // the button is a full-size touch target
         expect(
           t.getSize(contactsButton()).shortestSide,
@@ -418,14 +427,12 @@ void main() {
       await _fill(t);
       await t.tap(_save);
       await t.pump();
-      expect(
-        t
-            .widget<IconButton>(
-              find.widgetWithIcon(IconButton, Icons.contacts_outlined),
-            )
-            .onPressed,
-        isNull,
-      );
+      for (final button
+          in find
+              .widgetWithIcon(IconButton, Icons.contacts_outlined)
+              .evaluate()) {
+        expect((button.widget as IconButton).onPressed, isNull);
+      }
       repo.gate!.complete();
       await t.pumpAndSettle();
     });
@@ -471,6 +478,308 @@ void main() {
               ]),
             );
             await t.tap(contactsButton());
+            await t.pumpAndSettle();
+            expect(t.takeException(), isNull);
+          },
+        );
+      }
+    }
+  });
+
+  group('name from contacts, second number, business details', () {
+    Finder contactsButton() => find.byTooltip('Choose from contacts').first;
+    Finder secondContactsButton() =>
+        find.byTooltip('Choose from contacts').last;
+    String text(Finder f) => t0.widget<TextFormField>(f).controller!.text;
+
+    testWidgets(
+      'picking another contact replaces the name the last pick filled in',
+      (t) async {
+        t0 = t;
+        final picker = _FakePicker([
+          const PickedContact(name: 'Sara Khan', phone: '03001111111'),
+          const PickedContact(name: 'Omar Ali', phone: '03002222222'),
+          const PickedContact(name: 'Bilal Ahmed', phone: '03003333333'),
+        ]);
+        await _pump(t, FakeCustomerRepository(), contactPicker: picker);
+        await t.tap(contactsButton());
+        await t.pumpAndSettle();
+        expect(text(_name), 'Sara Khan');
+        await t.tap(contactsButton());
+        await t.pumpAndSettle();
+        expect(text(_name), 'Omar Ali');
+        expect(text(_phone), '03002222222');
+        await t.tap(contactsButton());
+        await t.pumpAndSettle();
+        expect(text(_name), 'Bilal Ahmed');
+        expect(text(_phone), '03003333333');
+      },
+    );
+
+    testWidgets(
+      'a name typed before the first pick is never replaced, however many picks',
+      (t) async {
+        t0 = t;
+        final picker = _FakePicker([
+          const PickedContact(name: 'Sara Khan', phone: '03001111111'),
+          const PickedContact(name: 'Omar Ali', phone: '03002222222'),
+        ]);
+        await _pump(t, FakeCustomerRepository(), contactPicker: picker);
+        await t.enterText(_name, 'My Custom Name');
+        await t.tap(contactsButton());
+        await t.pumpAndSettle();
+        await t.tap(contactsButton());
+        await t.pumpAndSettle();
+        expect(text(_name), 'My Custom Name');
+        expect(
+          text(_phone),
+          '03002222222',
+          reason: 'the number still follows the pick',
+        );
+      },
+    );
+
+    testWidgets(
+      'editing the name a pick filled in turns it into the user\'s own name',
+      (t) async {
+        t0 = t;
+        final picker = _FakePicker([
+          const PickedContact(name: 'Sara Khan', phone: '03001111111'),
+          const PickedContact(name: 'Omar Ali', phone: '03002222222'),
+        ]);
+        await _pump(t, FakeCustomerRepository(), contactPicker: picker);
+        await t.tap(contactsButton());
+        await t.pumpAndSettle();
+        await t.enterText(_name, 'Sara Khan (Dairy)');
+        await t.tap(contactsButton());
+        await t.pumpAndSettle();
+        expect(text(_name), 'Sara Khan (Dairy)');
+      },
+    );
+
+    testWidgets('a pick without a name keeps the name already there', (
+      t,
+    ) async {
+      t0 = t;
+      final picker = _FakePicker([
+        const PickedContact(name: 'Sara Khan', phone: '03001111111'),
+        const PickedContact(name: '', phone: '03002222222'),
+      ]);
+      await _pump(t, FakeCustomerRepository(), contactPicker: picker);
+      await t.tap(contactsButton());
+      await t.pumpAndSettle();
+      await t.tap(contactsButton());
+      await t.pumpAndSettle();
+      expect(text(_name), 'Sara Khan');
+      expect(text(_phone), '03002222222');
+    });
+
+    testWidgets(
+      'a contact name longer than 60 characters is cut to 60 and does not break the form',
+      (t) async {
+        t0 = t;
+        final picker = _FakePicker([
+          const PickedContact(
+            name: 'Muhammad Afzaal Ahmed from Animate Dairy Form Buyer of High protein',
+            phone: '03001111111',
+          ),
+        ]);
+        final repo = FakeCustomerRepository();
+        await _pump(
+          t,
+          repo,
+          contactPicker: picker,
+          size: const Size(320, 568),
+          scale: 2,
+        );
+        await t.tap(contactsButton());
+        await t.pumpAndSettle();
+        expect(text(_name).length, lessThanOrEqualTo(60));
+        expect(
+          text(_name),
+          startsWith('Muhammad Afzaal Ahmed from Animate Dairy'),
+        );
+        expect(t.takeException(), isNull);
+        await t.enterText(_address, 'House 5, Sahiwal');
+        await t.pumpAndSettle();
+        await _tapSave(t);
+        await t.pumpAndSettle();
+        expect(repo.items.single.name.length, lessThanOrEqualTo(60));
+      },
+    );
+
+    testWidgets(
+      'the second number is optional: saving without it stores none',
+      (t) async {
+        t0 = t;
+        final repo = FakeCustomerRepository();
+        await _pump(t, repo);
+        await _fill(t);
+        await _tapSave(t);
+        await t.pumpAndSettle();
+        expect(repo.items.single.phone2, isEmpty);
+        expect(repo.items.single.businessDetails, isEmpty);
+      },
+    );
+
+    testWidgets(
+      'a picked second number fills only that field and never touches the name',
+      (t) async {
+        t0 = t;
+        final picker = _FakePicker([
+          const PickedContact(name: 'Sara Khan', phone: '+92 300 1111111'),
+          const PickedContact(name: 'Omar Ali', phone: '+92 321 2222222'),
+        ]);
+        final repo = FakeCustomerRepository();
+        await _pump(t, repo, contactPicker: picker);
+        await t.tap(contactsButton());
+        await t.pumpAndSettle();
+        await t.tap(secondContactsButton());
+        await t.pumpAndSettle();
+        expect(
+          text(_name),
+          'Sara Khan',
+          reason: 'the first contact keeps the name',
+        );
+        expect(text(_phone), '03001111111');
+        expect(text(_phone2), '03212222222');
+        await t.enterText(_address, 'House 5, Sahiwal');
+        await _tapSave(t);
+        await t.pumpAndSettle();
+        expect(repo.items.single.name, 'Sara Khan');
+        expect(repo.items.single.phone2, '03212222222');
+      },
+    );
+
+    testWidgets(
+      'a picked second number leaves an empty name empty, and a typed name alone',
+      (t) async {
+        t0 = t;
+        final picker = _FakePicker([
+          const PickedContact(name: 'Omar Ali', phone: '03212222222'),
+          const PickedContact(name: 'Omar Ali', phone: '03213333333'),
+        ]);
+        await _pump(t, FakeCustomerRepository(), contactPicker: picker);
+        await t.tap(secondContactsButton());
+        await t.pumpAndSettle();
+        expect(text(_name), isEmpty);
+        await t.enterText(_name, 'My Custom Name');
+        await t.tap(secondContactsButton());
+        await t.pumpAndSettle();
+        expect(text(_name), 'My Custom Name');
+      },
+    );
+
+    testWidgets(
+      'the second number can be typed, and must be valid and different',
+      (t) async {
+        t0 = t;
+        final repo = FakeCustomerRepository();
+        await _pump(t, repo);
+        await _fill(t);
+        await t.enterText(_phone2, '12345');
+        await _tapSave(t);
+        await t.pumpAndSettle();
+        expect(find.text('Enter a valid phone number'), findsOneWidget);
+        await t.enterText(_phone2, '0300 1234567');
+        await _tapSave(t);
+        await t.pumpAndSettle();
+        expect(
+          find.text('This is the same as the first number'),
+          findsOneWidget,
+        );
+        expect(repo.adds, 0);
+        await t.enterText(_phone2, '+92 321 7654321');
+        await _tapSave(t);
+        await t.pumpAndSettle();
+        expect(repo.items.single.phone2, '+92 321 7654321');
+      },
+    );
+
+    testWidgets(
+      'business details are saved on one line and limited to 200 characters',
+      (t) async {
+        t0 = t;
+        final repo = FakeCustomerRepository();
+        await _pump(t, repo);
+        await _fill(t);
+        await t.enterText(
+          _details,
+          'Animate Dairy Farm\nbuyer of   high protein',
+        );
+        await _tapSave(t);
+        await t.pumpAndSettle();
+        expect(
+          repo.items.single.businessDetails,
+          'Animate Dairy Farm buyer of high protein',
+        );
+
+        await _pump(t, FakeCustomerRepository());
+        await t.enterText(_details, 'x' * 250);
+        expect(text(_details).length, 200);
+      },
+    );
+
+    testWidgets(
+      'editing: the saved second number and details show, and clearing them saves none',
+      (t) async {
+        t0 = t;
+        const customer = Customer(
+          id: 'c9',
+          name: 'Ali Raza',
+          phone: '0300 1234567',
+          address: 'House 5, Sahiwal',
+          phone2: '0321 7654321',
+          businessDetails: 'Animate Dairy Farm',
+        );
+        final repo = FakeCustomerRepository(initial: [customer]);
+        await _pump(t, repo, customer: customer);
+        expect(text(_phone2), '0321 7654321');
+        expect(text(_details), 'Animate Dairy Farm');
+        await t.enterText(_phone2, '');
+        await t.enterText(_details, '');
+        await _tapSave(t);
+        await t.pumpAndSettle();
+        expect(repo.items.single.phone2, isEmpty);
+        expect(repo.items.single.businessDetails, isEmpty);
+      },
+    );
+
+    testWidgets(
+      'changing only the details counts as a change (back asks first)',
+      (t) async {
+        t0 = t;
+        await _pump(
+          t,
+          FakeCustomerRepository(initial: [_existing]),
+          customer: _existing,
+        );
+        await t.enterText(_details, 'Dairy buyer');
+        await t.pump(); // a frame passes between typing and tapping Back
+        await t.pageBack();
+        await t.pumpAndSettle();
+        expect(find.text('Discard changes?'), findsOneWidget);
+      },
+    );
+
+    for (final size in const [Size(320, 568), Size(393, 852)]) {
+      for (final scale in [1.0, 1.3, 2.0]) {
+        testWidgets(
+          'longest content does not break the layout at $size text x$scale',
+          (t) async {
+            t0 = t;
+            await _pump(t, FakeCustomerRepository(), size: size, scale: scale);
+            await t.enterText(_name, 'M' * 60);
+            await t.enterText(_phone, '+92 300 1234567 890 12');
+            await t.enterText(_phone2, '+971 50 123 4567 8901');
+            await t.enterText(_address, 'a' * 200);
+            await t.enterText(
+              _details,
+              'Animate Dairy Farm Buyer of High protein ' * 5,
+            );
+            await t.pumpAndSettle();
+            expect(t.takeException(), isNull);
+            await _tapSave(t);
             await t.pumpAndSettle();
             expect(t.takeException(), isNull);
           },
@@ -651,6 +960,8 @@ void main() {
               phone: '+92 300 1234567',
               address: 'House 5, Street 12, Block C, Model Town, Sahiwal',
             );
+            // The form is taller now (two more fields): let the cleared errors settle first.
+            await t.pumpAndSettle();
             await _tapSave(t);
             await t.pumpAndSettle();
             expect(t.takeException(), isNull);

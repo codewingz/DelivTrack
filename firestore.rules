@@ -49,7 +49,7 @@ service cloud.firestore {
     }
 
     function validCustomer(data) {
-      return data.keys().hasOnly(['displayName', 'displayNameLower', 'phone', 'phoneNormalized', 'address', 'createdAt', 'updatedAt'])
+      return data.keys().hasOnly(['displayName', 'displayNameLower', 'phone', 'phoneNormalized', 'address', 'phone2', 'businessDetails', 'createdAt', 'updatedAt'])
         && data.keys().hasAll(['displayName', 'displayNameLower', 'phone', 'phoneNormalized', 'address', 'createdAt', 'updatedAt'])
         && trimmedText(data.displayName, 2, 60)
         && data.displayNameLower == data.displayName.lower()
@@ -57,11 +57,14 @@ service cloud.firestore {
         && data.phoneNormalized is string
         && data.phoneNormalized.matches('^[0-9]{10,15}$')
         && trimmedText(data.address, 5, 200)
+        && (!data.keys().hasAny(['phone2']) || trimmedText(data.phone2, 10, 20))
+        && (!data.keys().hasAny(['businessDetails']) || trimmedText(data.businessDetails, 1, 200))
         && data.createdAt is timestamp
         && data.updatedAt == request.time;
     }
 
-    // Customers: name, phone and address are all mandatory. Never deleted.
+    // Customers: name, phone and address are mandatory; a second phone and business details are optional.
+    // Never deleted.
     match /users/{uid}/customers/{customerId} {
       allow read: if isOwner(uid);
       allow create: if isOwner(uid)

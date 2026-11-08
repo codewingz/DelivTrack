@@ -66,7 +66,7 @@ void main() {
 
       await t.enterText(_fields.at(0), 'Sara Khan');
       await t.enterText(_fields.at(1), '0301 2222222');
-      await t.enterText(_fields.at(2), 'Street 3, Sahiwal');
+      await t.enterText(_fields.at(3), 'Street 3, Sahiwal');
       await t.ensureVisible(find.byType(FilledButton));
       await t.pump();
       await t.tap(find.byType(FilledButton));
@@ -107,11 +107,11 @@ void main() {
       await t.pumpAndSettle();
       expect(find.widgetWithText(AppBar, 'Edit customer'), findsOneWidget);
       expect(
-        t.widget<TextFormField>(_fields.at(2)).controller!.text,
+        t.widget<TextFormField>(_fields.at(3)).controller!.text,
         'Old address 1',
       );
 
-      await t.enterText(_fields.at(2), 'New address 99, Lahore');
+      await t.enterText(_fields.at(3), 'New address 99, Lahore');
       await t.ensureVisible(find.byType(FilledButton));
       await t.pump();
       await t.tap(find.byType(FilledButton));
@@ -191,7 +191,7 @@ void main() {
       await t.pumpAndSettle();
       await t.enterText(_fields.at(0), 'Sara Khan');
       await t.enterText(_fields.at(1), '0301 2222222');
-      await t.enterText(_fields.at(2), 'Street 3, Sahiwal');
+      await t.enterText(_fields.at(3), 'Street 3, Sahiwal');
       await t.ensureVisible(find.byType(FilledButton));
       await t.pump();
       await t.tap(find.byType(FilledButton));

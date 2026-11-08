@@ -61,6 +61,8 @@ class FakeCustomerRepository implements CustomerRepository {
     required String name,
     required String phone,
     required String address,
+    String phone2 = '',
+    String businessDetails = '',
   }) async {
     adds++;
     await _guardCall();
@@ -71,6 +73,8 @@ class FakeCustomerRepository implements CustomerRepository {
         name: collapseSpaces(name),
         phone: phone.trim(),
         address: address.trim(),
+        phone2: phone2.trim(),
+        businessDetails: collapseSpaces(businessDetails),
       ),
     );
     _controller.add(_sorted());
@@ -83,6 +87,8 @@ class FakeCustomerRepository implements CustomerRepository {
     required String name,
     required String phone,
     required String address,
+    String phone2 = '',
+    String businessDetails = '',
   }) async {
     updates++;
     await _guardCall();
@@ -92,6 +98,8 @@ class FakeCustomerRepository implements CustomerRepository {
       name: collapseSpaces(name),
       phone: phone.trim(),
       address: address.trim(),
+      phone2: phone2.trim(),
+      businessDetails: collapseSpaces(businessDetails),
     );
     _controller.add(_sorted());
   }

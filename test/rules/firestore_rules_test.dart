@@ -600,6 +600,88 @@ void main() {
       );
     }, skip: skip);
 
+    test('second phone and business details are optional, shape-checked, and removable', () async {
+      Future<int> create1(
+        Map<String, Object?> fields, {
+        String? as,
+        String? uid,
+      }) => create(as ?? alice.token, uid ?? alice.uid, id(), fields);
+
+      expect(
+        await create1({
+          ..._customer(),
+          'phone2': '+971 50 123 4567',
+          'businessDetails': 'Animate Dairy Farm, buyer of high protein',
+        }),
+        200,
+        reason: 'both optional fields together',
+      );
+      expect(await create1({..._customer(), 'phone2': '0321 7654321'}), 200);
+      expect(
+        await create1({..._customer(), 'businessDetails': 'x' * 200}),
+        200,
+      );
+      expect(
+        await create1({..._customer(), 'phone2': '1234567890'}),
+        200,
+        reason: 'minimum',
+      );
+      expect(
+        await create1(_customer()),
+        200,
+        reason: 'still fine without them',
+      );
+
+      Future<void> denied(Map<String, Object?> extra) async => expect(
+        await create1({..._customer(), ...extra}),
+        403,
+        reason: '$extra',
+      );
+      await denied({'phone2': '12345'});
+      await denied({'phone2': '0321 7654321 '});
+      await denied({'phone2': '3' * 21});
+      await denied({'phone2': 12345678901});
+      await denied({'phone2': ''});
+      await denied({'businessDetails': ''});
+      await denied({'businessDetails': ' padded'});
+      await denied({'businessDetails': 'x' * 201});
+      await denied({'businessDetails': 'two\nlines'});
+      await denied({'businessDetails': 42});
+      await denied({'phone3': '0321 7654321'});
+      expect(
+        await create1({
+          ..._customer(),
+          'phone2': '0321 7654321',
+        }, as: bob.token),
+        403,
+        reason: "another user cannot write into Alice's customers",
+      );
+
+      final cid = id();
+      expect(
+        await create(alice.token, alice.uid, cid, {
+          ..._customer(),
+          'phone2': '0321 7654321',
+          'businessDetails': 'Dairy buyer',
+        }),
+        200,
+      );
+      final original = await emu.createdAt(
+        alice.token,
+        'users/${alice.uid}/customers/$cid',
+      );
+      expect(
+        await emu.set(
+          alice.token,
+          'users/${alice.uid}/customers/$cid',
+          {..._customer(), 'createdAt': original},
+          serverTimes: const ['updatedAt'],
+        ),
+        200,
+        reason: 'clearing both fields (the app deletes them)',
+      );
+    }, skip: skip);
+
     test('createdAt/updatedAt must be server time; createdAt cannot change; delete never allowed', () async {
       expect(
         await create(alice.token, alice.uid, id(), {

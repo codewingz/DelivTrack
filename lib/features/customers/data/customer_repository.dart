@@ -15,10 +15,13 @@ abstract class CustomerRepository {
   Future<Customer?> findByPhone(String phone, {String? excludeId});
 
   /// Returns the new customer's id. Throws [AppFailure] (e.g. no connection).
+  /// [phone2] and [businessDetails] are optional; empty means none.
   Future<String> add({
     required String name,
     required String phone,
     required String address,
+    String phone2 = '',
+    String businessDetails = '',
   });
 
   Future<void> update(
@@ -26,6 +29,8 @@ abstract class CustomerRepository {
     required String name,
     required String phone,
     required String address,
+    String phone2 = '',
+    String businessDetails = '',
   });
 }
 
@@ -52,20 +57,37 @@ class FirestoreCustomerRepository implements CustomerRepository {
         name: doc['displayName'] as String,
         phone: doc['phone'] as String,
         address: doc['address'] as String,
+        phone2: doc.data()['phone2'] as String? ?? '',
+        businessDetails: doc.data()['businessDetails'] as String? ?? '',
       );
 
+  /// The optional fields are left out when empty. On update, [clearEmpty] removes them from the
+  /// document instead, so a cleared field really goes away.
   static Map<String, Object> _fields(
     String name,
     String phone,
     String address,
-  ) {
+    String phone2,
+    String businessDetails, {
+    required bool clearEmpty,
+  }) {
     final cleanName = collapseSpaces(name);
+    final optional = {
+      'phone2': phone2.trim(),
+      // Line breaks become spaces: the rules only accept single-line text.
+      'businessDetails': collapseSpaces(businessDetails),
+    };
     return {
       'displayName': cleanName,
       'displayNameLower': cleanName.toLowerCase(),
       'phone': phone.trim(),
       'phoneNormalized': normalizePhone(phone),
       'address': address.trim(),
+      for (final entry in optional.entries)
+        if (entry.value.isNotEmpty)
+          entry.key: entry.value
+        else if (clearEmpty)
+          entry.key: FieldValue.delete(),
     };
   }
 
@@ -94,11 +116,20 @@ class FirestoreCustomerRepository implements CustomerRepository {
     required String name,
     required String phone,
     required String address,
+    String phone2 = '',
+    String businessDetails = '',
   }) => _run(() {
     final ref = _customers.doc();
     return _firestore.runTransaction((tx) async {
       tx.set(ref, {
-        ..._fields(name, phone, address),
+        ..._fields(
+          name,
+          phone,
+          address,
+          phone2,
+          businessDetails,
+          clearEmpty: false,
+        ),
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
@@ -112,10 +143,19 @@ class FirestoreCustomerRepository implements CustomerRepository {
     required String name,
     required String phone,
     required String address,
+    String phone2 = '',
+    String businessDetails = '',
   }) => _run(
     () => _firestore.runTransaction((tx) async {
       tx.update(_customers.doc(id), {
-        ..._fields(name, phone, address),
+        ..._fields(
+          name,
+          phone,
+          address,
+          phone2,
+          businessDetails,
+          clearEmpty: true,
+        ),
         'updatedAt': FieldValue.serverTimestamp(),
       });
     }),

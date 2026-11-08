@@ -7,6 +7,9 @@ import 'helpers/fake_auth_repository.dart';
 import 'helpers/fake_customer_repository.dart';
 import 'helpers/fake_parcel_repository.dart';
 import 'helpers/fake_product_repository.dart';
+import 'helpers/tab_finders.dart';
+
+import 'package:google_nav_bar/google_nav_bar.dart';
 
 Future<void> _launch(
   WidgetTester t,
@@ -31,14 +34,8 @@ Future<void> _launch(
   await t.pumpAndSettle();
 }
 
-Finder get _homeTab => find.descendant(
-  of: find.byType(NavigationBar),
-  matching: find.text('Home'),
-);
-Finder get _moreTab => find.descendant(
-  of: find.byType(NavigationBar),
-  matching: find.text('More'),
-);
+Finder get _homeTab => tabButton('Home');
+Finder get _moreTab => tabButton('More');
 
 void main() {
   group('bottom navigation shell', () {
@@ -49,16 +46,62 @@ void main() {
         t.view.viewPadding = const FakeViewPadding(top: 40);
         addTearDown(t.view.reset);
         await _launch(t, FakeAuthRepository(signedIn: true, name: 'Ali'));
-        // 80 is the Material 3 default; the top inset must not be added on top of it.
-        expect(t.getSize(find.byType(NavigationBar)).height, 80);
+        // 48 pill + 8 padding above and below; the top inset must not be added on top of it.
+        final bar = find.ancestor(
+          of: find.byType(GNav),
+          matching: find.byType(ColoredBox),
+        );
+        expect(t.getSize(bar.first).height, 64);
       },
     );
+
+    for (final width in [320.0, 360.0, 393.0]) {
+      for (final scale in [1.0, 1.3, 2.0]) {
+        testWidgets(
+          'tab bar fits, keeps all 5 tabs reachable and 48dp tall at width $width text x$scale',
+          (t) async {
+            await _launch(
+              t,
+              FakeAuthRepository(signedIn: true, name: 'Ali'),
+              size: Size(width, 800),
+              scale: scale,
+            );
+            expect(t.takeException(), isNull);
+            final bar = t.getRect(find.byType(GNav));
+            for (final label in [
+              'Home',
+              'Parcels',
+              'Payments',
+              'Customers',
+              'More',
+            ]) {
+              final rect = t.getRect(tabButton(label));
+              expect(
+                bar.contains(rect.center),
+                isTrue,
+                reason: '$label is inside the bar',
+              );
+              expect(
+                rect.height,
+                greaterThanOrEqualTo(48 * (width < 360 ? 0.85 : 1)),
+              );
+            }
+            await t.tap(tabButton('Customers'));
+            await t.pumpAndSettle();
+            expect(t.takeException(), isNull);
+            await t.tap(tabButton('More'));
+            await t.pumpAndSettle();
+            expect(find.widgetWithText(ListTile, 'Log out'), findsOneWidget);
+          },
+        );
+      }
+    }
 
     testWidgets(
       'signed-in user sees Home and More tabs; More opens and Home returns',
       (t) async {
         await _launch(t, FakeAuthRepository(signedIn: true, name: 'Ali'));
-        expect(find.byType(NavigationBar), findsOneWidget);
+        expect(find.byType(GNav), findsOneWidget);
         expect(greetingWith('Ali'), findsOneWidget);
 
         await t.tap(_moreTab);
@@ -75,21 +118,16 @@ void main() {
       t,
     ) async {
       await _launch(t, FakeAuthRepository(signedIn: true, name: 'Ali'));
-      await t.tap(
-        find.descendant(
-          of: find.byType(NavigationBar),
-          matching: find.text('Payments'),
-        ),
-      );
+      await t.tap(tabButton('Payments'));
       await t.pumpAndSettle();
       expect(find.widgetWithText(AppBar, 'Payments'), findsOneWidget);
       expect(find.widgetWithText(ChoiceChip, 'Pending'), findsOneWidget);
-      expect(find.byType(NavigationBar), findsOneWidget);
+      expect(find.byType(GNav), findsOneWidget);
     });
 
     testWidgets('signed-out screens have no bottom bar', (t) async {
       await _launch(t, FakeAuthRepository());
-      expect(find.byType(NavigationBar), findsNothing);
+      expect(find.byType(GNav), findsNothing);
       expect(find.text('Welcome back'), findsOneWidget);
     });
   });
@@ -105,7 +143,7 @@ void main() {
         await t.pumpAndSettle();
         expect(find.widgetWithText(AppBar, 'Products'), findsOneWidget);
         expect(
-          find.byType(NavigationBar),
+          find.byType(GNav),
           findsNothing,
           reason: 'pushed full screen hides the tabs',
         );
@@ -141,7 +179,7 @@ void main() {
         await t.pumpAndSettle();
         expect(repo.signOuts, 1);
         expect(find.text('Welcome back'), findsOneWidget);
-        expect(find.byType(NavigationBar), findsNothing);
+        expect(find.byType(GNav), findsNothing);
       },
     );
 

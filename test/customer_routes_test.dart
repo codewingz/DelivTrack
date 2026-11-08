@@ -11,6 +11,8 @@ import 'helpers/fake_customer_repository.dart';
 import 'helpers/fake_parcel_repository.dart';
 import 'helpers/fake_product_repository.dart';
 
+import 'package:google_nav_bar/google_nav_bar.dart';
+
 Future<GoRouter> _launch(WidgetTester t) async {
   await t.pumpWidget(
     DelivTrackApp(
@@ -34,7 +36,7 @@ void main() {
       await t.pumpAndSettle();
       expect(find.widgetWithText(AppBar, 'Add customer'), findsOneWidget);
       expect(
-        find.byType(NavigationBar),
+        find.byType(GNav),
         findsNothing,
         reason: 'full screen hides the tabs',
       );
@@ -86,7 +88,7 @@ void main() {
       router.push(AppRoutes.parcelNew);
       await t.pumpAndSettle();
       expect(find.widgetWithText(AppBar, 'Add parcel'), findsOneWidget);
-      expect(find.byType(NavigationBar), findsNothing);
+      expect(find.byType(GNav), findsNothing);
 
       await t.tap(
         find.widgetWithText(TextFormField, 'Select a customer').first,

@@ -9,6 +9,7 @@ import 'helpers/fake_auth_repository.dart';
 import 'helpers/fake_customer_repository.dart';
 import 'helpers/fake_parcel_repository.dart';
 import 'helpers/fake_product_repository.dart';
+import 'helpers/tab_finders.dart';
 
 void main() {
   test(
@@ -149,12 +150,7 @@ void main() {
         findsOneWidget,
         reason: 'archived parcels are not counted',
       );
-      await t.tap(
-        find.descendant(
-          of: find.byType(NavigationBar),
-          matching: find.text('More'),
-        ),
-      );
+      await t.tap(tabButton('More'));
       await t.pumpAndSettle();
       await t.tap(find.widgetWithText(ListTile, 'Archived parcels'));
       await t.pumpAndSettle();

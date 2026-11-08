@@ -11,6 +11,7 @@ import 'helpers/fake_customer_repository.dart';
 import 'helpers/fake_parcel_repository.dart';
 import 'helpers/fake_product_repository.dart';
 import 'helpers/fake_reminder_scheduler.dart';
+import 'helpers/tab_finders.dart';
 
 Future<void> _open(
   WidgetTester t,
@@ -197,12 +198,7 @@ void main() {
     );
     await t.pump(const Duration(milliseconds: 2000));
     await t.pumpAndSettle();
-    await t.tap(
-      find.descendant(
-        of: find.byType(NavigationBar),
-        matching: find.text('More'),
-      ),
-    );
+    await t.tap(tabButton('More'));
     await t.pumpAndSettle();
     await t.tap(find.widgetWithText(ListTile, 'Settings'));
     await t.pumpAndSettle();

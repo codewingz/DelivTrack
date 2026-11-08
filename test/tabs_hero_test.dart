@@ -7,6 +7,7 @@ import 'helpers/fake_auth_repository.dart';
 import 'helpers/fake_customer_repository.dart';
 import 'helpers/fake_parcel_repository.dart';
 import 'helpers/fake_product_repository.dart';
+import 'helpers/tab_finders.dart';
 
 void main() {
   // Regression: Parcels and Customers both have an "Add" button and both tabs stay alive. With the default
@@ -38,10 +39,7 @@ void main() {
       );
       await t.pump(const Duration(milliseconds: 2000));
       await t.pumpAndSettle();
-      Finder tab(String label) => find.descendant(
-        of: find.byType(NavigationBar),
-        matching: find.text(label),
-      );
+      Finder tab(String label) => tabButton(label);
       await t.tap(tab('Parcels'));
       await t.pumpAndSettle();
       await t.tap(tab('Customers'));

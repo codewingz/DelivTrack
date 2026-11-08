@@ -16,6 +16,7 @@ import 'helpers/fake_customer_repository.dart';
 import 'helpers/fake_parcel_repository.dart';
 import 'helpers/fake_product_repository.dart';
 import 'helpers/fake_reminder_scheduler.dart';
+import 'helpers/tab_finders.dart';
 
 class _Taps {
   final lists = <ParcelFilters>[];
@@ -279,12 +280,7 @@ void main() {
         expect(find.text('Ali Raza'), findsNothing);
 
         // back to Home and pick another figure: the list switches to it (not stacked on the old one)
-        await t.tap(
-          find.descendant(
-            of: find.byType(NavigationBar),
-            matching: find.text('Home'),
-          ),
-        );
+        await t.tap(tabButton('Home'));
         await t.pumpAndSettle();
         await t.tap(_card('Gift / Free'));
         await t.pumpAndSettle();
@@ -318,12 +314,7 @@ void main() {
         await t.tap(_card('Total received'));
         await t.pumpAndSettle();
         expect(find.widgetWithText(AppBar, 'Payments'), findsOneWidget);
-        await t.tap(
-          find.descendant(
-            of: find.byType(NavigationBar),
-            matching: find.text('Home'),
-          ),
-        );
+        await t.tap(tabButton('Home'));
         await t.pumpAndSettle();
         await t.tap(find.widgetWithText(OutlinedButton, 'Search'));
         await t.pumpAndSettle();

@@ -7,6 +7,9 @@ import 'helpers/fake_auth_repository.dart';
 import 'helpers/fake_customer_repository.dart';
 import 'helpers/fake_parcel_repository.dart';
 import 'helpers/fake_product_repository.dart';
+import 'helpers/tab_finders.dart';
+
+import 'package:google_nav_bar/google_nav_bar.dart';
 
 Future<FakeCustomerRepository> _launch(
   WidgetTester t, {
@@ -29,10 +32,7 @@ Future<FakeCustomerRepository> _launch(
   return repo;
 }
 
-Finder get _customersTab => find.descendant(
-  of: find.byType(NavigationBar),
-  matching: find.text('Customers'),
-);
+Finder get _customersTab => tabButton('Customers');
 Finder get _fields => find.byType(TextFormField);
 
 void main() {
@@ -40,20 +40,8 @@ void main() {
     'bottom bar has Home, Customers and More; Customers opens the list',
     (t) async {
       await _launch(t);
-      expect(
-        find.descendant(
-          of: find.byType(NavigationBar),
-          matching: find.text('Home'),
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(
-          of: find.byType(NavigationBar),
-          matching: find.text('More'),
-        ),
-        findsOneWidget,
-      );
+      expect(tabButton('Home'), findsOneWidget);
+      expect(tabButton('More'), findsOneWidget);
       await t.tap(_customersTab);
       await t.pumpAndSettle();
       expect(find.widgetWithText(AppBar, 'Customers'), findsOneWidget);
@@ -71,7 +59,7 @@ void main() {
       await t.pumpAndSettle();
       expect(find.widgetWithText(AppBar, 'Add customer'), findsOneWidget);
       expect(
-        find.byType(NavigationBar),
+        find.byType(GNav),
         findsNothing,
         reason: 'the form is a full screen',
       );
@@ -88,7 +76,7 @@ void main() {
       expect(find.widgetWithText(AppBar, 'Customers'), findsOneWidget);
       expect(find.text('Customer added.'), findsOneWidget);
       expect(find.text('Sara Khan'), findsOneWidget);
-      expect(find.byType(NavigationBar), findsOneWidget);
+      expect(find.byType(GNav), findsOneWidget);
     },
   );
 
@@ -178,12 +166,7 @@ void main() {
       await t.pumpAndSettle();
       await t.enterText(find.byType(TextFormField).first, 'ali');
       await t.pump();
-      await t.tap(
-        find.descendant(
-          of: find.byType(NavigationBar),
-          matching: find.text('More'),
-        ),
-      );
+      await t.tap(tabButton('More'));
       await t.pumpAndSettle();
       await t.tap(_customersTab);
       await t.pumpAndSettle();
@@ -223,7 +206,7 @@ void main() {
         isFalse,
         reason: 'snackbar $snackBar must not overlap the button $fab',
       );
-      final bar = t.getRect(find.byType(NavigationBar));
+      final bar = t.getRect(find.byType(GNav));
       expect(
         snackBar.overlaps(bar),
         isFalse,

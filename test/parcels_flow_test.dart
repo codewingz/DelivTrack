@@ -8,9 +8,11 @@ import 'helpers/fake_auth_repository.dart';
 import 'helpers/fake_customer_repository.dart';
 import 'helpers/fake_parcel_repository.dart';
 import 'helpers/fake_product_repository.dart';
+import 'helpers/tab_finders.dart';
 
-Finder _tab(String label) =>
-    find.descendant(of: find.byType(NavigationBar), matching: find.text(label));
+import 'package:google_nav_bar/google_nav_bar.dart';
+
+Finder _tab(String label) => tabButton(label);
 
 Future<FakeParcelRepository> _launch(
   WidgetTester t, {
@@ -79,11 +81,7 @@ void main() {
     await t.tap(find.text('ADT-000005'));
     await t.pumpAndSettle();
     expect(find.widgetWithText(AppBar, 'ADT-000005'), findsOneWidget);
-    expect(
-      find.byType(NavigationBar),
-      findsNothing,
-      reason: 'details is a full screen',
-    );
+    expect(find.byType(GNav), findsNothing, reason: 'details is a full screen');
     expect(find.text('Sara Khan'), findsWidgets);
 
     await t.pageBack();

@@ -10,6 +10,8 @@ import 'helpers/fake_customer_repository.dart';
 import 'helpers/fake_parcel_repository.dart';
 import 'helpers/fake_product_repository.dart';
 
+import 'package:google_nav_bar/google_nav_bar.dart';
+
 Future<void> _launch(WidgetTester t, FakeParcelRepository parcels) async {
   t.view.physicalSize = const Size(393, 852);
   t.view.devicePixelRatio = 1;
@@ -59,7 +61,7 @@ void main() {
       await t.pumpAndSettle();
       expect(find.byType(RemindersScreen), findsOneWidget);
       expect(find.text('Overdue (2)'), findsOneWidget);
-      expect(find.byType(NavigationBar), findsNothing);
+      expect(find.byType(GNav), findsNothing);
 
       await t.tap(find.text('ADT-000001'));
       await t.pumpAndSettle();

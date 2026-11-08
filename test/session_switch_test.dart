@@ -10,11 +10,9 @@ import 'helpers/fake_auth_repository.dart';
 import 'helpers/fake_customer_repository.dart';
 import 'helpers/fake_parcel_repository.dart';
 import 'helpers/fake_product_repository.dart';
+import 'helpers/tab_finders.dart';
 
-Finder get _customersTab => find.descendant(
-  of: find.byType(NavigationBar),
-  matching: find.text('Customers'),
-);
+Finder get _customersTab => tabButton('Customers');
 Finder get _anyCustomersScreen =>
     find.byType(CustomersScreen, skipOffstage: false);
 

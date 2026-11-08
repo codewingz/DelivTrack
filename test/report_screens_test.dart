@@ -12,6 +12,7 @@ import 'helpers/fake_auth_repository.dart';
 import 'helpers/fake_customer_repository.dart';
 import 'helpers/fake_parcel_repository.dart';
 import 'helpers/fake_product_repository.dart';
+import 'helpers/tab_finders.dart';
 
 class _Clock extends Clock {
   const _Clock();
@@ -186,12 +187,7 @@ void main() {
       );
       await t.pump(const Duration(milliseconds: 2000));
       await t.pumpAndSettle();
-      await t.tap(
-        find.descendant(
-          of: find.byType(NavigationBar),
-          matching: find.text('More'),
-        ),
-      );
+      await t.tap(tabButton('More'));
       await t.pumpAndSettle();
       await t.tap(find.widgetWithText(ListTile, 'Reports'));
       await t.pumpAndSettle();

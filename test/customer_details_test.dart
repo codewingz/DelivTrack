@@ -12,6 +12,7 @@ import 'helpers/fake_auth_repository.dart';
 import 'helpers/fake_customer_repository.dart';
 import 'helpers/fake_parcel_repository.dart';
 import 'helpers/fake_product_repository.dart';
+import 'helpers/tab_finders.dart';
 
 class _Dialer implements PhoneDialer {
   _Dialer({this.works = true});
@@ -281,12 +282,7 @@ void main() {
       );
       await t.pump(const Duration(milliseconds: 2000));
       await t.pumpAndSettle();
-      await t.tap(
-        find.descendant(
-          of: find.byType(NavigationBar),
-          matching: find.text('Customers'),
-        ),
-      );
+      await t.tap(tabButton('Customers'));
       await t.pumpAndSettle();
       await t.tap(find.text('Ali Raza'));
       await t.pumpAndSettle();
@@ -335,12 +331,7 @@ void main() {
         );
         await t.pump(const Duration(milliseconds: 2000));
         await t.pumpAndSettle();
-        await t.tap(
-          find.descendant(
-            of: find.byType(NavigationBar),
-            matching: find.text('Parcels'),
-          ),
-        );
+        await t.tap(tabButton('Parcels'));
         await t.pumpAndSettle();
         await t.tap(find.text('ADT-000001'));
         await t.pumpAndSettle();
@@ -376,12 +367,7 @@ void main() {
       );
       await t.pump(const Duration(milliseconds: 2000));
       await t.pumpAndSettle();
-      await t.tap(
-        find.descendant(
-          of: find.byType(NavigationBar),
-          matching: find.text('Parcels'),
-        ),
-      );
+      await t.tap(tabButton('Parcels'));
       await t.pumpAndSettle();
       await t.tap(find.text('ADT-000001'));
       await t.pumpAndSettle();

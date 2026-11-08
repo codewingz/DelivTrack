@@ -13,6 +13,7 @@ import 'package:deliv_track/features/customers/domain/customer.dart';
 import 'package:deliv_track/features/parcels/data/parcel_repository.dart';
 import 'package:deliv_track/features/parcels/domain/parcel.dart';
 import 'package:deliv_track/features/parcels/domain/parcel_enums.dart';
+import 'package:deliv_track/features/parcels/domain/parcel_handover.dart';
 import 'package:deliv_track/features/parcels/domain/parcel_input.dart';
 import 'package:deliv_track/features/parcels/domain/parcel_item.dart';
 import 'package:deliv_track/features/parcels/domain/payment.dart';
@@ -1888,6 +1889,170 @@ void main() {
           throwsA(isA<AppFailure>()),
           reason: 'the new reference is now reserved',
         );
+      },
+    );
+  });
+
+  group('handover to the post office', () {
+    testWidgets(
+      'a draft is handed over (becomes Sent) with its reference reserved; a duplicate reference is refused; edits release the old one',
+      (t) async {
+        await signUpNewUser('handover');
+        final draft = await repo.create(
+          _input(reference: '', charge: null, status: ParcelStatus.draft),
+        );
+        final other = await repo.create(
+          _input(reference: '', charge: null, status: ParcelStatus.draft),
+        );
+        expect((await read(repo, draft)).status, ParcelStatus.draft);
+
+        // validation happens before anything is written
+        await expectLater(
+          repo.saveHandover(
+            draft,
+            const ParcelHandover(
+              service: PostalService.vpp,
+              postalReference: 'AB',
+              deliveryChargePaisa: 15000,
+            ),
+          ),
+          throwsA(isA<AppFailure>()),
+        );
+        await repo.saveHandover(
+          draft,
+          const ParcelHandover(
+            service: PostalService.vpp,
+            postalReference: 'vpp 70001',
+            deliveryChargePaisa: 15000,
+            packedWeightGrams: 1250,
+          ),
+        );
+        final sent = await repo
+            .watch(draft)
+            .firstWhere((p) => p?.status == ParcelStatus.sent)
+            .timeout(const Duration(seconds: 10));
+        expect(sent!.postalReference, 'vpp 70001');
+        expect(sent.deliveryChargePaisa, 15000);
+        expect(sent.packedWeightGrams, 1250);
+        expect(sent.service, PostalService.vpp);
+
+        // the same reference on another parcel is refused whatever the spaces or case
+        await expectLater(
+          repo.saveHandover(
+            other,
+            const ParcelHandover(
+              service: PostalService.vpp,
+              postalReference: 'VPP70001',
+              deliveryChargePaisa: 100,
+            ),
+          ),
+          throwsA(isA<AppFailure>()),
+          reason: 'spaces and case do not make a new reference',
+        );
+        expect(
+          (await read(repo, other)).status,
+          ParcelStatus.draft,
+          reason: 'nothing changed on the refused parcel',
+        );
+
+        // another service may use the same number
+        await repo.saveHandover(
+          other,
+          const ParcelHandover(
+            service: PostalService.vpl,
+            postalReference: 'VPP 70001',
+            deliveryChargePaisa: 100,
+          ),
+        );
+
+        // Edit handover: a new reference releases the old one, which another parcel can then use
+        await repo.saveHandover(
+          draft,
+          const ParcelHandover(
+            service: PostalService.vpp,
+            postalReference: 'VPP 70002',
+            deliveryChargePaisa: 17000,
+          ),
+        );
+        final edited = await repo
+            .watch(draft)
+            .firstWhere((p) => p?.postalReference == 'VPP 70002')
+            .timeout(const Duration(seconds: 10));
+        expect(
+          edited!.status,
+          ParcelStatus.sent,
+          reason: 'editing keeps it Sent',
+        );
+        expect(edited.deliveryChargePaisa, 17000);
+        expect(
+          edited.packedWeightGrams,
+          isNull,
+          reason: 'the optional weight was cleared',
+        );
+        final third = await repo.create(_input(reference: 'VPP 70001'));
+        expect(
+          third,
+          isNot(draft),
+          reason: 'the released reference is free again',
+        );
+
+        // a returned parcel cannot be handed over
+        final returned = await repo.create(_input(reference: 'VPP 70003'));
+        await repo.markReturned(
+          returned,
+          date: pakistanDate(DateTime.now().toUtc()),
+        );
+        await expectLater(
+          repo.saveHandover(
+            returned,
+            const ParcelHandover(
+              service: PostalService.vpp,
+              postalReference: 'VPP 70004',
+              deliveryChargePaisa: 1,
+            ),
+          ),
+          throwsA(isA<AppFailure>()),
+        );
+
+        // another user cannot hand over this parcel
+        await signUpNewUser('handoverintruder');
+        await expectLater(
+          repo.saveHandover(
+            draft,
+            const ParcelHandover(
+              service: PostalService.vpp,
+              postalReference: 'VPP 99999',
+              deliveryChargePaisa: 1,
+            ),
+          ),
+          throwsA(isA<AppFailure>()),
+        );
+      },
+    );
+
+    testWidgets(
+      'two handovers of the same reference at once: exactly one wins',
+      (t) async {
+        await signUpNewUser('handoverrace');
+        final a = await repo.create(
+          _input(reference: '', charge: null, status: ParcelStatus.draft),
+        );
+        final b = await repo.create(
+          _input(reference: '', charge: null, status: ParcelStatus.draft),
+        );
+        const handover = ParcelHandover(
+          service: PostalService.vpp,
+          postalReference: 'VPP 80808',
+          deliveryChargePaisa: 100,
+        );
+        final results = await Future.wait([
+          for (final id in [a, b])
+            repo
+                .saveHandover(id, handover)
+                .then<Object>((_) => 'ok', onError: (Object e) => e),
+        ]);
+        expect(results.where((r) => r == 'ok').length, 1, reason: '$results');
+        expect(results.whereType<AppFailure>().length, 1);
       },
     );
   });

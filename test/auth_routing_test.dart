@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
+import 'helpers/greeting_finders.dart';
 import 'helpers/fake_auth_repository.dart';
 import 'helpers/fake_customer_repository.dart';
 import 'helpers/fake_parcel_repository.dart';
@@ -39,7 +40,7 @@ void main() {
       final repo = FakeAuthRepository(signedIn: true, name: 'Muhammad Afzaal');
       await _launch(t, repo);
       expect(_onDashboard, findsOneWidget);
-      expect(find.text('Welcome, Muhammad Afzaal'), findsOneWidget);
+      expect(greetingWith('Muhammad'), findsOneWidget);
       expect(_onLogin, findsNothing);
     },
   );
@@ -79,7 +80,7 @@ void main() {
       await t.pump();
       await t.pump();
       expect(_onDashboard, findsOneWidget);
-      expect(find.text('Welcome, Muhammad Afzaal'), findsOneWidget);
+      expect(greetingWith('Muhammad'), findsOneWidget);
     },
   );
 
@@ -88,11 +89,11 @@ void main() {
     (t) async {
       final repo = FakeAuthRepository(signedIn: true);
       await _launch(t, repo);
-      expect(find.text('Welcome'), findsOneWidget);
+      expect(greetingWithoutName, findsOneWidget);
       repo.emitName('Ali Khan');
       await t.pump();
       await t.pump();
-      expect(find.text('Welcome, Ali Khan'), findsOneWidget);
+      expect(greetingWith('Ali'), findsOneWidget);
     },
   );
 

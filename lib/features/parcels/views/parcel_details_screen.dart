@@ -211,7 +211,7 @@ class _ParcelView extends StatelessWidget {
               _Info(
                 'Postal reference',
                 parcel.postalReference.isEmpty
-                    ? 'Not entered yet'
+                    ? 'Awaiting handover'
                     : parcel.postalReference,
                 trailing: parcel.postalReference.isEmpty
                     ? null
@@ -234,13 +234,29 @@ class _ParcelView extends StatelessWidget {
               _Info(
                 'Delivery charges',
                 parcel.deliveryChargePaisa == null
-                    ? 'Not entered yet'
+                    ? 'Awaiting handover'
                     : formatRupees(parcel.deliveryChargePaisa!),
               ),
               if (parcel.packedWeightGrams != null)
                 _Info(
                   'Packed parcel weight',
                   formatKg(parcel.packedWeightGrams!),
+                ),
+              if (!parcel.isArchived && parcel.status == ParcelStatus.draft)
+                PrimaryButton(
+                  label: 'Hand over to post office',
+                  onPressed: () => onAction(
+                    () => showHandoverSheet(context, repository, parcel),
+                    'Parcel handed over.',
+                  ),
+                ),
+              if (!parcel.isArchived && parcel.status == ParcelStatus.sent)
+                OutlinedButton(
+                  onPressed: () => onAction(
+                    () => showHandoverSheet(context, repository, parcel),
+                    'Handover saved.',
+                  ),
+                  child: const Text('Edit handover'),
                 ),
             ],
           ),

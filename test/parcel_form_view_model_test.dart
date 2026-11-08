@@ -1,3 +1,5 @@
+import 'helpers/fake_parcel_repository.dart';
+
 import 'package:deliv_track/features/customers/domain/customer.dart';
 import 'package:deliv_track/features/parcels/domain/parcel_enums.dart';
 import 'package:deliv_track/features/parcels/viewmodel/parcel_form_view_model.dart';
@@ -34,24 +36,31 @@ void main() {
     expect(vm.service, isNull);
   });
 
-  group('postal service', () {
-    test('defaults from the parcel type until the user picks one', () {
+  group('postal service (set at handover, not on this form)', () {
+    test('a new parcel\'s service follows the parcel type', () {
       final vm = ParcelFormViewModel();
       vm.setMethod(CollectionMethod.postalCollection);
       expect(vm.service, PostalService.vpp);
       vm.setMethod(CollectionMethod.advance);
       expect(vm.service, PostalService.vpl);
-      vm.setService(PostalService.vpr);
-      vm.setMethod(CollectionMethod.postalCollection);
-      expect(vm.service, PostalService.vpr, reason: 'the user chose it');
     });
 
-    test('leaving "Other" forgets the typed name', () {
-      final vm = ParcelFormViewModel();
-      vm.setService(PostalService.other);
-      vm.setOtherServiceName('Fast Courier');
-      vm.setService(PostalService.vpl);
-      expect(vm.otherServiceName, isEmpty);
+    test('a draft being edited still follows its type; a sent parcel keeps the service it was handed over with', () {
+      final draft = ParcelFormViewModel.fromParcel(
+        testParcel(
+          status: ParcelStatus.draft,
+          reference: '',
+          charge: null,
+          service: PostalService.vpp,
+        ),
+      );
+      draft.setMethod(CollectionMethod.advance);
+      expect(draft.service, PostalService.vpl);
+      final sent = ParcelFormViewModel.fromParcel(
+        testParcel(service: PostalService.vpr),
+      );
+      sent.setMethod(CollectionMethod.advance);
+      expect(sent.service, PostalService.vpr);
     });
   });
 
@@ -66,21 +75,42 @@ void main() {
   });
 
   group('status', () {
-    test('sent only with a valid reference AND a delivery charge', () {
-      final vm = ParcelFormViewModel();
-      vm.setReference('VPP 12345');
+    test('a new parcel is always a draft: the post-office details come with the separate handover', () {
+      final vm = ParcelFormViewModel()
+        ..setCustomer(_ali)
+        ..setMethod(CollectionMethod.postalCollection);
       expect(vm.status, ParcelStatus.draft);
-      vm.setCharge(0);
-      expect(vm.status, ParcelStatus.sent);
-      vm.setReference('AB');
-      expect(
-        vm.status,
-        ParcelStatus.draft,
-        reason: 'an invalid reference does not count',
+      vm.setProduct(vm.items[0], _mango);
+      vm.setQuantity(vm.items[0], 1);
+      vm.setPrice(vm.items[0], 100);
+      final input = vm.buildInput();
+      expect(input.status, ParcelStatus.draft);
+      expect(input.postalReference, isEmpty);
+      expect(input.deliveryChargePaisa, isNull);
+      expect(input.packedWeightGrams, isNull);
+      expect(input.problems(), isEmpty);
+    });
+
+    test('editing keeps the status and the handover details untouched', () {
+      final sent = testParcel(
+        reference: 'VPP 55555',
+        charge: 12000,
+        packedGrams: 2500,
+        service: PostalService.vpr,
       );
-      vm.setReference('VPP 12345');
-      vm.setCharge(null);
-      expect(vm.status, ParcelStatus.draft);
+      final vm = ParcelFormViewModel.fromParcel(sent);
+      expect(vm.status, ParcelStatus.sent);
+      final input = vm.buildInput();
+      expect(input.status, ParcelStatus.sent);
+      expect(input.postalReference, 'VPP 55555');
+      expect(input.deliveryChargePaisa, 12000);
+      expect(input.packedWeightGrams, 2500);
+      expect(input.service, PostalService.vpr);
+      expect(input.problems(), isEmpty);
+      final draft = ParcelFormViewModel.fromParcel(
+        testParcel(status: ParcelStatus.draft, reference: '', charge: null),
+      );
+      expect(draft.status, ParcelStatus.draft);
     });
   });
 
@@ -167,37 +197,33 @@ void main() {
   test('isDirty becomes true as soon as anything is entered', () {
     final vm = ParcelFormViewModel();
     expect(vm.isDirty, isFalse);
-    vm.setReference('V');
+    vm.setMethod(CollectionMethod.advance);
     expect(vm.isDirty, isTrue);
     expect((ParcelFormViewModel()..addItem()).isDirty, isTrue);
     expect((ParcelFormViewModel()..setCustomer(_ali)).isDirty, isTrue);
   });
 
   group('buildInput', () {
-    test('turns the form into a ParcelInput; free parcels get zero prices; "Other" carries the name', () {
-      final vm = ParcelFormViewModel()
-        ..setCustomer(_ali)
-        ..setMethod(CollectionMethod.giftFree)
-        ..setService(PostalService.other)
-        ..setOtherServiceName('Fast Courier')
-        ..setReference('XYZ 99999')
-        ..setCharge(12000)
-        ..setPackedWeight(2500);
-      vm.setProduct(vm.items[0], _mango);
-      vm.setQuantity(vm.items[0], 2);
-      vm.setPrice(vm.items[0], 99999);
-      final input = vm.buildInput();
-      expect(input.customer.id, 'c1');
-      expect(input.method, CollectionMethod.giftFree);
-      expect(input.service, PostalService.other);
-      expect(input.otherServiceName, 'Fast Courier');
-      expect(input.deliveryChargePaisa, 12000);
-      expect(input.packedWeightGrams, 2500);
-      expect(input.status, ParcelStatus.sent);
-      expect(input.items.single.unitPricePaisa, 0);
-      expect(input.expectedPaisa, 0);
-      expect(input.problems(), isEmpty);
-    });
+    test(
+      'turns the form into a draft ParcelInput; free parcels get zero prices',
+      () {
+        final vm = ParcelFormViewModel()
+          ..setCustomer(_ali)
+          ..setMethod(CollectionMethod.giftFree);
+        vm.setProduct(vm.items[0], _mango);
+        vm.setQuantity(vm.items[0], 2);
+        vm.setPrice(vm.items[0], 99999);
+        final input = vm.buildInput();
+        expect(input.customer.id, 'c1');
+        expect(input.method, CollectionMethod.giftFree);
+        expect(input.service, PostalService.vpl);
+        expect(input.otherServiceName, isNull);
+        expect(input.status, ParcelStatus.draft);
+        expect(input.items.single.unitPricePaisa, 0);
+        expect(input.expectedPaisa, 0);
+        expect(input.problems(), isEmpty);
+      },
+    );
 
     test('a per-kg line uses grams', () {
       final vm = ParcelFormViewModel()

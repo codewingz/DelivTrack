@@ -2,6 +2,7 @@ import 'package:deliv_track/core/errors/app_failure.dart';
 import 'package:deliv_track/core/time/pakistan_time.dart';
 import 'package:deliv_track/features/parcels/domain/parcel.dart';
 import 'package:deliv_track/features/parcels/domain/parcel_enums.dart';
+import 'package:deliv_track/features/parcels/domain/parcel_handover.dart';
 import 'package:deliv_track/features/parcels/domain/payment.dart';
 import 'package:deliv_track/features/parcels/views/parcel_action_sheets.dart';
 import 'package:flutter/material.dart';
@@ -76,6 +77,254 @@ Parcel _sent({
 );
 
 void main() {
+  group('Hand over to post office', () {
+    Parcel draft({
+      CollectionMethod method = CollectionMethod.postalCollection,
+    }) => testParcel(
+      id: 'a',
+      status: ParcelStatus.draft,
+      reference: '',
+      charge: null,
+      method: method,
+    );
+
+    Future<void> fill(
+      WidgetTester t, {
+      String reference = 'vpp 12345',
+      String charge = '150.50',
+      String weight = '',
+    }) async {
+      await t.enterText(
+        find.widgetWithText(
+          TextFormField,
+          'Enter VPP / VPL / VPR reference from slip',
+        ),
+        reference,
+      );
+      await t.enterText(
+        find.widgetWithText(TextFormField, 'Amount on slip'),
+        charge,
+      );
+      if (weight.isNotEmpty) {
+        await t.enterText(
+          find.widgetWithText(TextFormField, 'Weight shown on slip (optional)'),
+          weight,
+        );
+      }
+      await t.pump();
+    }
+
+    testWidgets(
+      'a draft: the service follows the parcel type; the slip details are required; saving hands it over',
+      (t) async {
+        final env = await _open(t, draft(), showHandoverSheet);
+        expect(find.text('Hand over to post office'), findsWidgets);
+        expect(find.widgetWithText(FilledButton, 'Hand Over'), findsOneWidget);
+        expect(
+          t.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'VPP')).selected,
+          isTrue,
+        );
+        await t.tap(_submit);
+        await t.pump();
+        expect(
+          find.text('Postal reference is required to mark as Sent'),
+          findsOneWidget,
+        );
+        expect(find.text('Delivery charges is required'), findsOneWidget);
+        expect(env.repo.handovers, isEmpty);
+
+        await fill(t, weight: '1.25');
+        await t.tap(_submit);
+        await t.pumpAndSettle();
+        final h = env.repo.handovers.single;
+        expect(h.id, 'a');
+        expect(h.handover.service, PostalService.vpp);
+        expect(h.handover.postalReference, 'vpp 12345');
+        expect(h.handover.deliveryChargePaisa, 15050);
+        expect(h.handover.packedWeightGrams, 1250);
+        expect(
+          (await env.repo.watchAll().first).single.status,
+          ParcelStatus.sent,
+        );
+        expect(env.results, [true]);
+      },
+    );
+
+    testWidgets('a type other than Post office collection suggests VPL', (
+      t,
+    ) async {
+      await _open(
+        t,
+        draft(method: CollectionMethod.payLater),
+        showHandoverSheet,
+      );
+      expect(
+        t.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'VPL')).selected,
+        isTrue,
+      );
+    });
+
+    testWidgets(
+      'an invalid reference is refused; "Other" asks for the service name',
+      (t) async {
+        final env = await _open(t, draft(), showHandoverSheet);
+        await fill(t, reference: 'AB');
+        await t.tap(_submit);
+        await t.pump();
+        expect(
+          find.text('Use 5–30 letters or numbers (also - and /)'),
+          findsOneWidget,
+        );
+        await t.tap(find.widgetWithText(ChoiceChip, 'Other'));
+        await t.pump();
+        expect(find.text('Service name *'), findsOneWidget);
+        await fill(t, reference: 'XYZ 99999');
+        await t.tap(_submit);
+        await t.pump();
+        expect(find.text('Service name is required'), findsOneWidget);
+        await t.enterText(
+          find.widgetWithText(
+            TextFormField,
+            'Type the service written on the slip',
+          ),
+          'Fast Courier',
+        );
+        await t.tap(_submit);
+        await t.pumpAndSettle();
+        expect(env.repo.handovers.single.handover.service, PostalService.other);
+        expect(
+          env.repo.handovers.single.handover.otherServiceName,
+          'Fast Courier',
+        );
+      },
+    );
+
+    testWidgets(
+      'a reference already used on another parcel is shown in the sheet and nothing changes',
+      (t) async {
+        final other = testParcel(id: 'b', sequence: 2, reference: 'VPP 12345');
+        final repo = FakeParcelRepository(initial: [draft(), other]);
+        final env = await _open(t, draft(), showHandoverSheet, repo: repo);
+        await fill(t);
+        await t.tap(_submit);
+        await t.pumpAndSettle();
+        expect(
+          find.text('This postal reference is already used on ADT-000002.'),
+          findsOneWidget,
+        );
+        expect(env.results, isEmpty);
+        expect(
+          (await repo.watchAll().first).firstWhere((p) => p.id == 'a').status,
+          ParcelStatus.draft,
+        );
+      },
+    );
+
+    testWidgets('a failure stays in the sheet', (t) async {
+      final repo = FakeParcelRepository(
+        initial: [draft()],
+        failure: const AppFailure('No internet connection.'),
+      );
+      final env = await _open(t, draft(), showHandoverSheet, repo: repo);
+      await fill(t);
+      await t.tap(_submit);
+      await t.pumpAndSettle();
+      expect(find.text('No internet connection.'), findsOneWidget);
+      expect(env.results, isEmpty);
+    });
+
+    testWidgets(
+      'a sent parcel: "Edit handover" is prefilled and saving keeps it Sent',
+      (t) async {
+        final sent = testParcel(
+          id: 'a',
+          reference: 'VPP 12345',
+          charge: 15050,
+          packedGrams: 2500,
+          service: PostalService.vpr,
+        );
+        final env = await _open(t, sent, showHandoverSheet);
+        expect(find.text('Edit handover'), findsOneWidget);
+        expect(
+          find.widgetWithText(FilledButton, 'Save Handover'),
+          findsOneWidget,
+        );
+        expect(
+          t.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'VPR')).selected,
+          isTrue,
+        );
+        expect(find.text('VPP 12345'), findsOneWidget);
+        expect(find.text('150.50'), findsOneWidget);
+        expect(find.text('2.5'), findsOneWidget);
+        await t.enterText(find.widgetWithText(TextFormField, '150.50'), '200');
+        await t.tap(_submit);
+        await t.pumpAndSettle();
+        final h = env.repo.handovers.single.handover;
+        expect(h.deliveryChargePaisa, 20000);
+        expect(h.postalReference, 'VPP 12345');
+        expect(
+          (await env.repo.watchAll().first).single.status,
+          ParcelStatus.sent,
+        );
+      },
+    );
+
+    for (final size in const [Size(320, 568), Size(393, 852), Size(640, 300)]) {
+      for (final scale in [1.0, 1.3, 2.0]) {
+        testWidgets('no overflow at $size text x$scale', (t) async {
+          await _open(t, draft(), showHandoverSheet, size: size, scale: scale);
+          await t.ensureVisible(_submit);
+          await t.tap(_submit);
+          await t.pump();
+          expect(t.takeException(), isNull);
+        });
+      }
+    }
+  });
+
+  group('ParcelHandover rules', () {
+    ParcelHandover make({
+      PostalService service = PostalService.vpp,
+      String? other,
+      String reference = 'VPP 12345',
+      int? charge = 15000,
+      int? weight,
+    }) => ParcelHandover(
+      service: service,
+      otherServiceName: other,
+      postalReference: reference,
+      deliveryChargePaisa: charge,
+      packedWeightGrams: weight,
+    );
+
+    test('valid and the refusals', () {
+      expect(make().problems(), isEmpty);
+      expect(
+        make(charge: 0).problems(),
+        isEmpty,
+        reason: 'a zero charge is a charge',
+      );
+      expect(make(reference: '').problems(), isNotEmpty);
+      expect(make(reference: 'AB').problems(), isNotEmpty);
+      expect(make(charge: null).problems(), isNotEmpty);
+      expect(
+        make(service: PostalService.other).problems(),
+        isNotEmpty,
+        reason: 'Other needs a name',
+      );
+      expect(
+        make(service: PostalService.other, other: 'Fast Courier').problems(),
+        isEmpty,
+      );
+      expect(
+        make(other: 'Fast Courier').problems(),
+        isNotEmpty,
+        reason: 'a name only for Other',
+      );
+      expect(make(weight: 0).problems(), isNotEmpty);
+    });
+  });
+
   group('Mark Returned', () {
     Future<bool> open(BuildContext c, FakeParcelRepository r, Parcel p) =>
         showReturnSheet(c, r, p, clock: const _Clock());

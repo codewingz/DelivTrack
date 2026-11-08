@@ -2,6 +2,7 @@ import 'package:deliv_track/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'helpers/greeting_finders.dart';
 import 'helpers/fake_auth_repository.dart';
 import 'helpers/fake_customer_repository.dart';
 import 'helpers/fake_parcel_repository.dart';
@@ -46,7 +47,7 @@ void main() {
       (t) async {
         await _launch(t, FakeAuthRepository(signedIn: true, name: 'Ali'));
         expect(find.byType(NavigationBar), findsOneWidget);
-        expect(find.text('Welcome, Ali'), findsOneWidget);
+        expect(greetingWith('Ali'), findsOneWidget);
 
         await t.tap(_moreTab);
         await t.pumpAndSettle();
@@ -54,7 +55,7 @@ void main() {
 
         await t.tap(_homeTab);
         await t.pumpAndSettle();
-        expect(find.text('Welcome, Ali'), findsOneWidget);
+        expect(greetingWith('Ali'), findsOneWidget);
       },
     );
 
@@ -140,7 +141,7 @@ void main() {
       await t.tap(find.widgetWithText(TextButton, 'Cancel'));
       await t.pumpAndSettle();
       expect(repo.signOuts, 0);
-      expect(find.text('Welcome, Ali'), findsOneWidget);
+      expect(greetingWith('Ali'), findsOneWidget);
     });
 
     testWidgets('tapping outside the dialog dismisses it without logging out', (

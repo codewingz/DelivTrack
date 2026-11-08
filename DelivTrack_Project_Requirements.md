@@ -1,13 +1,15 @@
 # DelivTrack
 
 **Document:** Project Requirements & Development Specification  
-**Version:** 1.3  
+**Version:** 1.4  
 **Status:** Owner-reviewed scope, updated Android implementation baseline  
 **Owner:** CodeWingz  
 **Use:** Public Android app: anyone can sign up; every account is private to its owner  
 **Last updated:** 8 November 2026
 
 > **v1.3 account model (owner decision, 8 Nov 2026):** DelivTrack is launched **publicly**. Anyone can sign up with their own Firebase Authentication account. Every account has its **own private data** under `users/{uid}/…` (parcels, customers, products, payments, reminders, audit, its own order-number counter starting at `ADT-000001`). Firestore rules allow access only when `request.auth.uid == uid`, so one user can never read or write another user's data. Statements elsewhere in this document that say "one private account", "no public sign-up" or "one approved UID" are superseded by this note. Password reset is Firebase's standard email link. Firebase free-plan quotas are shared by all users of the project (see the development plan, section "Account model and quotas").
+
+> **v1.4 (owner decisions, 8 Nov 2026): Add Parcel and Handover are two steps, and Home is redesigned.** *Add Parcel* creates the order only (customer, parcel type, products and agreed prices, optional Pay Later date) and always saves it as a **Draft**. *Hand over to post office* is a separate action on the parcel's details: the owner records the postal service, the slip reference, the delivery charge and the optional packed weight, and the parcel becomes **Sent**. The handover can be corrected later with **Edit handover**. Home shows the money still to collect as one hero, then quick actions, a "Needs attention" list (overdue and due-today reminders, drafts awaiting handover, returned parcels needing payment review) and the figures grouped as Parcels and Money. Where older text below puts postal service, reference or delivery charge on the Add Parcel form, this note supersedes it.
 
 > **Scope rule:** Section 1–13 describes the requirements confirmed by the owner and the minimum technical behavior required to make them work. Section 14 clearly identifies optional ideas and open decisions. Developers must **not** treat optional ideas as approved features.
 
@@ -98,7 +100,7 @@ DelivTrack is a small internal parcel, customer, and payment tracking app. The c
 
 ### FR-04. Add and edit parcel — streamlined owner-approved form
 
-The **Add Parcel** screen displays only the fields needed at sending/booking time:
+The **Add Parcel** screen displays only the fields needed to record the order. The post-office booking is a separate step (*Handover*, below):
 
 | Field | Behavior | Required? |
 |---|---|---|
@@ -110,11 +112,6 @@ The **Add Parcel** screen displays only the fields needed at sending/booking tim
 | Per-piece quantity | Positive whole number if product sold per piece | Conditional |
 | Per-kg weight | Positive decimal kg if product sold per kg | Conditional |
 | Agreed product unit price | Price per piece or price per kg; entered while making the parcel | Yes for non-free parcels |
-| Postal service | **VPP automatically** for post-office collection; **VPL automatically** for advance, Pay Later and Gift/Free; editable | Yes |
-| Postal service Other | Selecting Other reveals a manual **service name** text field | Required for Other |
-| Postal reference number | Clearly labeled field, as on the post-office slip | Required for Sent; optional for Draft |
-| Delivery charges (Rs.) | Manually enter the exact amount from the post-office slip; no rate calculation | Required after booking |
-| Actual packed parcel weight (kg) | Optional separate overall weight from the slip; not the price basis for piece products | Optional |
 | Pay Later estimated date | Optional date; if set, schedule an owner reminder | Optional, only Pay Later |
 
 **Explicitly NOT shown on Add Parcel:** Sending Date, a standalone Payment Details panel, a manually typed Expected Product Payment field, and Notes (optional). **Expected amount and Notes are on the Parcel Details screen.** Expected amount is computed from the product line prices; Notes can be added/edited after saving from Parcel Details. Payment Received is recorded from Parcel Details or payment lists, never by uploading a file.
@@ -123,7 +120,7 @@ The **Add Parcel** screen displays only the fields needed at sending/booking tim
 
 **Automatic postal service rules:** Post-office collection → `VPP`; Advance paid → `VPL`; Pay Later → `VPL`; Gift/Free → `VPL`. Treat these as default user-interface suggestions, **not guarantees of official Pakistan Post eligibility**; the user can select another type. `Other` reveals a mandatory free-text service name. The postal reference number is an independent, prominent input under the service selector.
 
-**Draft handling:** If the post-office slip is not available yet, the user can save the order as **Draft / Awaiting Postal Reference** and later add the reference and actual delivery charges. Do not call this Sent until booking details are supplied.
+**Handover to the post office (separate step):** every new parcel is saved as a **Draft**. On the parcel's details screen, **Hand over to post office** opens a form with: Postal service (VPP automatically for post-office collection, VPL for advance, Pay Later and Gift/Free; VPR or Other editable; Other needs a manual service name), **Postal reference number** (required), **Delivery charges (Rs.)** (required, exact amount from the slip) and optional **actual packed parcel weight (kg)**. Saving makes the parcel **Sent** and reserves the reference. **Edit handover** corrects these details later (the old reference is released, the change is audited). A returned or archived parcel cannot be handed over. Treat the service suggestions as defaults, not guarantees of official Pakistan Post eligibility.
 
 **Validation:** Require an existing customer with name, phone and address; one or more valid product lines; positive whole pieces or positive kg weight; positive negotiated unit price for paid products; nonnegative delivery charges; manual service name for Other; and unique normalized `(postal service, reference)` among saved parcels. Never permit a negative payment or reused internal order number.
 
@@ -131,8 +128,8 @@ The **Add Parcel** screen displays only the fields needed at sending/booking tim
 
 The app must support:
 
-- **Draft / Awaiting Post Office Details** — created but not yet fully recorded as handed over.
-- **Sent** — parcel handed over to Pakistan Post and reference recorded.
+- **Draft / Awaiting handover** — the order is saved but not yet handed over to the post office.
+- **Sent** — handed over to Pakistan Post through the Handover step; the reference and delivery charge are recorded.
 - **Returned** — parcel has come back or is marked as returned.
 
 When marking a parcel returned:
@@ -249,7 +246,10 @@ Display at minimum:
 - Pay Later balance (PKR).
 - Advance-paid amount (PKR).
 - Reminders due today and overdue.
+- Drafts awaiting handover.
 - Recent parcels and quick access to Add Parcel and Search.
+
+**Layout (v1.4):** greeting; one hero card with the outstanding amount to collect and how much was received; quick actions (Add Parcel, Search); a *Needs attention* list that shows only items that have something in them (overdue, due today, awaiting handover, need payment review) or a calm all-clear; the figures grouped as *Parcels* and *Money* in a two-column grid; recent parcels in one card with View all. Every figure opens the list or screen behind it.
 
 **Metric rules:** A received parcel count is not a sum of payment transactions. Free parcels are excluded from outstanding money. Returned parcels with unresolved payment adjustments should be clearly marked and must not silently change totals. Avoid double-counting advance payments as both a new payment and an additional receivable.
 
@@ -298,7 +298,8 @@ Also provide these practical filtered views using the same data:
 |---|---|
 | **Login / Sign up** | Firebase Auth sign in, public account creation and password reset by email. |
 | **Dashboard** | Parcel/payment totals, due Pay Later notifications, recent records. |
-| **Add Parcel** | Simplified form: customer, parcel type, product rows, optional estimated date, post-office service/reference/charges. No sending-date field, expected total box, or notes field. |
+| **Add Parcel** | Order only: customer, parcel type, product rows, optional estimated date; saved as a Draft. No sending-date field, expected total box, postal details or notes field. |
+| **Hand over to post office** | Sheet on a Draft's details: postal service, reference, delivery charge, optional weight; makes the parcel Sent. *Edit handover* on a Sent parcel. |
 | **Add / Edit Customer** | **Full screen** with required name, phone and address; go back to the previous screen after save/cancel. |
 | **All Parcels** | Search by order/ref/customer/product, filter, select parcel. |
 | **Parcel Details** | Sending date, customer address, product line prices, calculated expected payment, Notes, received amount, postal reference, payment and return actions. |
@@ -327,15 +328,16 @@ Also provide these practical filtered views using the same data:
 2. Select a saved customer, or tap **+ New** and create one on the full-screen customer form.
 3. Select **Post office collection**. Default postal service becomes **VPP**.
 4. Select one or more products; for each choose **piece quantity + price/piece** or **kg weight + price/kg** according to product setup.
-5. Enter actual delivery charges from the slip and the clearly labeled postal reference number. Choose another service/Other if needed.
-6. Save. The app creates `ADT-...` and calculates expected product payment from line prices.
-7. Open **Parcel Details** to see Sending Date, Expected Product Payment and Notes. There is no Payment Details panel in the Add form.
+5. Save. The app creates `ADT-...` as a **Draft** and calculates expected product payment from line prices.
+6. Open **Parcel Details** (Sending Date, Expected Product Payment, Notes) and, once you have the post-office slip, tap **Hand over to post office** (see WF-03).
+7. There is no Payment Details panel in the Add form.
 
-### WF-03: Save without a postal slip
+### WF-03: Hand over a Draft to the post office
 
-1. Start with customer, products, negotiated prices and parcel type.
-2. Leave postal reference blank and save as Draft, keeping the automatically generated order number.
-3. Later open Edit Parcel, add postal service/reference and delivery charges from the slip, and save as Sent.
+1. Add the parcel (WF-02): it is saved as a Draft with its automatic order number; Home shows it under *Awaiting handover*.
+2. When the slip is ready, open the Draft and tap **Hand over to post office**.
+3. Check the postal service, enter the slip's reference number and delivery charge (and optionally the packed weight), and tap **Hand Over**: the parcel becomes Sent.
+4. If something was typed wrongly, tap **Edit handover** on the Sent parcel and correct it.
 
 ### WF-04: Receive a payment
 
@@ -573,18 +575,18 @@ Round and store money safely in integer paisa. Delivery charges are separate fro
 - Customer dropdown and **+ New** action; New opens a **full screen** with Name/Phone/Address required.
 - Parcel type: Post office collection / Advance paid / **Pay Later** / Gift/Free.
 - Per product row: selector; either **quantity pieces** or **weight kg**, and negotiated **price per piece/kg**. Support multiple products.
-- Service defaults: paid post-office collection → VPP; advance/Pay Later/free → VPL. Allow VPR or Other; for Other require manual service-name input.
-- Clearly display separate **Postal reference number** and **Delivery charges (Rs.)** inputs, plus optional actual packed parcel weight.
+- **No postal details on this form** (service, reference, delivery charge, packed weight): they are entered in the separate Handover step on Parcel Details.
 - Only for Pay Later: optional estimated date; if present, schedule app + Android reminder.
 - **No Add Parcel Payment Details section; no Expected Product Payment input; no Notes input.**
-- Save draft without slip/reference; mark as Sent with reference and charges.
-- After saving, go to Parcel Details where financial amount and notes are shown.
+- Save always creates a Draft; the order number is reserved on save.
+- After saving, go to Parcel Details where financial amount, notes and the **Hand over to post office** action are shown.
 
 ### 10.2 Parcel detail
 
 - Show automatically saved sending date, order number, customer, phone, full address, product rows, piece/kg amounts, negotiated prices, line totals, weight, postal service/name/reference and delivery charges.
 - Show **Payment Details here**: calculated Expected Product Payment, Received Amount, Outstanding Balance, Payment Status, optional estimated date.
 - Provide **Notes (optional)** editing here, not on Add Parcel.
+- Postal details section: shows "Awaiting handover" for a Draft with a prominent **Hand over to post office** button; a Sent parcel shows the recorded details and **Edit handover**.
 - Show payment history with auto-captured dates; actions to receive payment, edit parcel, return, and change Pay Later estimated date.
 - Returned and payment statuses must remain separate.
 

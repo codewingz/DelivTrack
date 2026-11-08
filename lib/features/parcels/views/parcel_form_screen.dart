@@ -12,7 +12,6 @@ import '../../../core/time/pakistan_time.dart';
 import '../../../core/view_models/action_view_model.dart';
 import '../../../design_system/foundations/radius/app_radius.dart';
 import '../../../design_system/foundations/spacing/app_spacing.dart';
-import '../../../utils/app_validators.dart';
 import '../../customers/data/customer_repository.dart';
 import '../../customers/domain/customer.dart';
 import '../../customers/views/customer_picker_screen.dart';
@@ -58,24 +57,10 @@ class _ParcelFormScreenState extends State<ParcelFormScreen> {
       ? ParcelFormViewModel()
       : ParcelFormViewModel.fromParcel(widget.parcel!);
   final _action = ActionViewModel();
-  late final _otherService = TextEditingController(
-    text: _form.otherServiceName,
-  );
-  late final _reference = TextEditingController(text: _form.reference);
-  late final _charge = TextEditingController(
-    text: _form.chargePaisa == null ? null : plainRupees(_form.chargePaisa!),
-  );
-  late final _packedWeight = TextEditingController(
-    text: _form.packedGrams == null ? null : plainKg(_form.packedGrams!),
-  );
   bool _saved = false;
 
   @override
   void dispose() {
-    _otherService.dispose();
-    _reference.dispose();
-    _charge.dispose();
-    _packedWeight.dispose();
     _form.dispose();
     _action.dispose();
     super.dispose();
@@ -217,66 +202,6 @@ class _ParcelFormScreenState extends State<ParcelFormScreen> {
                           const SizedBox(height: AppSpacing.md),
                           _TotalLine(form: _form),
                           const SizedBox(height: AppSpacing.xxl),
-                          const _SectionTitle('Postal details'),
-                          const SizedBox(height: AppSpacing.md),
-                          AppChoiceField<PostalService>(
-                            // New default (from the parcel type) -> rebuild with the new selection.
-                            key: ValueKey(_form.service),
-                            label: 'Postal service',
-                            isRequired: true,
-                            enabled: !busy,
-                            initialValue: _form.service,
-                            options: [
-                              for (final s in PostalService.values)
-                                (value: s, label: s.value),
-                            ],
-                            onChanged: _form.setService,
-                            validator: (value) => value == null
-                                ? 'Select a postal service'
-                                : null,
-                          ),
-                          if (_form.service == PostalService.other) ...[
-                            const SizedBox(height: AppSpacing.lg),
-                            AppTextField(
-                              controller: _otherService,
-                              label: 'Service name',
-                              hint: 'Type the service written on slip',
-                              isRequired: true,
-                              enabled: !busy,
-                              onChanged: _form.setOtherServiceName,
-                              validator: (value) => AppValidators.name(
-                                value,
-                                fieldName: 'Service name',
-                              ),
-                            ),
-                          ],
-                          const SizedBox(height: AppSpacing.lg),
-                          AppTextField.reference(
-                            controller: _reference,
-                            isRequired: _form.requiresSlipDetails,
-                            enabled: !busy,
-                            onChanged: _form.setReference,
-                          ),
-                          const SizedBox(height: AppSpacing.lg),
-                          AppTextField.amount(
-                            controller: _charge,
-                            label: 'Delivery charges (Rs.)',
-                            hint: 'Amount on slip',
-                            isRequired: _form.requiresSlipDetails,
-                            enabled: !busy,
-                            onChanged: (value) =>
-                                _form.setCharge(parseRupeesToPaisa(value)),
-                          ),
-                          const SizedBox(height: AppSpacing.lg),
-                          AppTextField.weight(
-                            controller: _packedWeight,
-                            label: 'Actual packed parcel weight (kg)',
-                            hint: 'Weight shown on slip',
-                            enabled: !busy,
-                            textInputAction: TextInputAction.done,
-                            onChanged: (value) =>
-                                _form.setPackedWeight(parseKgToGrams(value)),
-                          ),
                           if (_form.method == CollectionMethod.payLater) ...[
                             const SizedBox(height: AppSpacing.lg),
                             AppDateField(
@@ -308,35 +233,23 @@ class _ParcelFormScreenState extends State<ParcelFormScreen> {
                           PrimaryButton(
                             label: widget.parcel != null
                                 ? 'Save Changes'
-                                : (_form.status == ParcelStatus.sent
-                                      ? 'Save & Mark Sent'
-                                      : 'Save as Draft'),
+                                : 'Save Parcel',
                             isLoading: busy,
                             onPressed: _save,
                           ),
-                          if (_form.willBecomeSent) ...[
-                            const SizedBox(height: AppSpacing.md),
-                            const Text(
-                              'Saving will mark this parcel as Sent.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.primary,
-                              ),
+                          const SizedBox(height: AppSpacing.md),
+                          Text(
+                            widget.parcel == null
+                                ? 'The parcel is saved as a Draft. Open it and tap "Hand over to post office" once you have the slip.'
+                                : widget.parcel!.status == ParcelStatus.draft
+                                ? 'This parcel is still a Draft. Hand it over from its details once you have the slip.'
+                                : 'Post-office details are changed with "Edit handover" on the parcel details.',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.label,
                             ),
-                          ] else if (_form.status == ParcelStatus.draft &&
-                              !_form.requiresSlipDetails) ...[
-                            const SizedBox(height: AppSpacing.md),
-                            const Text(
-                              'Add the postal reference and delivery charge from the slip to mark this parcel as Sent.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ],
+                          ),
                         ],
                       ),
                     ),

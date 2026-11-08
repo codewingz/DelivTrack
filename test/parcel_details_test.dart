@@ -109,7 +109,7 @@ void main() {
     await _open(t, repo, 'd');
     expect(find.text('Draft'), findsOneWidget);
     expect(
-      find.text('Not entered yet'),
+      find.text('Awaiting handover'),
       findsNWidgets(2),
       reason: 'reference and delivery charge',
     );
@@ -413,6 +413,129 @@ void main() {
         );
         expect(find.text('No payments received yet'), findsNothing);
         expect(find.text('Partially paid'), findsOneWidget);
+      },
+    );
+  });
+
+  group('handover', () {
+    Finder primary(String label) => find.widgetWithText(FilledButton, label);
+    Finder outlined(String label) => find.widgetWithText(OutlinedButton, label);
+
+    testWidgets(
+      'a draft shows what is missing and a prominent "Hand over to post office"',
+      (t) async {
+        await _open(
+          t,
+          FakeParcelRepository(
+            initial: [
+              testParcel(
+                id: 'a',
+                status: ParcelStatus.draft,
+                reference: '',
+                charge: null,
+              ),
+            ],
+          ),
+          'a',
+        );
+        await t.ensureVisible(primary('Hand over to post office'));
+        expect(primary('Hand over to post office'), findsOneWidget);
+        expect(
+          find.text('Awaiting handover'),
+          findsNWidgets(2),
+          reason: 'reference and delivery charge',
+        );
+        expect(outlined('Edit handover'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'handing it over from the details makes it Sent and swaps the button for Edit handover',
+      (t) async {
+        final repo = FakeParcelRepository(
+          initial: [
+            testParcel(
+              id: 'a',
+              status: ParcelStatus.draft,
+              reference: '',
+              charge: null,
+            ),
+          ],
+        );
+        await _open(t, repo, 'a');
+        await t.ensureVisible(primary('Hand over to post office'));
+        await t.pump();
+        await t.tap(primary('Hand over to post office'));
+        await t.pumpAndSettle();
+        await t.enterText(
+          find.widgetWithText(
+            TextFormField,
+            'Enter VPP / VPL / VPR reference from slip',
+          ),
+          'VPP 40404',
+        );
+        await t.enterText(
+          find.widgetWithText(TextFormField, 'Amount on slip'),
+          '120',
+        );
+        await t.pump();
+        await t.tap(primary('Hand Over'));
+        await t.pumpAndSettle();
+        expect(find.text('Parcel handed over.'), findsOneWidget);
+        expect(find.text('VPP 40404'), findsOneWidget);
+        expect(primary('Hand over to post office'), findsNothing);
+        await t.ensureVisible(outlined('Edit handover'));
+        expect(outlined('Edit handover'), findsOneWidget);
+        expect(repo.handovers.single.handover.deliveryChargePaisa, 12000);
+      },
+    );
+
+    testWidgets(
+      'a sent parcel offers Edit handover; returned and archived parcels offer neither button',
+      (t) async {
+        for (final (parcel, hand, edit) in [
+          (testParcel(id: 'a'), false, true),
+          (testParcel(id: 'a', status: ParcelStatus.returned), false, false),
+          (
+            testParcel(id: 'a', received: 500000, isArchived: true),
+            false,
+            false,
+          ),
+          (
+            testParcel(
+              id: 'a',
+              status: ParcelStatus.draft,
+              reference: '',
+              charge: null,
+              isArchived: true,
+            ),
+            false,
+            false,
+          ),
+          (
+            testParcel(
+              id: 'a',
+              status: ParcelStatus.draft,
+              reference: '',
+              charge: null,
+            ),
+            true,
+            false,
+          ),
+        ]) {
+          await _open(t, FakeParcelRepository(initial: [parcel]), 'a');
+          expect(
+            primary('Hand over to post office'),
+            hand ? findsOneWidget : findsNothing,
+            reason: '${parcel.status} archived=${parcel.isArchived}',
+          );
+          expect(
+            outlined('Edit handover'),
+            edit ? findsOneWidget : findsNothing,
+            reason: '${parcel.status} archived=${parcel.isArchived}',
+          );
+          await t.pumpWidget(const SizedBox());
+        }
       },
     );
   });

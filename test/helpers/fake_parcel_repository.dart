@@ -6,6 +6,7 @@ import 'package:deliv_track/core/time/pakistan_time.dart';
 import 'package:deliv_track/features/parcels/data/parcel_repository.dart';
 import 'package:deliv_track/features/parcels/domain/parcel.dart';
 import 'package:deliv_track/features/parcels/domain/parcel_enums.dart';
+import 'package:deliv_track/features/parcels/domain/parcel_handover.dart';
 import 'package:deliv_track/features/parcels/domain/parcel_input.dart';
 import 'package:deliv_track/features/parcels/domain/parcel_item.dart';
 import 'package:deliv_track/features/parcels/domain/payment.dart';
@@ -110,6 +111,14 @@ Parcel _changed(
   String? reviewNote,
   String? reviewDate,
   bool? archived,
+  ({
+    PostalService service,
+    String? otherName,
+    String reference,
+    int? charge,
+    int? packedGrams,
+  })?
+  postal,
 }) => testParcel(
   id: old.id,
   sequence: old.orderSequence,
@@ -117,11 +126,11 @@ Parcel _changed(
   customerPhone: old.customerPhone,
   customerAddress: old.customerAddress,
   method: old.method,
-  service: old.service,
-  otherName: old.otherServiceName,
-  reference: old.postalReference,
-  charge: old.deliveryChargePaisa,
-  packedGrams: old.packedWeightGrams,
+  service: postal?.service ?? old.service,
+  otherName: postal == null ? old.otherServiceName : postal.otherName,
+  reference: postal?.reference ?? old.postalReference,
+  charge: postal == null ? old.deliveryChargePaisa : postal.charge,
+  packedGrams: postal == null ? old.packedWeightGrams : postal.packedGrams,
   sendingDate: old.sendingDate,
   payDate: payDate ?? old.estimatedPaymentDate,
   status: status ?? old.status,
@@ -197,6 +206,56 @@ class FakeParcelRepository implements ParcelRepository {
     );
     _changes.add(null);
     return 'parcel-$sequence';
+  }
+
+  final handovers = <({String id, ParcelHandover handover})>[];
+
+  @override
+  Future<void> saveHandover(String parcelId, ParcelHandover handover) async {
+    await gate?.future;
+    if (failure != null) throw failure!;
+    final problems = handover.problems();
+    if (problems.isNotEmpty) throw AppFailure(problems.first);
+    final index = _parcels.indexWhere((p) => p.id == parcelId);
+    if (index < 0) throw const AppFailure('This parcel no longer exists.');
+    final old = _parcels[index];
+    if (old.isArchived) {
+      throw const AppFailure('This parcel is archived. Restore it first.');
+    }
+    if (old.status == ParcelStatus.returned) {
+      throw const AppFailure("A returned parcel can't be handed over.");
+    }
+    final reference = handover.postalReference.trim();
+    final key = reference.replaceAll(RegExp(r'\s+'), '').toUpperCase();
+    final taken = _parcels
+        .where(
+          (p) =>
+              p.id != parcelId &&
+              p.service == handover.service &&
+              (p.otherServiceName ?? '').toLowerCase() ==
+                  (handover.otherServiceName ?? '').toLowerCase() &&
+              p.postalReference.replaceAll(RegExp(r'\s+'), '').toUpperCase() ==
+                  key,
+        )
+        .firstOrNull;
+    if (taken != null) {
+      throw AppFailure(
+        'This postal reference is already used on ${taken.orderNumber}.',
+      );
+    }
+    handovers.add((id: parcelId, handover: handover));
+    _parcels[index] = _changed(
+      old,
+      status: ParcelStatus.sent,
+      postal: (
+        service: handover.service,
+        otherName: handover.otherServiceName,
+        reference: reference,
+        charge: handover.deliveryChargePaisa,
+        packedGrams: handover.packedWeightGrams,
+      ),
+    );
+    _changes.add(null);
   }
 
   @override

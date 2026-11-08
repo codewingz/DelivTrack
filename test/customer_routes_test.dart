@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
+import 'helpers/greeting_finders.dart';
 import 'helpers/fake_auth_repository.dart';
 import 'helpers/fake_customer_repository.dart';
 import 'helpers/fake_parcel_repository.dart';
@@ -39,7 +40,7 @@ void main() {
       );
       await t.pageBack();
       await t.pumpAndSettle();
-      expect(find.text('Welcome, Ali'), findsOneWidget);
+      expect(greetingWith('Ali'), findsOneWidget);
     },
   );
 

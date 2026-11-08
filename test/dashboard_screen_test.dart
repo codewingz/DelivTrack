@@ -1,3 +1,4 @@
+import 'package:deliv_track/core/time/pakistan_time.dart';
 import 'package:deliv_track/core/errors/app_failure.dart';
 import 'package:deliv_track/features/dashboard/views/dashboard_screen.dart';
 import 'package:deliv_track/features/customers/domain/customer.dart';
@@ -9,6 +10,7 @@ import 'package:deliv_track/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'helpers/greeting_finders.dart';
 import 'helpers/fake_auth_repository.dart';
 import 'helpers/fake_customer_repository.dart';
 import 'helpers/fake_parcel_repository.dart';
@@ -28,6 +30,7 @@ Future<_Taps> _pump(
   FakeParcelRepository repo, {
   Size size = const Size(393, 1800),
   double scale = 1,
+  Clock? clock,
 }) async {
   t.view.physicalSize = size;
   t.view.devicePixelRatio = 1;
@@ -46,6 +49,7 @@ Future<_Taps> _pump(
         onOpenParcels: taps.lists.add,
         onOpenPayments: () => taps.payments++,
         onAddParcel: () => taps.adds++,
+        clock: clock ?? const Clock(),
       ),
     ),
   );
@@ -132,7 +136,7 @@ void main() {
           ),
         ),
       );
-      expect(find.text('Welcome, Ali'), findsOneWidget);
+      expect(greetingWith('Ali'), findsOneWidget);
       await t.pump();
       await t.pump();
       expect(find.widgetWithText(FilledButton, 'Add Parcel'), findsOneWidget);
@@ -149,7 +153,6 @@ void main() {
         ('Total outstanding', 'Rs. 14,000'),
         ('Pay Later balance', 'Rs. 5,000'),
         ('Advance amount', 'Rs. 0'),
-        ('Reminders due today', '0'),
         ('Overdue', '1'),
         ('Need payment review', '1'),
       ]) {
@@ -162,6 +165,13 @@ void main() {
       }
       expect(find.text('Recent parcels'), findsOneWidget);
       expect(find.text('ADT-000005'), findsOneWidget);
+      expect(
+        find.textContaining('Reminders due today'),
+        findsNothing,
+        reason: 'an attention item shows only when something is in it',
+      );
+      expect(find.textContaining('Awaiting handover'), findsNothing);
+      expect(find.textContaining('All caught up'), findsNothing);
     },
   );
 
@@ -194,9 +204,8 @@ void main() {
         await t.tap(_card(money));
       }
       expect(taps.payments, 5);
-      await t.tap(_card('Reminders due today'));
       await t.tap(_card('Overdue'));
-      expect(taps.reminders, 2);
+      expect(taps.reminders, 1);
 
       await t.tap(find.widgetWithText(FilledButton, 'Add Parcel'));
       expect(taps.adds, 1);
@@ -214,6 +223,7 @@ void main() {
       expect(find.bySemanticsLabel('Total parcels: 0'), findsOneWidget);
       expect(find.bySemanticsLabel('Total outstanding: Rs. 0'), findsOneWidget);
       expect(find.textContaining('Need payment review'), findsNothing);
+      expect(find.textContaining('All caught up'), findsOneWidget);
       expect(
         find.text('No parcels yet. Add your first parcel.'),
         findsOneWidget,
@@ -323,6 +333,172 @@ void main() {
     );
   });
 
+  group('Home layout', () {
+    testWidgets(
+      'the order reads by importance: greeting, hero with the money to collect, actions, attention, parcels, money, recent',
+      (t) async {
+        await _pump(t, repo(), size: const Size(393, 3000));
+        double top(Finder f) => t.getTopLeft(f.first).dy;
+        final order = [
+          top(greetingWith('Ali')),
+          top(find.bySemanticsLabel(RegExp('^Total outstanding: '))),
+          top(find.widgetWithText(FilledButton, 'Add Parcel')),
+          top(find.text('Needs attention')),
+          top(find.text('Parcels')),
+          top(find.text('Money')),
+          top(find.text('Recent parcels')),
+        ];
+        expect(order, [...order]..sort(), reason: 'top to bottom: $order');
+        expect(find.text('Outstanding to collect'), findsOneWidget);
+        expect(
+          find.text('Rs. 14,000'),
+          findsOneWidget,
+          reason: 'the hero amount',
+        );
+        expect(find.text('3 parcels awaiting payment'), findsOneWidget);
+        expect(find.text('Received Rs. 3,000'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'the greeting follows the Pakistan time of day and uses the first name',
+      (t) async {
+        for (final (utc, text) in [
+          (DateTime.utc(2026, 11, 8, 2, 0), 'Good morning, Ali'), // 07:00 PKT
+          (DateTime.utc(2026, 11, 8, 8, 0), 'Good afternoon, Ali'), // 13:00 PKT
+          (DateTime.utc(2026, 11, 8, 14, 0), 'Good evening, Ali'), // 19:00 PKT
+          (
+            DateTime.utc(2026, 11, 8, 19, 30),
+            'Good morning, Ali',
+          ), // 00:30 PKT the next day
+        ]) {
+          await _pump(t, FakeParcelRepository(), clock: _FixedClock(utc));
+          expect(find.text(text), findsOneWidget, reason: '$utc');
+          await t.pumpWidget(const SizedBox());
+        }
+        await _pump(
+          t,
+          FakeParcelRepository(),
+          clock: _FixedClock(DateTime.utc(2026, 11, 8, 8)),
+        );
+        expect(find.text('Sun, 8 Nov'), findsOneWidget);
+      },
+    );
+
+    testWidgets('drafts show as "Awaiting handover" and open the Drafts list', (
+      t,
+    ) async {
+      final repo = FakeParcelRepository(
+        initial: [
+          testParcel(
+            id: 'a',
+            status: ParcelStatus.draft,
+            reference: '',
+            charge: null,
+          ),
+          testParcel(
+            id: 'b',
+            sequence: 2,
+            status: ParcelStatus.draft,
+            reference: '',
+            charge: null,
+          ),
+          testParcel(id: 'c', sequence: 3),
+        ],
+      );
+      final taps = await _pump(t, repo);
+      expect(find.bySemanticsLabel('Awaiting handover: 2'), findsOneWidget);
+      expect(find.textContaining('All caught up'), findsNothing);
+      await t.tap(_card('Awaiting handover'));
+      expect(taps.lists.single.statuses, {ParcelStatus.draft});
+    });
+
+    testWidgets(
+      'due-today reminders appear as an attention item and open Reminders',
+      (t) async {
+        final today = pakistanDate(DateTime.now().toUtc());
+        final repo = FakeParcelRepository(
+          initial: [
+            testParcel(
+              id: 'a',
+              method: CollectionMethod.payLater,
+              service: PostalService.vpl,
+              payDate: today,
+            ),
+          ],
+        );
+        final taps = await _pump(t, repo);
+        expect(find.bySemanticsLabel('Reminders due today: 1'), findsOneWidget);
+        await t.tap(_card('Reminders due today'));
+        expect(taps.reminders, 1);
+      },
+    );
+
+    testWidgets(
+      '"Total outstanding" opens Payments; every figure of the old Home is still there',
+      (t) async {
+        final taps = await _pump(t, repo(), size: const Size(393, 3000));
+        for (final label in [
+          'Total parcels',
+          'Sent',
+          'Returned',
+          'Gift / Free',
+          'Parcels with payment received',
+          'Parcels pending payment',
+          'Total received',
+          'Pay Later balance',
+          'Advance amount',
+          'Total outstanding',
+          'Overdue',
+          'Need payment review',
+        ]) {
+          expect(_card(label), findsOneWidget, reason: label);
+        }
+        await t.tap(_card('Total outstanding'));
+        expect(taps.payments, 1);
+      },
+    );
+
+    testWidgets(
+      'View all opens the full list; a recent parcel opens its details',
+      (t) async {
+        final taps = await _pump(t, repo(), size: const Size(393, 3000));
+        await t.tap(find.text('View all'));
+        expect(taps.lists.single.isEmpty, isTrue);
+      },
+    );
+
+    testWidgets(
+      'on a normal phone the figures sit two to a row; at large text they stack in one column',
+      (t) async {
+        await _pump(t, repo(), size: const Size(360, 3000));
+        final total = t.getTopLeft(find.bySemanticsLabel('Total parcels: 5'));
+        final sent = t.getTopLeft(find.bySemanticsLabel('Sent: 4'));
+        expect(sent.dy, total.dy, reason: 'two tiles in one row at 360 dp');
+        await t.pumpWidget(const SizedBox());
+        await _pump(t, repo(), size: const Size(360, 6000), scale: 2);
+        final total2 = t.getTopLeft(find.bySemanticsLabel('Total parcels: 5'));
+        final sent2 = t.getTopLeft(find.bySemanticsLabel('Sent: 4'));
+        expect(
+          sent2.dy,
+          greaterThan(total2.dy),
+          reason: 'one column at 2x text',
+        );
+        expect(t.takeException(), isNull);
+      },
+    );
+
+    testWidgets('all caught up: a calm line instead of an empty list', (
+      t,
+    ) async {
+      await _pump(
+        t,
+        FakeParcelRepository(initial: [testParcel(id: 'a', received: 500000)]),
+      );
+      expect(find.textContaining('All caught up'), findsOneWidget);
+    });
+  });
+
   group('responsive', () {
     for (final size in const [
       Size(320, 568),
@@ -387,4 +563,11 @@ void main() {
       },
     );
   });
+}
+
+class _FixedClock extends Clock {
+  const _FixedClock(this.instant);
+  final DateTime instant;
+  @override
+  DateTime nowUtc() => instant;
 }

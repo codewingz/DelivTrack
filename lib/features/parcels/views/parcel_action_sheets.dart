@@ -7,10 +7,12 @@ import '../../../common_widgets/app_text_field.dart';
 import '../../../core/errors/app_failure.dart';
 import '../../../core/money/money.dart';
 import '../../../core/time/pakistan_time.dart';
+import '../../../utils/app_validators.dart';
 import '../../../utils/text.dart';
 import '../data/parcel_repository.dart';
 import '../domain/parcel.dart';
 import '../domain/parcel_enums.dart';
+import '../domain/parcel_handover.dart';
 import '../domain/payment.dart';
 
 String? _maxLength(String? value, int max) =>
@@ -423,6 +425,128 @@ class _CorrectPaymentSheetState extends State<_CorrectPaymentSheet> {
             if (length < 5) return 'Give a reason (at least 5 characters)';
             return length > 200 ? 'Use at most 200 characters' : null;
           },
+        ),
+      ],
+    );
+  }
+}
+
+/// Hand over to the post office (a Draft becomes Sent) or edit the handover of a Sent parcel: the
+/// postal service, the reference printed on the slip, the delivery charge and the optional packed weight.
+Future<bool> showHandoverSheet(
+  BuildContext context,
+  ParcelRepository repository,
+  Parcel parcel,
+) => showFormSheet(
+  context,
+  (_) => _HandoverSheet(repository: repository, parcel: parcel),
+);
+
+class _HandoverSheet extends StatefulWidget {
+  const _HandoverSheet({required this.repository, required this.parcel});
+  final ParcelRepository repository;
+  final Parcel parcel;
+
+  @override
+  State<_HandoverSheet> createState() => _HandoverSheetState();
+}
+
+class _HandoverSheetState extends State<_HandoverSheet> {
+  bool get _isDraft => widget.parcel.status == ParcelStatus.draft;
+
+  // A draft starts from the service its parcel type suggests; a sent parcel from what was recorded.
+  late PostalService _service = _isDraft
+      ? PostalService.defaultFor(widget.parcel.method)
+      : widget.parcel.service;
+  late final _other = TextEditingController(
+    text: widget.parcel.otherServiceName,
+  );
+  late final _reference = TextEditingController(
+    text: widget.parcel.postalReference,
+  );
+  late final _charge = TextEditingController(
+    text: widget.parcel.deliveryChargePaisa == null
+        ? null
+        : plainRupees(widget.parcel.deliveryChargePaisa!),
+  );
+  late final _weight = TextEditingController(
+    text: widget.parcel.packedWeightGrams == null
+        ? null
+        : plainKg(widget.parcel.packedWeightGrams!),
+  );
+
+  @override
+  void dispose() {
+    _other.dispose();
+    _reference.dispose();
+    _charge.dispose();
+    _weight.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final parcel = widget.parcel;
+    return AppFormSheet(
+      title: _isDraft ? 'Hand over to post office' : 'Edit handover',
+      subtitle: _isDraft
+          ? '${parcel.orderNumber} · ${parcel.customerName}. Enter the details printed on the post office slip; the parcel then becomes Sent.'
+          : '${parcel.orderNumber} · ${parcel.customerName}',
+      submitLabel: _isDraft ? 'Hand Over' : 'Save Handover',
+      onSubmit: () => widget.repository.saveHandover(
+        parcel.id,
+        ParcelHandover(
+          service: _service,
+          otherServiceName: _service == PostalService.other
+              ? collapseSpaces(_other.text)
+              : null,
+          postalReference: _reference.text,
+          deliveryChargePaisa: parseRupeesToPaisa(_charge.text),
+          packedWeightGrams: parseKgToGrams(_weight.text),
+        ),
+      ),
+      fields: (busy) => [
+        AppChoiceField<PostalService>(
+          label: 'Postal service',
+          isRequired: true,
+          enabled: !busy,
+          initialValue: _service,
+          options: [
+            for (final service in PostalService.values)
+              (value: service, label: service.value),
+          ],
+          onChanged: (service) => setState(() => _service = service),
+          validator: (value) =>
+              value == null ? 'Select a postal service' : null,
+        ),
+        if (_service == PostalService.other)
+          AppTextField(
+            controller: _other,
+            label: 'Service name',
+            hint: 'Type the service written on the slip',
+            isRequired: true,
+            enabled: !busy,
+            validator: (value) =>
+                AppValidators.name(value, fieldName: 'Service name'),
+          ),
+        AppTextField.reference(
+          controller: _reference,
+          isRequired: true,
+          enabled: !busy,
+        ),
+        AppTextField.amount(
+          controller: _charge,
+          label: 'Delivery charges (Rs.)',
+          hint: 'Amount on slip',
+          isRequired: true,
+          enabled: !busy,
+        ),
+        AppTextField.weight(
+          controller: _weight,
+          label: 'Actual packed parcel weight (kg)',
+          hint: 'Weight shown on slip (optional)',
+          enabled: !busy,
+          textInputAction: TextInputAction.done,
         ),
       ],
     );

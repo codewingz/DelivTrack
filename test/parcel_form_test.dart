@@ -158,15 +158,13 @@ Future<void> _tapSave(WidgetTester t) async {
   await t.pump();
 }
 
-/// A complete, valid Post-office-collection parcel (1 product, slip details).
-Future<void> _fillValidSent(WidgetTester t) async {
+/// A complete, valid Post-office-collection parcel (1 product): the order only, no post-office details.
+Future<void> _fillValid(WidgetTester t) async {
   await _pickCustomer(t, 'Ali Raza');
   await _chooseType(t, 'Post office collection');
   await _pickProduct(t, 'Mango Box');
   await _type(t, 'e.g. 2', '2');
   await _type(t, 'Agreed price', '2500');
-  await _type(t, 'Enter VPP / VPL / VPR reference from slip', 'vpp 12345');
-  await _type(t, 'Amount on slip', '150.50');
 }
 
 void main() {
@@ -184,31 +182,38 @@ void main() {
         expect(find.textContaining('Notes'), findsNothing);
         expect(find.textContaining('Expected'), findsNothing);
         expect(find.text('Products total: Rs. 0'), findsOneWidget);
-        expect(find.text('Save as Draft'), findsOneWidget);
+        expect(find.text('Save Parcel'), findsOneWidget);
         expect(find.byType(AppBar), findsOneWidget);
         expect(find.byType(Dialog), findsNothing);
       },
     );
 
-    testWidgets('shows the fixed fields with their labels', (t) async {
-      await _open(t);
-      for (final label in [
-        'Customer *',
-        'Parcel type *',
-        'Postal service *',
-        'Postal reference number',
-        'Delivery charges (Rs.)',
-        'Actual packed parcel weight (kg)',
-      ]) {
-        await _scrollTo(t, find.text(label));
-        expect(find.text(label), findsOneWidget, reason: label);
-      }
-      expect(
-        find.text('Estimated payment date (optional)'),
-        findsNothing,
-        reason: 'only for Pay Later',
-      );
-    });
+    testWidgets(
+      'shows the order fields only: no post-office details (those are the separate handover)',
+      (t) async {
+        await _open(t);
+        for (final label in ['Customer *', 'Parcel type *']) {
+          await _scrollTo(t, find.text(label));
+          expect(find.text(label), findsOneWidget, reason: label);
+        }
+        for (final gone in [
+          'Postal service *',
+          'Postal reference number',
+          'Delivery charges (Rs.)',
+          'Actual packed parcel weight (kg)',
+        ]) {
+          expect(find.text(gone), findsNothing, reason: gone);
+        }
+        expect(
+          find.text('Estimated payment date (optional)'),
+          findsNothing,
+          reason: 'only for Pay Later',
+        );
+        await _scrollTo(t, _saveButton);
+        expect(find.textContaining('saved as a Draft'), findsOneWidget);
+        expect(find.textContaining('Hand over to post office'), findsOneWidget);
+      },
+    );
   });
 
   group('validation', () {
@@ -220,7 +225,6 @@ void main() {
         expect(find.text('Select a customer'), findsWidgets);
         expect(find.text('Select a parcel type'), findsOneWidget);
         expect(find.text('Select a product'), findsWidgets);
-        expect(find.text('Select a postal service'), findsOneWidget);
         expect(env.parcels.creates, 0);
       },
     );
@@ -254,52 +258,6 @@ void main() {
       await _tapSave(t);
       expect(find.text('Enter a valid weight in kg'), findsOneWidget);
     });
-
-    testWidgets('postal reference: invalid text is refused even for a draft', (
-      t,
-    ) async {
-      final env = await _open(t);
-      await _type(t, 'Enter VPP / VPL / VPR reference from slip', 'AB');
-      await _tapSave(t);
-      expect(
-        find.text('Use 5–30 letters or numbers (also - and /)'),
-        findsOneWidget,
-      );
-      expect(env.parcels.creates, 0);
-    });
-
-    testWidgets('delivery charge and packed weight formats are checked', (
-      t,
-    ) async {
-      await _open(t);
-      await _type(t, 'Amount on slip', '100000000');
-      await _type(t, 'Weight shown on slip', '0');
-      await _tapSave(t);
-      expect(find.text('Enter a valid amount'), findsOneWidget);
-      expect(find.text('Enter a valid weight in kg'), findsOneWidget);
-    });
-
-    testWidgets('typing limits: charge 2 decimals, packed weight 3 decimals', (
-      t,
-    ) async {
-      await _open(t);
-      await _type(t, 'Amount on slip', '12.3456');
-      expect(
-        t
-            .widget<TextFormField>(find.widgetWithText(TextFormField, '12.34'))
-            .controller!
-            .text,
-        '12.34',
-      );
-      await _type(t, 'Weight shown on slip', '1.23456');
-      expect(
-        t
-            .widget<TextFormField>(find.widgetWithText(TextFormField, '1.234'))
-            .controller!
-            .text,
-        '1.234',
-      );
-    });
   });
 
   testWidgets(
@@ -325,80 +283,6 @@ void main() {
         find.text('Select a product'),
         findsOneWidget,
         reason: 'only the hint is left',
-      );
-    },
-  );
-
-  group(
-    'postal service follows the parcel type until the user chooses one',
-    () {
-      bool selected(WidgetTester t, String label) =>
-          t.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, label)).selected;
-
-      testWidgets('collection -> VPP; advance, Pay Later, gift -> VPL', (
-        t,
-      ) async {
-        await _open(t);
-        for (final (type, expected) in [
-          ('Post office collection', 'VPP'),
-          ('Advance paid', 'VPL'),
-          ('Pay Later', 'VPL'),
-          ('Gift / Free', 'VPL'),
-          ('Post office collection', 'VPP'),
-        ]) {
-          await _chooseType(t, type);
-          await _scrollTo(t, find.widgetWithText(ChoiceChip, expected));
-          expect(selected(t, expected), isTrue, reason: '$type -> $expected');
-        }
-      });
-
-      testWidgets(
-        'a service chosen by the user is kept when the type changes',
-        (t) async {
-          await _open(t);
-          await _chooseType(t, 'Post office collection');
-          await _scrollTo(t, find.widgetWithText(ChoiceChip, 'VPR'));
-          await t.tap(find.widgetWithText(ChoiceChip, 'VPR'));
-          await t.pump();
-          await _chooseType(t, 'Advance paid');
-          expect(selected(t, 'VPR'), isTrue);
-        },
-      );
-
-      testWidgets(
-        '"Other" asks for a service name; choosing another service hides it again',
-        (t) async {
-          final env = await _open(t);
-          await _scrollTo(t, find.widgetWithText(ChoiceChip, 'Other'));
-          await t.tap(find.widgetWithText(ChoiceChip, 'Other'));
-          await t.pump();
-          expect(find.text('Service name *'), findsOneWidget);
-          await _fillSentMinimumWithoutService(t);
-          await _tapSave(t);
-          expect(find.text('Service name is required'), findsOneWidget);
-          expect(env.parcels.creates, 0);
-
-          await _type(t, 'Type the service written on slip', 'Fast Courier');
-          await _tapSave(t);
-          await t.pumpAndSettle();
-          expect(env.parcels.created.single.otherServiceName, 'Fast Courier');
-
-          // new form: pick Other then switch back
-        },
-      );
-
-      testWidgets(
-        'switching away from Other removes the name field and drops the name',
-        (t) async {
-          await _open(t);
-          await _scrollTo(t, find.widgetWithText(ChoiceChip, 'Other'));
-          await t.tap(find.widgetWithText(ChoiceChip, 'Other'));
-          await t.pump();
-          await _type(t, 'Type the service written on slip', 'Fast Courier');
-          await t.tap(find.widgetWithText(ChoiceChip, 'VPL'));
-          await t.pump();
-          expect(find.text('Service name *'), findsNothing);
-        },
       );
     },
   );
@@ -579,52 +463,26 @@ void main() {
     });
   });
 
-  group('draft or sent', () {
+  group('draft', () {
     testWidgets(
-      'the button says Save & Mark Sent once reference and charge are both valid',
+      'the button says Save Parcel and the parcel is always saved as a Draft',
       (t) async {
-        await _open(t);
-        expect(find.text('Save as Draft'), findsOneWidget);
-        await _type(
-          t,
-          'Enter VPP / VPL / VPR reference from slip',
-          'VPP 12345',
-        );
-        expect(
-          find.text('Save as Draft'),
-          findsOneWidget,
-          reason: 'a charge is still missing',
-        );
-        await _type(t, 'Amount on slip', '150');
-        expect(find.text('Save & Mark Sent'), findsOneWidget);
-        expect(
-          find.textContaining('to mark this parcel as Sent'),
-          findsNothing,
-        );
-        await _type(t, 'Amount on slip', '');
-        expect(find.text('Save as Draft'), findsOneWidget);
-        expect(
-          find.textContaining('to mark this parcel as Sent'),
-          findsOneWidget,
-        );
+        final env = await _open(t);
+        expect(find.text('Save Parcel'), findsOneWidget);
+        await _fillValid(t);
+        await _tapSave(t);
+        await t.pumpAndSettle();
+        expect(env.parcels.created.single.status, ParcelStatus.draft);
       },
     );
-
-    testWidgets('a zero charge counts as a charge', (t) async {
-      await _open(t);
-      await _type(t, 'Enter VPP / VPL / VPR reference from slip', 'VPP 12345');
-      await _type(t, 'Amount on slip', '0');
-      expect(find.text('Save & Mark Sent'), findsOneWidget);
-    });
   });
 
   group('saving', () {
     testWidgets(
-      'a complete sent parcel is created once with exactly what was entered',
+      'a parcel is created once as a Draft with exactly what was entered (no post-office details)',
       (t) async {
         final env = await _open(t);
-        await _fillValidSent(t);
-        await _type(t, 'Weight shown on slip', '1.25');
+        await _fillValid(t);
         await _tapSave(t);
         await t.pumpAndSettle();
 
@@ -632,10 +490,10 @@ void main() {
         expect(input.customer.id, 'c1');
         expect(input.method, CollectionMethod.postalCollection);
         expect(input.service, PostalService.vpp);
-        expect(input.postalReference, 'vpp 12345');
-        expect(input.deliveryChargePaisa, 15050);
-        expect(input.packedWeightGrams, 1250);
-        expect(input.status, ParcelStatus.sent);
+        expect(input.postalReference, isEmpty);
+        expect(input.deliveryChargePaisa, isNull);
+        expect(input.packedWeightGrams, isNull);
+        expect(input.status, ParcelStatus.draft);
         expect(input.items.single.productId, 'p1');
         expect(input.items.single.quantity, 2);
         expect(input.items.single.unitPricePaisa, 250000);
@@ -664,46 +522,28 @@ void main() {
       expect(input.items.single.lineTotalPaisa, 9999);
     });
 
-    testWidgets(
-      'a server-side refusal (reference already used) is shown and the form is kept',
-      (t) async {
-        final env = await _open(
-          t,
-          parcels: FakeParcelRepository(
-            failure: const AppFailure(
-              'This postal reference is already used on ADT-000007.',
-            ),
-          ),
-        );
-        await _fillValidSent(t);
-        await _tapSave(t);
-        await t.pumpAndSettle();
-        await _scrollTo(
-          t,
-          find.text('This postal reference is already used on ADT-000007.'),
-        );
-        expect(
-          find.text('This postal reference is already used on ADT-000007.'),
-          findsOneWidget,
-        );
-        expect(env.popped, isFalse);
-        expect(find.byType(ParcelFormScreen), findsOneWidget);
-        expect(
-          t
-              .widget<TextFormField>(
-                find.widgetWithText(TextFormField, 'vpp 12345'),
-              )
-              .controller!
-              .text,
-          'vpp 12345',
-        );
-      },
-    );
+    testWidgets('a server-side refusal is shown and the form is kept', (
+      t,
+    ) async {
+      final env = await _open(
+        t,
+        parcels: FakeParcelRepository(
+          failure: const AppFailure('No internet connection.'),
+        ),
+      );
+      await _fillValid(t);
+      await _tapSave(t);
+      await t.pumpAndSettle();
+      await _scrollTo(t, find.text('No internet connection.'));
+      expect(find.text('No internet connection.'), findsOneWidget);
+      expect(env.popped, isFalse);
+      expect(find.byType(ParcelFormScreen), findsOneWidget);
+    });
 
     testWidgets('repeated taps while saving create one parcel', (t) async {
       final repo = FakeParcelRepository()..gate = Completer<void>();
       final env = await _open(t, parcels: repo);
-      await _fillValidSent(t);
+      await _fillValid(t);
       await _tapSave(t);
       await t.pump();
       await t.tap(_saveButton, warnIfMissed: false);
@@ -720,7 +560,7 @@ void main() {
       (t) async {
         // The picker cannot choose a past day; this guards the model rule used by the form.
         final env = await _open(t);
-        await _fillValidSent(t);
+        await _fillValid(t);
         expect(env.parcels.creates, 0);
       },
     );
@@ -758,19 +598,19 @@ void main() {
 
   group('customer picker', () {
     testWidgets(
-      'choosing a customer fills the field and keeps what was typed',
+      'choosing a customer fills the field and keeps what was chosen',
       (t) async {
         await _open(t);
-        await _type(
-          t,
-          'Enter VPP / VPL / VPR reference from slip',
-          'VPP 12345',
-        );
+        await _chooseType(t, 'Advance paid');
         await _pickCustomer(t, 'Ali Raza');
         expect(find.widgetWithText(TextFormField, 'Ali Raza'), findsOneWidget);
         expect(
-          find.widgetWithText(TextFormField, 'VPP 12345'),
-          findsOneWidget,
+          t
+              .widget<ChoiceChip>(
+                find.widgetWithText(ChoiceChip, 'Advance paid'),
+              )
+              .selected,
+          isTrue,
           reason: 'unsaved parcel data is preserved',
         );
       },
@@ -813,53 +653,53 @@ void main() {
       expect(find.text('Edit parcel'), findsOneWidget);
       expect(find.textContaining('ADT-000001'), findsOneWidget);
       expect(find.text('Ali Raza'), findsWidgets);
-      expect(find.text('VPP 12345'), findsOneWidget);
+      expect(
+        find.text('VPP 12345'),
+        findsNothing,
+        reason: 'post-office details are not on this form',
+      );
       expect(find.text('Mango Box'), findsOneWidget);
       await _scrollTo(t, _saveButton);
       expect(find.widgetWithText(FilledButton, 'Save Changes'), findsOneWidget);
     });
 
-    testWidgets('changing the charge saves one update and returns the id', (
-      t,
-    ) async {
-      final env = await openEdit(t, testParcel());
-      await _type(t, 'Amount on slip', '200');
-      await _tapSave(t);
-      await t.pumpAndSettle();
-      expect(env.parcels.updates, 1);
-      expect(env.parcels.creates, 0);
-      expect(env.parcels.updated.single.id, 'p1');
-      expect(env.parcels.updated.single.input.deliveryChargePaisa, 20000);
-      expect(env.result, 'p1');
-    });
-
-    testWidgets('a sent parcel cannot lose its reference', (t) async {
-      final env = await openEdit(t, testParcel());
-      await _type(t, 'Enter VPP / VPL / VPR reference from slip', '');
-      await _tapSave(t);
-      await t.pumpAndSettle();
-      expect(env.parcels.updates, 0);
-      expect(find.byType(ParcelFormScreen), findsOneWidget);
-    });
+    testWidgets(
+      'changing the price saves one update that keeps the handover details',
+      (t) async {
+        final env = await openEdit(
+          t,
+          testParcel(reference: 'VPP 12345', charge: 15050, packedGrams: 2500),
+        );
+        await _type(t, 'Agreed price', '3000');
+        await _tapSave(t);
+        await t.pumpAndSettle();
+        expect(env.parcels.updates, 1);
+        expect(env.parcels.creates, 0);
+        final input = env.parcels.updated.single.input;
+        expect(env.parcels.updated.single.id, 'p1');
+        expect(input.items.single.unitPricePaisa, 300000);
+        expect(input.postalReference, 'VPP 12345');
+        expect(input.deliveryChargePaisa, 15050);
+        expect(input.packedWeightGrams, 2500);
+        expect(input.status, ParcelStatus.sent);
+        expect(env.result, 'p1');
+      },
+    );
 
     testWidgets(
-      'a draft says it will become Sent once slip details are added',
+      'a draft stays a draft when edited, and says how to hand it over',
       (t) async {
-        await openEdit(
+        final env = await openEdit(
           t,
           testParcel(status: ParcelStatus.draft, reference: '', charge: null),
         );
-        expect(
-          find.text('Saving will mark this parcel as Sent.'),
-          findsNothing,
-        );
-        await _type(t, 'Enter VPP / VPL / VPR reference from slip', 'vpp 777');
-        await _type(t, 'Amount on slip', '120');
         await _scrollTo(t, _saveButton);
-        expect(
-          find.text('Saving will mark this parcel as Sent.'),
-          findsOneWidget,
-        );
+        expect(find.textContaining('still a Draft'), findsOneWidget);
+        await _type(t, 'Agreed price', '2600');
+        await _tapSave(t);
+        await t.pumpAndSettle();
+        expect(env.parcels.updated.single.input.status, ParcelStatus.draft);
+        expect(env.parcels.updated.single.input.postalReference, isEmpty);
       },
     );
 
@@ -872,7 +712,7 @@ void main() {
       expect(env.popped, isTrue);
 
       final env2 = await openEdit(t, testParcel());
-      await _type(t, 'Amount on slip', '999');
+      await _type(t, 'Agreed price', '999');
       await t.pageBack();
       await t.pumpAndSettle();
       expect(find.text('Discard your changes?'), findsOneWidget);
@@ -921,9 +761,6 @@ void main() {
             await t.pump();
             await _pickProduct(t, 'Dry Fruits', row: 1);
             expect(t.takeException(), isNull);
-            await _scrollTo(t, find.widgetWithText(ChoiceChip, 'Other'));
-            await t.tap(find.widgetWithText(ChoiceChip, 'Other'));
-            await t.pump();
             await _tapSave(t);
             expect(t.takeException(), isNull);
             expect(env.parcels.creates, 0);
@@ -932,15 +769,4 @@ void main() {
       }
     }
   });
-}
-
-Future<void> _fillSentMinimumWithoutService(WidgetTester t) async {
-  await _pickCustomer(t, 'Ali Raza');
-  await _chooseType(t, 'Post office collection');
-  await _scrollTo(t, find.widgetWithText(ChoiceChip, 'Other'));
-  await t.tap(find.widgetWithText(ChoiceChip, 'Other'));
-  await t.pump();
-  await _pickProduct(t, 'Mango Box');
-  await _type(t, 'e.g. 2', '1');
-  await _type(t, 'Agreed price', '100');
 }

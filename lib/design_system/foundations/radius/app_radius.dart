@@ -7,4 +7,10 @@ class AppRadius {
 
   /// Small status chips.
   static const double chip = 8;
+
+  /// Cards and grouped lists.
+  static const double card = 16;
+
+  /// The one hero card on a screen.
+  static const double hero = 20;
 }

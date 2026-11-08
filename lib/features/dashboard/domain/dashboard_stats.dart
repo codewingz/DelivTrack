@@ -8,6 +8,7 @@ abstract final class DashboardLists {
   static const all = ParcelFilters.none;
   static const sent = ParcelFilters(statuses: {ParcelStatus.sent});
   static const returned = ParcelFilters(statuses: {ParcelStatus.returned});
+  static const awaitingHandover = ParcelFilters(statuses: {ParcelStatus.draft});
   static const freeGift = ParcelFilters(methods: {CollectionMethod.giftFree});
   static const paymentReceived = ParcelFilters(
     payments: {PaymentFilter.partial, PaymentFilter.received},
@@ -30,6 +31,8 @@ class DashboardStats {
     required this.totalParcels,
     required this.sent,
     required this.returned,
+    required this.awaitingHandover,
+    required this.owingParcels,
     required this.freeGift,
     required this.paymentReceived,
     required this.pendingPayment,
@@ -57,6 +60,7 @@ class DashboardStats {
     var outstanding = 0;
     var payLater = 0;
     var advance = 0;
+    var owing = 0;
     for (final parcel in everyParcel) {
       received += parcel.receivedPaisa;
       if (parcel.method == CollectionMethod.advance) {
@@ -69,6 +73,7 @@ class DashboardStats {
         continue;
       }
       outstanding += parcel.outstandingPaisa;
+      if (parcel.outstandingPaisa > 0) owing++;
       if (parcel.method == CollectionMethod.payLater) {
         payLater += parcel.outstandingPaisa;
       }
@@ -80,6 +85,8 @@ class DashboardStats {
       totalParcels: parcels.length,
       sent: count(DashboardLists.sent),
       returned: count(DashboardLists.returned),
+      awaitingHandover: count(DashboardLists.awaitingHandover),
+      owingParcels: owing,
       freeGift: count(DashboardLists.freeGift),
       paymentReceived: count(DashboardLists.paymentReceived),
       pendingPayment: count(DashboardLists.pendingPayment),
@@ -99,6 +106,12 @@ class DashboardStats {
   final int totalParcels;
   final int sent;
   final int returned;
+
+  /// Drafts: created but not yet handed over to the post office.
+  final int awaitingHandover;
+
+  /// Parcels that still owe money (Gift / Free and returned parcels never count).
+  final int owingParcels;
   final int freeGift;
   final int paymentReceived;
   final int pendingPayment;

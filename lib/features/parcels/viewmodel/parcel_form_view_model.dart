@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 
-import '../../../utils/postal_reference.dart';
 import '../../customers/domain/customer.dart';
 import '../../products/domain/product.dart';
 import '../domain/parcel.dart';
@@ -44,7 +43,8 @@ class ParcelFormViewModel extends ChangeNotifier {
       chargePaisa = saved.deliveryChargePaisa,
       packedGrams = saved.packedWeightGrams,
       payDate = saved.estimatedPaymentDate,
-      _serviceChosenByUser = true,
+      // A draft's service still follows its type until it is handed over.
+      _serviceChosenByUser = saved.status != ParcelStatus.draft,
       items = [
         for (var i = 0; i < saved.items.length; i++)
           ItemDraft(i)
@@ -70,9 +70,6 @@ class ParcelFormViewModel extends ChangeNotifier {
   final Parcel? parcel;
   bool get isEditing => parcel != null;
 
-  /// A parcel that is already Sent must keep its postal reference and delivery charge.
-  bool get requiresSlipDetails => parcel?.status == ParcelStatus.sent;
-
   Customer? customer;
   CollectionMethod? method;
   PostalService? service;
@@ -90,17 +87,9 @@ class ParcelFormViewModel extends ChangeNotifier {
   bool get isFree => method == CollectionMethod.giftFree;
   bool get canAddItem => items.length < maxParcelItems;
 
-  /// Sent once the slip details are in (a valid reference and a delivery charge); otherwise a draft.
-  ParcelStatus get status =>
-      reference.trim().isNotEmpty &&
-          isValidPostalReference(reference) &&
-          chargePaisa != null
-      ? ParcelStatus.sent
-      : ParcelStatus.draft;
-
-  /// True when saving this edit would turn a draft into a sent parcel.
-  bool get willBecomeSent =>
-      parcel?.status == ParcelStatus.draft && status == ParcelStatus.sent;
+  /// A new parcel is always a Draft; handing it over to the post office (a separate step) makes it Sent.
+  /// Editing keeps the status the parcel already has.
+  ParcelStatus get status => parcel?.status ?? ParcelStatus.draft;
 
   /// Total of the lines that are complete so far (0 for gift parcels).
   int get totalPaisa {
@@ -123,11 +112,6 @@ class ParcelFormViewModel extends ChangeNotifier {
   String _signature() => [
     customer?.id,
     method,
-    service,
-    otherServiceName.trim(),
-    reference.trim(),
-    chargePaisa,
-    packedGrams,
     payDate,
     [
       for (final i in items)
@@ -155,26 +139,6 @@ class ParcelFormViewModel extends ChangeNotifier {
     if (value != CollectionMethod.payLater) payDate = null;
     notifyListeners();
   }
-
-  void setService(PostalService value) {
-    service = value;
-    _serviceChosenByUser = true;
-    if (value != PostalService.other) otherServiceName = '';
-    notifyListeners();
-  }
-
-  void setOtherServiceName(String value) => otherServiceName = value;
-  void setReference(String value) {
-    reference = value;
-    notifyListeners();
-  }
-
-  void setCharge(int? paisa) {
-    chargePaisa = paisa;
-    notifyListeners();
-  }
-
-  void setPackedWeight(int? grams) => packedGrams = grams;
 
   void setPayDate(String? value) {
     payDate = value;

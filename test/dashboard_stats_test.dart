@@ -194,4 +194,54 @@ void main() {
     ], _today);
     expect(s.totalReceivedPaisa, 50 * 100000000);
   });
+
+  test('drafts are counted as awaiting handover (active ones only); owing parcels are those that still owe money', () {
+    final parcels = [
+      testParcel(
+        id: 'a',
+        sequence: 1,
+        status: ParcelStatus.draft,
+        reference: '',
+        charge: null,
+      ),
+      testParcel(
+        id: 'b',
+        sequence: 2,
+        status: ParcelStatus.draft,
+        reference: '',
+        charge: null,
+        isArchived: true,
+      ),
+      testParcel(id: 'c', sequence: 3), // sent, owes Rs. 5,000
+      testParcel(id: 'd', sequence: 4, received: 500000), // paid in full
+      testParcel(id: 'e', sequence: 5, method: CollectionMethod.giftFree),
+      testParcel(
+        id: 'f',
+        sequence: 6,
+        status: ParcelStatus.returned,
+        paymentReviewRequired: true,
+      ),
+    ];
+    final s = DashboardStats.from(parcels, _today);
+    expect(s.awaitingHandover, 1, reason: 'the archived draft is not counted');
+    expect(
+      DashboardLists.awaitingHandover.matches(parcels.first, _today),
+      isTrue,
+    );
+    expect(
+      parcels
+          .where(
+            (p) =>
+                DashboardLists.awaitingHandover.matches(p, _today) &&
+                !p.isArchived,
+          )
+          .length,
+      s.awaitingHandover,
+    );
+    expect(
+      s.owingParcels,
+      2,
+      reason: 'the draft (owes its order total) and the sent parcel; not paid, Gift or returned',
+    );
+  });
 }

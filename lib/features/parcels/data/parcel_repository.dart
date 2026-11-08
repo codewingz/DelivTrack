@@ -11,6 +11,7 @@ import '../../../core/time/pakistan_time.dart';
 import '../../../utils/text.dart';
 import '../domain/parcel.dart';
 import '../domain/parcel_enums.dart';
+import '../domain/parcel_handover.dart';
 import '../domain/parcel_input.dart';
 import '../domain/payment.dart';
 import '../domain/payment_rules.dart';
@@ -47,6 +48,12 @@ abstract class ParcelRepository {
   /// payments already received are kept. Writes an audit-log entry with the changed fields.
   /// Throws [AppFailure] (not found, reference already used, no connection...).
   Future<void> update(String id, ParcelInput input);
+
+  /// Records the post-office details of a parcel: handing a Draft over to the post office (it becomes
+  /// Sent) or correcting the details of a Sent parcel. The postal reference stays unique per service
+  /// (the old reference is released, the new one reserved, in the same transaction) and the change is
+  /// audited. Refused for an archived or returned parcel.
+  Future<void> saveHandover(String parcelId, ParcelHandover handover);
 
   /// A parcel's payments, newest first.
   Stream<List<Payment>> watchPayments(String parcelId);
@@ -362,6 +369,95 @@ class FirestoreParcelRepository implements ParcelRepository {
           'createdAt': FieldValue.serverTimestamp(),
         });
       });
+    } on FirebaseException catch (e) {
+      throw firestoreFailure(e);
+    }
+  }
+
+  @override
+  Future<void> saveHandover(String parcelId, ParcelHandover handover) async {
+    final problems = handover.problems();
+    if (problems.isNotEmpty) throw AppFailure(problems.first);
+
+    final parcelRef = _parcels.doc(parcelId);
+    final reference = normalizePostalReference(handover.postalReference);
+    final newGuard = _guard(
+      handover.service,
+      handover.otherServiceName,
+      reference,
+    );
+    try {
+      await retryWhenDenied(
+        () => _firestore.runTransaction((tx) async {
+          final snapshot = await tx.get(parcelRef);
+          if (!snapshot.exists) {
+            throw const AppFailure('This parcel no longer exists.');
+          }
+          final before = snapshot.data()!;
+          _requireNotArchived(before);
+          if (before['parcelStatus'] == ParcelStatus.returned.value) {
+            throw const AppFailure("A returned parcel can't be handed over.");
+          }
+
+          final oldReference = before['postalReferenceNormalized'] as String;
+          final oldGuard = oldReference.isEmpty
+              ? null
+              : _guard(
+                  PostalService.fromValue(
+                    before['postalServiceType'] as String,
+                  ),
+                  before['otherPostalServiceName'] as String?,
+                  oldReference,
+                );
+          final guardChanges = newGuard.path != oldGuard?.path;
+          if (guardChanges) {
+            final existing = await tx.get(newGuard);
+            if (existing.exists) {
+              throw AppFailure(
+                'This postal reference is already used on ${existing['orderNumber']}.',
+              );
+            }
+          }
+
+          final updated = <String, Object?>{
+            'postalServiceType': handover.service.value,
+            'otherPostalServiceName': handover.service == PostalService.other
+                ? collapseSpaces(handover.otherServiceName ?? '')
+                : null,
+            'postalReference': handover.postalReference.trim(),
+            'postalReferenceNormalized': reference,
+            'deliveryChargePaisa': handover.deliveryChargePaisa,
+            'actualPackedWeightGrams': handover.packedWeightGrams,
+            'parcelStatus': ParcelStatus.sent.value,
+            if (guardChanges) 'postalGuardId': newGuard.id,
+          };
+          final changed = changedKeys(
+            before,
+            {...before, ...updated}..removeWhere((key, value) => value == null),
+          );
+          if (changed.isEmpty) return;
+
+          if (oldGuard != null && guardChanges) tx.delete(oldGuard);
+          if (guardChanges) {
+            tx.set(newGuard, {
+              'parcelId': parcelId,
+              'orderNumber': before['orderNumber'],
+            });
+          }
+          tx.update(parcelRef, {
+            for (final entry in updated.entries)
+              entry.key: entry.value ?? FieldValue.delete(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+          _audit(
+            tx,
+            'update',
+            parcelId,
+            before['orderNumber'] as String,
+            changed,
+          );
+        }),
+      );
     } on FirebaseException catch (e) {
       throw firestoreFailure(e);
     }

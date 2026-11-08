@@ -1547,6 +1547,88 @@ void main() {
     );
   });
 
+  group('account switching (DT-014)', () {
+    testWidgets(
+      'account B never sees account A\'s data after A logs out, not even from the local cache; A gets it back on login',
+      (t) async {
+        await signUpNewUser('swa');
+        final emailA = FirebaseAuth.instance.currentUser!.email!;
+        final a = await repo.create(_input(reference: 'VPP 60001'));
+        await repo.recordPayment(
+          a,
+          amountPaisa: 100000,
+          type: PaymentType.advance,
+        );
+        await repo.archive(
+          await repo.create(
+            _input(reference: '', charge: null, status: ParcelStatus.draft),
+          ),
+        );
+        // A's list is in the local cache now
+        expect(
+          (await repo
+                  .watchAll()
+                  .firstWhere((l) => l.isNotEmpty)
+                  .timeout(const Duration(seconds: 10)))
+              .single
+              .id,
+          a,
+        );
+
+        await signUpNewUser('swb'); // signs A out and B in
+        final first = await repo.watchAll().first.timeout(
+          const Duration(seconds: 10),
+        );
+        expect(
+          first,
+          isEmpty,
+          reason: 'B\'s very first list (possibly served from the cache) holds nothing of A\'s',
+        );
+        expect(
+          await repo.watchArchived().first.timeout(const Duration(seconds: 10)),
+          isEmpty,
+        );
+        expect(
+          await repo.watchUnreadable().first.timeout(
+            const Duration(seconds: 10),
+          ),
+          isEmpty,
+        );
+        expect(
+          await repo.paymentsFor([a]),
+          isEmpty,
+          reason:
+              'A\'s payments are not readable through B\'s repository calls',
+        );
+        await expectLater(
+          repo.recordPayment(a, amountPaisa: 1000, type: PaymentType.advance),
+          throwsA(isA<AppFailure>()),
+          reason: 'B cannot write to a parcel id of A',
+        );
+        // B's own first parcel starts at number 1 again
+        final b = await repo.create(_input(reference: 'VPP 60001'));
+        expect(
+          (await read(repo, b)).orderNumber,
+          'ADT-000001',
+          reason:
+              'independent order sequence, and the same reference is allowed',
+        );
+
+        await FirebaseAuth.instance.signOut();
+        await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: emailA,
+          password: 'secret123',
+        );
+        final back = await repo
+            .watchAll()
+            .firstWhere((l) => l.isNotEmpty)
+            .timeout(const Duration(seconds: 10));
+        expect(back.single.id, a, reason: 'A sees only A\'s parcel again');
+        expect(back.single.receivedPaisa, 100000);
+      },
+    );
+  });
+
   group('load and payment reads (DT-012)', () {
     testWidgets(
       '600 parcels, 200 with payments: the payment history is read once per parcel, then served from the cache until a payment changes it',

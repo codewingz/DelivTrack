@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../common_widgets/app_choice_field.dart';
+import '../../../common_widgets/app_dropdown_field.dart';
 import '../../../common_widgets/app_date_field.dart';
 import '../../../common_widgets/app_form_sheet.dart';
 import '../../../common_widgets/app_text_field.dart';
@@ -88,11 +88,12 @@ class _PaymentSheetState extends State<PaymentSheet> {
                 : null;
           },
         ),
-        AppChoiceField<PaymentType>(
+        AppDropdownField<PaymentType>(
           label: 'Payment type',
+          hint: 'Select payment type',
           isRequired: true,
           enabled: !busy,
-          initialValue: _type,
+          value: _type,
           options: [
             for (final type in PaymentType.values)
               (value: type, label: type.label),

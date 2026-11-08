@@ -52,7 +52,6 @@ ParcelInput _payLater(String date, {String reference = 'VPL 99999'}) =>
         ),
       ],
       method: CollectionMethod.payLater,
-      service: PostalService.vpl,
       postalReference: reference,
       deliveryChargePaisa: 15000,
       estimatedPaymentDate: date,
@@ -244,12 +243,7 @@ void main() {
         expect(find.text('Phone notifications are off'), findsNothing);
 
         final undated = FakeParcelRepository(
-          initial: [
-            testParcel(
-              method: CollectionMethod.payLater,
-              service: PostalService.vpl,
-            ),
-          ],
+          initial: [testParcel(method: CollectionMethod.payLater)],
         );
         await openReminders(t, FakeReminderScheduler(enabled: false), undated);
         expect(find.text('Phone notifications are off'), findsNothing);

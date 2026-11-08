@@ -88,7 +88,7 @@ void main() {
       ], reason: 'newest first');
       final b = r.rows.first;
       expect(b.title, 'ADT-000002 · Sara');
-      expect(b.lines, contains('VPP · VPP 12345'));
+      expect(b.lines, contains('VPP 12345'));
       expect(b.lines, contains('Sent 5 Nov 2026 · Pay Later'));
       expect(b.lines, contains('Estimated payment date 1 Dec 2026'));
       expect(b.lines, contains('Expected Rs. 5,000 · Received Rs. 2,000'));

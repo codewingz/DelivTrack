@@ -116,12 +116,12 @@ class AppTextField extends StatefulWidget {
     );
   }
 
-  /// Postal reference as printed on the slip: upper case letters, digits, spaces, - and /.
+  /// Tracking number as printed on the slip: upper case letters, digits, spaces, - and /.
   factory AppTextField.reference({
     Key? key,
     TextEditingController? controller,
-    String label = 'Postal reference number',
-    String hint = 'Enter reference number',
+    String label = 'Tracking number',
+    String hint = 'Enter tracking number',
     bool isRequired = false,
     bool enabled = true,
     TextInputAction textInputAction = TextInputAction.next,
@@ -137,7 +137,7 @@ class AppTextField extends StatefulWidget {
       textCapitalization: TextCapitalization.characters,
       textInputAction: textInputAction,
       prefixIcon: const Icon(
-        Icons.local_post_office_outlined,
+        Icons.local_shipping_outlined,
         size: 20,
         color: AppColors.label,
       ),
@@ -616,44 +616,13 @@ class _AppTextFieldState extends State<AppTextField> {
             fontWeight: FontWeight.w500,
             color: AppColors.textPrimary,
           ),
-          decoration: InputDecoration(
-            hintText: widget.hint,
-            hintStyle: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.normal,
-              color: AppColors.textSecondary,
-            ),
+          decoration: appInputDecoration(
+            hint: widget.hint,
             helperText: widget.helperText,
-            helperStyle: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textSecondary,
-            ),
-            errorStyle: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: AppColors.error,
-            ),
-            filled: true,
-            fillColor: widget.enabled ? AppColors.surface : AppColors.disabled,
-            constraints: const BoxConstraints(minHeight: 52),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.lg,
-              vertical: AppSpacing.md,
-            ),
+            enabled: widget.enabled,
             prefixIcon: widget.prefixIcon,
             prefixText: widget.prefixText,
-            prefixStyle: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-            ),
             suffixText: widget.suffixText,
-            suffixStyle: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textSecondary,
-            ),
             suffixIcon: widget.isPassword
                 ? IconButton(
                     icon: Icon(
@@ -683,36 +652,86 @@ class _AppTextFieldState extends State<AppTextField> {
                     },
                   )
                 : widget.suffixIcon,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppRadius.control),
-              borderSide: const BorderSide(color: AppColors.border),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppRadius.control),
-              borderSide: const BorderSide(color: AppColors.border),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppRadius.control),
-              borderSide: const BorderSide(
-                color: AppColors.primary,
-                width: 1.8,
-              ),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppRadius.control),
-              borderSide: const BorderSide(color: AppColors.error),
-            ),
-            focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppRadius.control),
-              borderSide: const BorderSide(color: AppColors.error, width: 1.8),
-            ),
-            disabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppRadius.control),
-              borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-            ),
           ),
         ),
       ],
     );
   }
+}
+
+/// The look shared by every input in the app (text fields and dropdowns): filled, rounded, with an
+/// emerald focus ring and red errors.
+InputDecoration appInputDecoration({
+  String? hint,
+  String? helperText,
+  bool enabled = true,
+  Widget? prefixIcon,
+  String? prefixText,
+  String? suffixText,
+  Widget? suffixIcon,
+}) {
+  return InputDecoration(
+    hintText: hint,
+    hintStyle: const TextStyle(
+      fontSize: 14,
+      fontWeight: FontWeight.normal,
+      color: AppColors.textSecondary,
+    ),
+    helperText: helperText,
+    helperStyle: const TextStyle(
+      fontSize: 11,
+      fontWeight: FontWeight.w500,
+      color: AppColors.textSecondary,
+    ),
+    errorStyle: const TextStyle(
+      fontSize: 11,
+      fontWeight: FontWeight.w600,
+      color: AppColors.error,
+    ),
+    filled: true,
+    fillColor: enabled ? AppColors.surface : AppColors.disabled,
+    constraints: const BoxConstraints(minHeight: 52),
+    contentPadding: const EdgeInsets.symmetric(
+      horizontal: AppSpacing.lg,
+      vertical: AppSpacing.md,
+    ),
+    prefixIcon: prefixIcon,
+    prefixText: prefixText,
+    prefixStyle: const TextStyle(
+      fontSize: 14,
+      fontWeight: FontWeight.w700,
+      color: AppColors.textPrimary,
+    ),
+    suffixText: suffixText,
+    suffixStyle: const TextStyle(
+      fontSize: 13,
+      fontWeight: FontWeight.w700,
+      color: AppColors.textSecondary,
+    ),
+    suffixIcon: suffixIcon,
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppRadius.control),
+      borderSide: const BorderSide(color: AppColors.border),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppRadius.control),
+      borderSide: const BorderSide(color: AppColors.border),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppRadius.control),
+      borderSide: const BorderSide(color: AppColors.primary, width: 1.8),
+    ),
+    errorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppRadius.control),
+      borderSide: const BorderSide(color: AppColors.error),
+    ),
+    focusedErrorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppRadius.control),
+      borderSide: const BorderSide(color: AppColors.error, width: 1.8),
+    ),
+    disabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppRadius.control),
+      borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+    ),
+  );
 }

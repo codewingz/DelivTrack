@@ -11,6 +11,8 @@
 
 > **v1.4 (owner decisions, 8 Nov 2026): Add Parcel and Handover are two steps, and Home is redesigned.** *Add Parcel* creates the order only (customer, parcel type, products and agreed prices, optional Pay Later date) and always saves it as a **Draft**. *Hand over to post office* is a separate action on the parcel's details: the owner records the postal service, the slip reference, the delivery charge and the optional packed weight, and the parcel becomes **Sent**. The handover can be corrected later with **Edit handover**. Home shows the money still to collect as one hero, then quick actions, a "Needs attention" list (overdue and due-today reminders, drafts awaiting handover, returned parcels needing payment review) and the figures grouped as Parcels and Money. Where older text below puts postal service, reference or delivery charge on the Add Parcel form, this note supersedes it.
 
+> **v1.5 (owner decision, 8 Nov 2026): no postal service type.** A parcel has only a **tracking number** (any courier; 5-30 letters, numbers, - or /), unique per user. The VPP / VPL / VPR / Other choice, the automatic service suggestions and the free-text service name are removed everywhere (Handover form, parcel details, lists, reports, data, rules). Wherever the text below still mentions a postal service, VPP / VPL / VPR defaults or an "Other" service name, this note replaces it. Dropdown fields (selling unit, parcel type, payment type, review resolution) use the `dropdown_button2` package.
+
 > **Scope rule:** Section 1–13 describes the requirements confirmed by the owner and the minimum technical behavior required to make them work. Section 14 clearly identifies optional ideas and open decisions. Developers must **not** treat optional ideas as approved features.
 
 ---
@@ -48,7 +50,7 @@ DelivTrack is a small internal parcel, customer, and payment tracking app. The c
 | Term | Meaning in this app |
 |---|---|
 | **Order number** | App-generated internal identifier, e.g. `ADT-000001`. Not the post-office number. |
-| **Postal service type** | Label chosen from VPP, VPL, VPR, or Other. Do **not** assume VPR's official meaning without checking an actual slip. |
+| **Tracking number** | The courier's tracking / slip number (any courier). Replaces the old postal service type (v1.5). |
 | **Postal reference** | Exact identification/tracking/reference text printed on the post-office receipt. |
 | **Parcel** | One dispatched package/order, which can include multiple products. |
 | **Collection method** | How the product amount is paid: post-office collection, advance paid, Pay Later, free / gift. |
@@ -467,8 +469,7 @@ Round and store money safely in integer paisa. Delivery charges are separate fro
 - `items[]`: `{ productId, productNameSnapshot, saleUnitSnapshot, quantityPieces? , weightKg? , negotiatedUnitPricePaisa, lineTotalPaisa }`
 - `actualPackedWeightGrams?` (optional separate gross parcel weight)
 - `sendingDateLocal` **automatically stored on creation and hidden from the Add form**, `createdAt`, `updatedAt`
-- `postalServiceType`: `VPP | VPL | VPR | Other`
-- `otherPostalServiceName?` (required when Other)
+- `postalReference` / `postalReferenceNormalized`: the tracking number (no service type since v1.5)
 - `postalReference`, `postalReferenceNormalized`
 - `deliveryChargePaisa`
 - `collectionMethod`: `postal_collection | advance | credit | free_gift` (`credit` is a legacy internal code; UI must show **Pay Later**)

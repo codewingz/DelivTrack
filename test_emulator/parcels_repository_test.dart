@@ -33,8 +33,6 @@ const _customer = Customer(
 ParcelInput _input({
   String reference = 'VPP 12345',
   CollectionMethod method = CollectionMethod.postalCollection,
-  PostalService service = PostalService.vpp,
-  String? otherName,
   ParcelStatus status = ParcelStatus.sent,
   int? charge = 15000,
   int? packedGrams,
@@ -53,8 +51,6 @@ ParcelInput _input({
         ),
       ],
   method: method,
-  service: service,
-  otherServiceName: otherName,
   postalReference: reference,
   deliveryChargePaisa: charge,
   packedWeightGrams: packedGrams,
@@ -198,7 +194,6 @@ Map<String, Object?> _loadParcel(
     },
   ],
   'collectionMethod': 'postal_collection',
-  'postalServiceType': 'VPP',
   'postalReference': 'VPP $sequence',
   'postalReferenceNormalized': 'VPP$sequence',
   'deliveryChargePaisa': 15000,
@@ -251,7 +246,6 @@ void main() {
       expect(first.paymentStatus, PaymentStatus.pending);
       expect(first.status, ParcelStatus.sent);
       expect(first.method, CollectionMethod.postalCollection);
-      expect(first.service, PostalService.vpp);
       expect(first.postalReference, 'VPP 11111');
       expect(first.deliveryChargePaisa, 15000);
       expect(first.packedWeightGrams, 1500);
@@ -284,72 +278,50 @@ void main() {
     },
   );
 
-  testWidgets(
-    'a postal reference can be used once per service, however it is typed',
-    (t) async {
-      await signUpNewUser('pref');
-      final first = await repo.create(_input(reference: 'VPP 12345'));
-      final firstNumber = (await read(repo, first)).orderNumber;
+  testWidgets('a tracking number can be used once, however it is typed', (
+    t,
+  ) async {
+    await signUpNewUser('pref');
+    final first = await repo.create(_input(reference: 'VPP 12345'));
+    final firstNumber = (await read(repo, first)).orderNumber;
 
-      for (final typed in ['vpp12345', 'VPP  12345', ' vpp 12 345 ']) {
-        await expectLater(
-          repo.create(_input(reference: typed)),
-          throwsA(
-            isA<AppFailure>().having(
-              (e) => e.message,
-              'message',
-              'This postal reference is already used on $firstNumber.',
-            ),
-          ),
-          reason: typed,
-        );
-      }
-      // The same text on a different service is a different reference.
-      await repo.create(
-        _input(
-          reference: 'VPP 12345',
-          service: PostalService.vpl,
-          method: CollectionMethod.advance,
-        ),
-      );
-      // "Other" services are told apart by name.
-      await repo.create(
-        _input(
-          reference: 'ABC 123',
-          service: PostalService.other,
-          otherName: 'Fast Courier',
-        ),
-      );
-      await repo.create(
-        _input(
-          reference: 'ABC 123',
-          service: PostalService.other,
-          otherName: 'Other Courier',
-        ),
-      );
+    for (final typed in ['vpp12345', 'VPP  12345', ' vpp 12 345 ']) {
       await expectLater(
-        repo.create(
-          _input(
-            reference: 'abc123',
-            service: PostalService.other,
-            otherName: ' fast   courier ',
+        repo.create(_input(reference: typed)),
+        throwsA(
+          isA<AppFailure>().having(
+            (e) => e.message,
+            'message',
+            'This tracking number is already used on $firstNumber.',
           ),
         ),
-        throwsA(isA<AppFailure>()),
+        reason: typed,
       );
+    }
+    // There is no service any more: the same number is refused whatever the parcel type.
+    await expectLater(
+      repo.create(
+        _input(reference: 'VPP 12345', method: CollectionMethod.advance),
+      ),
+      throwsA(isA<AppFailure>()),
+    );
+    await repo.create(_input(reference: 'ABC 123'));
+    await expectLater(
+      repo.create(_input(reference: 'abc123')),
+      throwsA(isA<AppFailure>()),
+    );
 
-      final all = await repo
-          .watchAll()
-          .firstWhere((l) => l.length == 4)
-          .timeout(const Duration(seconds: 10));
-      expect(all.map((p) => p.orderSequence), [
-        4,
-        3,
-        2,
-        1,
-      ], reason: 'refused saves must not use up order numbers');
-    },
-  );
+    final all = await repo
+        .watchAll()
+        .firstWhere((l) => l.length == 4)
+        .timeout(const Duration(seconds: 10));
+    expect(all.map((p) => p.orderSequence), [
+      4,
+      3,
+      2,
+      1,
+    ], reason: 'refused saves must not use up order numbers');
+  });
 
   testWidgets(
     'drafts, Pay Later with a date, free parcels and Other services are stored correctly',
@@ -370,7 +342,6 @@ void main() {
         await repo.create(
           _input(
             method: CollectionMethod.payLater,
-            service: PostalService.vpl,
             reference: 'VPL 55555',
             payDate: '2999-01-31',
           ),
@@ -384,7 +355,6 @@ void main() {
         await repo.create(
           _input(
             method: CollectionMethod.giftFree,
-            service: PostalService.vpl,
             reference: 'VPL 66666',
             items: [
               ParcelItem.pieces(
@@ -403,17 +373,9 @@ void main() {
 
       final other = await read(
         repo,
-        await repo.create(
-          _input(
-            service: PostalService.other,
-            otherName: ' Fast   Courier ',
-            reference: 'XYZ 99999',
-          ),
-        ),
+        await repo.create(_input(reference: 'XYZ 99999')),
       );
-      expect(other.service, PostalService.other);
-      expect(other.otherServiceName, 'Fast Courier');
-      expect(other.serviceLabel, 'Fast Courier');
+      expect(other.postalReference, 'XYZ 99999');
     },
   );
 
@@ -555,7 +517,7 @@ void main() {
             isA<AppFailure>().having(
               (e) => e.message,
               'message',
-              'This postal reference is already used on ADT-000001.',
+              'This tracking number is already used on ADT-000001.',
             ),
           ),
         );
@@ -592,7 +554,7 @@ void main() {
             isA<AppFailure>().having(
               (e) => e.message,
               'message',
-              'This postal reference is already used on $bNumber.',
+              'This tracking number is already used on $bNumber.',
             ),
           ),
         );
@@ -662,7 +624,6 @@ void main() {
           id,
           _input(
             method: CollectionMethod.giftFree,
-            service: PostalService.vpl,
             items: [
               ParcelItem.pieces(
                 productId: 'p1',
@@ -684,27 +645,23 @@ void main() {
     );
 
     testWidgets(
-      'optional fields can be removed again (charge, packed weight, service name, payment date)',
+      'optional fields can be removed again (charge, packed weight, payment date)',
       (t) async {
         await signUpNewUser('eopt');
         final id = await repo.create(
           _input(
             method: CollectionMethod.payLater,
-            service: PostalService.other,
-            otherName: 'Fast Courier',
             reference: 'ABC 12345',
             packedGrams: 1500,
             payDate: '2999-01-31',
           ),
         );
-        expect((await rawParcel(id))['otherPostalServiceName'], 'Fast Courier');
 
         await repo.update(
           id,
           _input(
             status: ParcelStatus.draft,
             method: CollectionMethod.payLater,
-            service: PostalService.vpl,
             reference: '',
             charge: null,
           ),
@@ -712,7 +669,6 @@ void main() {
         await waitFor(id, (p) => p.status == ParcelStatus.draft);
         final raw = await rawParcel(id);
         for (final removed in [
-          'otherPostalServiceName',
           'deliveryChargePaisa',
           'actualPackedWeightGrams',
           'estimatedPaymentDateLocal',
@@ -725,13 +681,7 @@ void main() {
         }
         expect(raw['postalReferenceNormalized'], '');
         // clearing the reference released it
-        await repo.create(
-          _input(
-            reference: 'ABC 12345',
-            service: PostalService.other,
-            otherName: 'Fast Courier',
-          ),
-        );
+        await repo.create(_input(reference: 'ABC 12345'));
       },
     );
 
@@ -896,11 +846,7 @@ void main() {
           throwsA(isA<AppFailure>()),
         );
         final gift = await repo.create(
-          _input(
-            reference: 'VPL 99999',
-            method: CollectionMethod.giftFree,
-            service: PostalService.vpl,
-          ),
+          _input(reference: 'VPL 99999', method: CollectionMethod.giftFree),
         );
         await expectLater(
           repo.recordPayment(
@@ -1091,11 +1037,7 @@ void main() {
           throwsA(isA<AppFailure>()),
         );
         final gift = await repo.create(
-          _input(
-            reference: 'VPL 55555',
-            method: CollectionMethod.giftFree,
-            service: PostalService.vpl,
-          ),
+          _input(reference: 'VPL 55555', method: CollectionMethod.giftFree),
         );
         await repo.markReturned(gift, date: today());
         expect(
@@ -1149,7 +1091,6 @@ void main() {
           _input(
             reference: 'VPL 12121',
             method: CollectionMethod.payLater,
-            service: PostalService.vpl,
             payDate: '2031-01-01',
           ),
         );
@@ -1872,7 +1813,6 @@ void main() {
             customer: _customer,
             items: current.items,
             method: current.method,
-            service: current.service,
             postalReference: 'VPP 13579',
             deliveryChargePaisa: current.deliveryChargePaisa,
             status: ParcelStatus.sent,
@@ -1911,7 +1851,6 @@ void main() {
           repo.saveHandover(
             draft,
             const ParcelHandover(
-              service: PostalService.vpp,
               postalReference: 'AB',
               deliveryChargePaisa: 15000,
             ),
@@ -1921,7 +1860,6 @@ void main() {
         await repo.saveHandover(
           draft,
           const ParcelHandover(
-            service: PostalService.vpp,
             postalReference: 'vpp 70001',
             deliveryChargePaisa: 15000,
             packedWeightGrams: 1250,
@@ -1934,14 +1872,12 @@ void main() {
         expect(sent!.postalReference, 'vpp 70001');
         expect(sent.deliveryChargePaisa, 15000);
         expect(sent.packedWeightGrams, 1250);
-        expect(sent.service, PostalService.vpp);
 
         // the same reference on another parcel is refused whatever the spaces or case
         await expectLater(
           repo.saveHandover(
             other,
             const ParcelHandover(
-              service: PostalService.vpp,
               postalReference: 'VPP70001',
               deliveryChargePaisa: 100,
             ),
@@ -1959,7 +1895,6 @@ void main() {
         await repo.saveHandover(
           other,
           const ParcelHandover(
-            service: PostalService.vpl,
             postalReference: 'VPP 70001',
             deliveryChargePaisa: 100,
           ),
@@ -1969,7 +1904,6 @@ void main() {
         await repo.saveHandover(
           draft,
           const ParcelHandover(
-            service: PostalService.vpp,
             postalReference: 'VPP 70002',
             deliveryChargePaisa: 17000,
           ),
@@ -2006,7 +1940,6 @@ void main() {
           repo.saveHandover(
             returned,
             const ParcelHandover(
-              service: PostalService.vpp,
               postalReference: 'VPP 70004',
               deliveryChargePaisa: 1,
             ),
@@ -2020,7 +1953,6 @@ void main() {
           repo.saveHandover(
             draft,
             const ParcelHandover(
-              service: PostalService.vpp,
               postalReference: 'VPP 99999',
               deliveryChargePaisa: 1,
             ),
@@ -2041,7 +1973,6 @@ void main() {
           _input(reference: '', charge: null, status: ParcelStatus.draft),
         );
         const handover = ParcelHandover(
-          service: PostalService.vpp,
           postalReference: 'VPP 80808',
           deliveryChargePaisa: 100,
         );

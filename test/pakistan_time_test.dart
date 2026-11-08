@@ -79,7 +79,6 @@ void main() {
     final parcel = testParcel(
       id: 'a',
       method: CollectionMethod.payLater,
-      service: PostalService.vpl,
       payDate: '2026-11-09',
     );
 

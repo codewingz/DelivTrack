@@ -77,7 +77,6 @@ ParcelInput _input() => ParcelInput(
     ),
   ],
   method: CollectionMethod.postalCollection,
-  service: PostalService.vpp,
   postalReference: 'VPP 99999',
   deliveryChargePaisa: 15000,
   status: ParcelStatus.sent,
@@ -413,7 +412,6 @@ void main() {
             testParcel(
               id: 'a',
               method: CollectionMethod.payLater,
-              service: PostalService.vpl,
               payDate: today,
             ),
           ],

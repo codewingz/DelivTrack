@@ -61,7 +61,6 @@ void main() {
               sequence: 2,
               customerName: 'Sara Khan',
               method: CollectionMethod.payLater,
-              service: PostalService.vpl,
               reference: 'VPL 22222',
               sendingDate: '2026-11-06',
             ),
@@ -90,7 +89,7 @@ void main() {
             .toList();
         expect(orders, ['ADT-000002', 'ADT-000001'], reason: 'newest first');
         expect(find.text('Sara Khan'), findsOneWidget);
-        expect(find.text('VPL · VPL 22222'), findsOneWidget);
+        expect(find.text('VPL 22222'), findsOneWidget);
         expect(find.text('6 Nov 2026 · Rs. 5,000'), findsOneWidget);
         expect(find.text('Sent'), findsNWidgets(2));
         expect(find.text('Pending'), findsNWidgets(2));
@@ -98,7 +97,7 @@ void main() {
     );
 
     testWidgets(
-      'a draft without a slip, a gift parcel and an "Other" service read correctly',
+      'a draft without a slip, a gift parcel and another courier tracking number read correctly',
       (t) async {
         await _pump(
           t,
@@ -115,24 +114,17 @@ void main() {
                 id: 'g',
                 sequence: 2,
                 method: CollectionMethod.giftFree,
-                service: PostalService.vpl,
                 reference: 'VPL 99999',
               ),
-              testParcel(
-                id: 'o',
-                sequence: 3,
-                service: PostalService.other,
-                otherName: 'Fast Courier',
-                reference: 'XYZ 12345',
-              ),
+              testParcel(id: 'o', sequence: 3, reference: 'XYZ 12345'),
             ],
           ),
         );
         expect(find.text('Draft'), findsOneWidget);
-        expect(find.text('No postal reference yet'), findsOneWidget);
+        expect(find.text('No tracking number yet'), findsOneWidget);
         expect(find.text('Not required'), findsOneWidget);
         expect(find.text('7 Nov 2026 · Gift / Free'), findsOneWidget);
-        expect(find.text('Fast Courier · XYZ 12345'), findsOneWidget);
+        expect(find.text('XYZ 12345'), findsOneWidget);
       },
     );
 
@@ -210,8 +202,6 @@ void main() {
                     id: 'a',
                     sequence: 1,
                     customerName: longName,
-                    service: PostalService.other,
-                    otherName: 'A Very Long Courier Service Name',
                     reference: 'ABCDEFGHIJ/1234567890-ABCDEFGHIJ',
                   ),
                   testParcel(
@@ -257,6 +247,5 @@ ParcelInput _inputFor(FakeParcelRepository repo) => ParcelInput(
     ),
   ],
   method: CollectionMethod.advance,
-  service: PostalService.vpl,
   status: ParcelStatus.draft,
 );

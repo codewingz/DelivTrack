@@ -91,11 +91,11 @@ service cloud.firestore {
 
     function validParcelShape(data) {
       return data.keys().hasAll(['orderNumber', 'orderSequence', 'customerId', 'customerSnapshot', 'items',
-          'collectionMethod', 'postalServiceType', 'postalReference', 'postalReferenceNormalized',
+          'collectionMethod', 'postalReference', 'postalReferenceNormalized',
           'productAmountExpectedPaisa', 'receivedPaisa', 'outstandingPaisa', 'paymentStatus', 'parcelStatus',
           'sendingDateLocal', 'createdAt', 'updatedAt'])
         && data.keys().hasOnly(['orderNumber', 'orderSequence', 'customerId', 'customerSnapshot', 'items',
-          'collectionMethod', 'postalServiceType', 'otherPostalServiceName', 'postalReference',
+          'collectionMethod', 'postalReference',
           'postalReferenceNormalized', 'deliveryChargePaisa', 'actualPackedWeightGrams',
           'estimatedPaymentDateLocal', 'productAmountExpectedPaisa', 'receivedPaisa', 'outstandingPaisa',
           'paymentStatus', 'parcelStatus', 'sendingDateLocal', 'createdAt', 'updatedAt',
@@ -127,10 +127,6 @@ service cloud.firestore {
         // name, phone and address are checked by `customerMatches` (they equal the customer's validated record)
         && data.items is list && data.items.size() >= 1 && data.items.size() <= 20
         && data.collectionMethod in ['postal_collection', 'advance', 'credit', 'free_gift']
-        && data.postalServiceType in ['VPP', 'VPL', 'VPR', 'Other']
-        && (data.postalServiceType == 'Other'
-            ? ('otherPostalServiceName' in data && trimmedText(data.otherPostalServiceName, 2, 40))
-            : !('otherPostalServiceName' in data))
         && data.postalReference is string && data.postalReference.size() <= 40
         && data.postalReferenceNormalized is string && data.postalReferenceNormalized.matches('^[A-Z0-9/-]{0,30}$')
         && data.parcelStatus in ['draft', 'sent', 'returned']
@@ -187,7 +183,7 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // Postal-reference guards (one doc per service + reference; keeps references unique per user).
+    // Tracking-number guards (one doc per tracking number; keeps them unique per user, whatever the courier).
     match /users/{uid}/postal_refs/{refKey} {
       allow read: if isOwner(uid);
       // Created together with the parcel that points at it; released only in the commit that moves that
@@ -209,26 +205,20 @@ service cloud.firestore {
       return /databases/$(database)/documents/users/$(uid)/postal_refs/$(guardId);
     }
 
-    // A parcel's (service, reference) is reserved by a guard document created in the same commit and linked
-    // to the parcel through `postalGuardId`. A second parcel with the same reference would need the same
-    // guard id, which already exists and points at the first parcel, so it is refused.
-    // For VPP / VPL / VPR the id is derived exactly as the app does ("VPP__ABC123", "/" written %2F). For
-    // "Other" the id holds the URL-encoded free-text service name, which rules cannot reproduce: only its
-    // shape, the reference part and the link to this parcel are checked, so uniqueness there is app-enforced.
+    // A parcel's tracking number is reserved by a guard document created in the same commit and linked to the
+    // parcel through `postalGuardId`. A second parcel with the same number would need the same guard id, which
+    // already exists and points at the first parcel, so it is refused. The id is the normalized number with "/"
+    // written %2F, derived exactly as the app does.
     function guardOk(uid, parcelId, data) {
       return data.get('postalGuardId', '') != ''
         && existsAfter(guardAt(uid, data.postalGuardId))
         && getAfter(guardAt(uid, data.postalGuardId)).data.parcelId == parcelId
         && !exists(guardAt(uid, data.postalGuardId))
-        && (data.postalServiceType == 'Other'
-            ? data.postalGuardId.matches('^Other-.+__' + data.postalReferenceNormalized.replace('/', '%2F') + '$')
-            : data.postalGuardId == data.postalServiceType + '__' + data.postalReferenceNormalized.replace('/', '%2F'));
+        && data.postalGuardId == data.postalReferenceNormalized.replace('/', '%2F');
     }
 
     function sameReference(a, b) {
-      return a.postalServiceType == b.postalServiceType
-        && a.get('otherPostalServiceName', '') == b.get('otherPostalServiceName', '')
-        && a.postalReferenceNormalized == b.postalReferenceNormalized;
+      return a.postalReferenceNormalized == b.postalReferenceNormalized;
     }
 
     // The parcel's customer snapshot (name, phone, address) must be a copy of that customer's record.

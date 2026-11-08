@@ -236,7 +236,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           AttentionItem(
             title: 'Awaiting handover',
-            subtitle: 'Drafts to hand over to the post office',
+            subtitle: 'Drafts to hand over',
             count: stats.awaitingHandover,
             icon: Icons.local_post_office_outlined,
             color: AppColors.pending,

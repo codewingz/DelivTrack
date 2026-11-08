@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../common_widgets/app_select_field.dart';
+import '../../../common_widgets/app_dropdown_field.dart';
 import '../../../common_widgets/app_text_field.dart';
-import '../../../common_widgets/option_picker.dart';
 import '../../../common_widgets/primary_button.dart';
 import '../../../constants/app_colors.dart';
 import '../../../core/view_models/action_view_model.dart';
@@ -52,19 +51,6 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
     _name.dispose();
     _viewModel.dispose();
     super.dispose();
-  }
-
-  Future<void> _pickUnit() async {
-    final unit = await showOptionPicker<SaleUnit>(
-      context,
-      title: 'Selling unit',
-      options: [
-        for (final unit in SaleUnit.values) (value: unit, label: unit.label),
-      ],
-      selected: _unit,
-    );
-    if (unit == null || !mounted) return;
-    setState(() => _unit = unit);
   }
 
   Future<void> _save() async {
@@ -120,15 +106,19 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
                   textInputAction: TextInputAction.done,
                 ),
                 const SizedBox(height: AppSpacing.lg),
-                AppSelectField(
+                AppDropdownField<SaleUnit>(
                   label: 'Selling unit',
                   hint: 'Select a unit',
-                  displayText: _unit?.label,
                   isRequired: true,
                   enabled: !busy,
-                  onTap: _pickUnit,
-                  validator: () =>
-                      _unit == null ? 'Choose how this product is sold' : null,
+                  value: _unit,
+                  options: [
+                    for (final unit in SaleUnit.values)
+                      (value: unit, label: unit.label),
+                  ],
+                  onChanged: (unit) => setState(() => _unit = unit),
+                  validator: (unit) =>
+                      unit == null ? 'Choose how this product is sold' : null,
                 ),
                 if (_unitChanged) ...[
                   const SizedBox(height: AppSpacing.sm),

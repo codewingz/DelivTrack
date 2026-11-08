@@ -22,8 +22,6 @@ Parcel testParcel({
   String customerPhone = '0300 1111111',
   String customerAddress = 'House 5, Street 2, Sahiwal',
   CollectionMethod method = CollectionMethod.postalCollection,
-  PostalService service = PostalService.vpp,
-  String? otherName,
   String reference = 'VPP 12345',
   int? charge = 15050,
   int? packedGrams,
@@ -65,8 +63,6 @@ Parcel testParcel({
     customerAddress: customerAddress,
     items: lines,
     method: method,
-    service: service,
-    otherServiceName: otherName,
     postalReference: reference,
     deliveryChargePaisa: charge,
     packedWeightGrams: packedGrams,
@@ -111,14 +107,7 @@ Parcel _changed(
   String? reviewNote,
   String? reviewDate,
   bool? archived,
-  ({
-    PostalService service,
-    String? otherName,
-    String reference,
-    int? charge,
-    int? packedGrams,
-  })?
-  postal,
+  ({String reference, int? charge, int? packedGrams})? postal,
 }) => testParcel(
   id: old.id,
   sequence: old.orderSequence,
@@ -126,8 +115,6 @@ Parcel _changed(
   customerPhone: old.customerPhone,
   customerAddress: old.customerAddress,
   method: old.method,
-  service: postal?.service ?? old.service,
-  otherName: postal == null ? old.otherServiceName : postal.otherName,
   reference: postal?.reference ?? old.postalReference,
   charge: postal == null ? old.deliveryChargePaisa : postal.charge,
   packedGrams: postal == null ? old.packedWeightGrams : postal.packedGrams,
@@ -194,8 +181,6 @@ class FakeParcelRepository implements ParcelRepository {
         customerPhone: input.customer.phone,
         customerAddress: input.customer.address,
         method: input.method,
-        service: input.service,
-        otherName: input.otherServiceName,
         reference: input.postalReference.trim(),
         charge: input.deliveryChargePaisa,
         packedGrams: input.packedWeightGrams,
@@ -231,16 +216,13 @@ class FakeParcelRepository implements ParcelRepository {
         .where(
           (p) =>
               p.id != parcelId &&
-              p.service == handover.service &&
-              (p.otherServiceName ?? '').toLowerCase() ==
-                  (handover.otherServiceName ?? '').toLowerCase() &&
               p.postalReference.replaceAll(RegExp(r'\s+'), '').toUpperCase() ==
                   key,
         )
         .firstOrNull;
     if (taken != null) {
       throw AppFailure(
-        'This postal reference is already used on ${taken.orderNumber}.',
+        'This tracking number is already used on ${taken.orderNumber}.',
       );
     }
     handovers.add((id: parcelId, handover: handover));
@@ -248,8 +230,6 @@ class FakeParcelRepository implements ParcelRepository {
       old,
       status: ParcelStatus.sent,
       postal: (
-        service: handover.service,
-        otherName: handover.otherServiceName,
         reference: reference,
         charge: handover.deliveryChargePaisa,
         packedGrams: handover.packedWeightGrams,
@@ -274,8 +254,6 @@ class FakeParcelRepository implements ParcelRepository {
       customerPhone: input.customer.phone,
       customerAddress: input.customer.address,
       method: input.method,
-      service: input.service,
-      otherName: input.otherServiceName,
       reference: input.postalReference.trim(),
       charge: input.deliveryChargePaisa,
       packedGrams: input.packedWeightGrams,
@@ -493,7 +471,6 @@ class FakeParcelRepository implements ParcelRepository {
       id: old.id,
       sequence: old.orderSequence,
       method: old.method,
-      service: old.service,
       reference: old.postalReference,
       charge: old.deliveryChargePaisa,
       sendingDate: old.sendingDate,

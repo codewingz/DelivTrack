@@ -12,6 +12,8 @@ import 'helpers/tab_finders.dart';
 
 import 'package:google_nav_bar/google_nav_bar.dart';
 
+import 'helpers/dropdown_finders.dart';
+
 Finder _tab(String label) => tabButton(label);
 
 Future<FakeParcelRepository> _launch(
@@ -107,10 +109,7 @@ void main() {
       await t.tap(find.text('Ali Raza'));
       await t.pumpAndSettle();
       // type
-      await t.ensureVisible(find.widgetWithText(ChoiceChip, 'Advance paid'));
-      await t.pump();
-      await t.tap(find.widgetWithText(ChoiceChip, 'Advance paid'));
-      await t.pump();
+      await chooseOption(t, 'Parcel type', 'Advance paid');
       // product
       await t.ensureVisible(
         find.widgetWithText(TextFormField, 'Select a product').first,

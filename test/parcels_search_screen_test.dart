@@ -61,7 +61,6 @@ FakeParcelRepository _repo() => FakeParcelRepository(
       customerName: 'Bilal Ahmed',
       reference: 'VPL 33333',
       method: CollectionMethod.payLater,
-      service: PostalService.vpl,
       payDate: '2026-11-01',
     ),
   ],

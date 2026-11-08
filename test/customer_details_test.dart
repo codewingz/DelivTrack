@@ -335,12 +335,12 @@ void main() {
         await t.pumpAndSettle();
         await t.tap(find.text('ADT-000001'));
         await t.pumpAndSettle();
-        await t.ensureVisible(find.byTooltip('Copy postal reference'));
+        await t.ensureVisible(find.byTooltip('Copy tracking number'));
         await t.pump();
-        await t.tap(find.byTooltip('Copy postal reference'));
+        await t.tap(find.byTooltip('Copy tracking number'));
         await t.pump();
         expect(copied, 'VPP 12345');
-        expect(find.text('Postal reference copied.'), findsOneWidget);
+        expect(find.text('Tracking number copied.'), findsOneWidget);
       },
     );
 
@@ -371,7 +371,7 @@ void main() {
       await t.pumpAndSettle();
       await t.tap(find.text('ADT-000001'));
       await t.pumpAndSettle();
-      expect(find.byTooltip('Copy postal reference'), findsNothing);
+      expect(find.byTooltip('Copy tracking number'), findsNothing);
     });
   });
 

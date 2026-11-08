@@ -38,14 +38,10 @@ class ParcelFormViewModel extends ChangeNotifier {
         address: saved.customerAddress,
       ),
       method = saved.method,
-      service = saved.service,
-      otherServiceName = saved.otherServiceName ?? '',
       reference = saved.postalReference,
       chargePaisa = saved.deliveryChargePaisa,
       packedGrams = saved.packedWeightGrams,
       payDate = saved.estimatedPaymentDate,
-      // A draft's service still follows its type until it is handed over.
-      _serviceChosenByUser = saved.status != ParcelStatus.draft,
       items = [
         for (var i = 0; i < saved.items.length; i++)
           ItemDraft(i)
@@ -73,8 +69,6 @@ class ParcelFormViewModel extends ChangeNotifier {
 
   Customer? customer;
   CollectionMethod? method;
-  PostalService? service;
-  String otherServiceName = '';
   String reference = '';
   int? chargePaisa;
   int? packedGrams;
@@ -82,7 +76,6 @@ class ParcelFormViewModel extends ChangeNotifier {
   final List<ItemDraft> items;
 
   int _nextKey = 1;
-  bool _serviceChosenByUser = false;
   late final String _initialSignature;
 
   bool get isFree => method == CollectionMethod.giftFree;
@@ -136,7 +129,6 @@ class ParcelFormViewModel extends ChangeNotifier {
 
   void setMethod(CollectionMethod value) {
     method = value;
-    if (!_serviceChosenByUser) service = PostalService.defaultFor(value);
     if (value != CollectionMethod.payLater) payDate = null;
     notifyListeners();
   }
@@ -237,10 +229,6 @@ class ParcelFormViewModel extends ChangeNotifier {
       customer: customer!,
       items: lines,
       method: method!,
-      service: service!,
-      otherServiceName: service == PostalService.other
-          ? otherServiceName
-          : null,
       postalReference: reference,
       deliveryChargePaisa: chargePaisa,
       packedWeightGrams: packedGrams,

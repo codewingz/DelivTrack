@@ -71,13 +71,10 @@ Parcel _sent({
   notes: notes,
   payDate: payDate,
   method: method,
-  service: method == CollectionMethod.payLater
-      ? PostalService.vpl
-      : PostalService.vpp,
 );
 
 void main() {
-  group('Hand over to post office', () {
+  group('Hand over parcel', () {
     Parcel draft({
       CollectionMethod method = CollectionMethod.postalCollection,
     }) => testParcel(
@@ -95,7 +92,7 @@ void main() {
       String weight = '',
     }) async {
       await t.enterText(
-        find.widgetWithText(TextFormField, 'Enter reference number'),
+        find.widgetWithText(TextFormField, 'Enter tracking number'),
         reference,
       );
       await t.enterText(
@@ -112,19 +109,18 @@ void main() {
     }
 
     testWidgets(
-      'a draft: the service follows the parcel type; the slip details are required; saving hands it over',
+      'a draft: only a tracking number and the charge are asked, no postal service; saving hands it over',
       (t) async {
         final env = await _open(t, draft(), showHandoverSheet);
-        expect(find.text('Hand over to post office'), findsWidgets);
+        expect(find.text('Hand over parcel'), findsWidgets);
         expect(find.widgetWithText(FilledButton, 'Hand Over'), findsOneWidget);
-        expect(
-          t.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'VPP')).selected,
-          isTrue,
-        );
+        expect(find.text('Postal service'), findsNothing);
+        expect(find.byType(ChoiceChip), findsNothing);
+        expect(find.text('Tracking number *'), findsOneWidget);
         await t.tap(_submit);
         await t.pump();
         expect(
-          find.text('Postal reference is required to mark as Sent'),
+          find.text('Tracking number is required to mark as Sent'),
           findsOneWidget,
         );
         expect(find.text('Delivery charges is required'), findsOneWidget);
@@ -135,7 +131,6 @@ void main() {
         await t.pumpAndSettle();
         final h = env.repo.handovers.single;
         expect(h.id, 'a');
-        expect(h.handover.service, PostalService.vpp);
         expect(h.handover.postalReference, 'vpp 12345');
         expect(h.handover.deliveryChargePaisa, 15050);
         expect(h.handover.packedWeightGrams, 1250);
@@ -147,22 +142,8 @@ void main() {
       },
     );
 
-    testWidgets('a type other than Post office collection suggests VPL', (
-      t,
-    ) async {
-      await _open(
-        t,
-        draft(method: CollectionMethod.payLater),
-        showHandoverSheet,
-      );
-      expect(
-        t.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'VPL')).selected,
-        isTrue,
-      );
-    });
-
     testWidgets(
-      'an invalid reference is refused; "Other" asks for the service name',
+      'an invalid tracking number is refused; any courier\'s number works',
       (t) async {
         final env = await _open(t, draft(), showHandoverSheet);
         await fill(t, reference: 'AB');
@@ -172,29 +153,18 @@ void main() {
           find.text('Use 5–30 letters or numbers (also - and /)'),
           findsOneWidget,
         );
-        await t.tap(find.widgetWithText(ChoiceChip, 'Other'));
-        await t.pump();
-        expect(find.text('Service name *'), findsOneWidget);
-        await fill(t, reference: 'XYZ 99999');
-        await t.tap(_submit);
-        await t.pump();
-        expect(find.text('Service name is required'), findsOneWidget);
-        await t.enterText(
-          find.widgetWithText(TextFormField, 'Enter service name'),
-          'Fast Courier',
-        );
+        await fill(t, reference: 'TCS-8800/1234');
         await t.tap(_submit);
         await t.pumpAndSettle();
-        expect(env.repo.handovers.single.handover.service, PostalService.other);
         expect(
-          env.repo.handovers.single.handover.otherServiceName,
-          'Fast Courier',
+          env.repo.handovers.single.handover.postalReference,
+          'TCS-8800/1234',
         );
       },
     );
 
     testWidgets(
-      'a reference already used on another parcel is shown in the sheet and nothing changes',
+      'a tracking number already used on another parcel is shown in the sheet and nothing changes',
       (t) async {
         final other = testParcel(id: 'b', sequence: 2, reference: 'VPP 12345');
         final repo = FakeParcelRepository(initial: [draft(), other]);
@@ -203,7 +173,7 @@ void main() {
         await t.tap(_submit);
         await t.pumpAndSettle();
         expect(
-          find.text('This postal reference is already used on ADT-000002.'),
+          find.text('This tracking number is already used on ADT-000002.'),
           findsOneWidget,
         );
         expect(env.results, isEmpty);
@@ -235,17 +205,12 @@ void main() {
           reference: 'VPP 12345',
           charge: 15050,
           packedGrams: 2500,
-          service: PostalService.vpr,
         );
         final env = await _open(t, sent, showHandoverSheet);
         expect(find.text('Edit handover'), findsOneWidget);
         expect(
           find.widgetWithText(FilledButton, 'Save Handover'),
           findsOneWidget,
-        );
-        expect(
-          t.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'VPR')).selected,
-          isTrue,
         );
         expect(find.text('VPP 12345'), findsOneWidget);
         expect(find.text('150.50'), findsOneWidget);
@@ -278,14 +243,10 @@ void main() {
 
   group('ParcelHandover rules', () {
     ParcelHandover make({
-      PostalService service = PostalService.vpp,
-      String? other,
       String reference = 'VPP 12345',
       int? charge = 15000,
       int? weight,
     }) => ParcelHandover(
-      service: service,
-      otherServiceName: other,
       postalReference: reference,
       deliveryChargePaisa: charge,
       packedWeightGrams: weight,
@@ -301,20 +262,7 @@ void main() {
       expect(make(reference: '').problems(), isNotEmpty);
       expect(make(reference: 'AB').problems(), isNotEmpty);
       expect(make(charge: null).problems(), isNotEmpty);
-      expect(
-        make(service: PostalService.other).problems(),
-        isNotEmpty,
-        reason: 'Other needs a name',
-      );
-      expect(
-        make(service: PostalService.other, other: 'Fast Courier').problems(),
-        isEmpty,
-      );
-      expect(
-        make(other: 'Fast Courier').problems(),
-        isNotEmpty,
-        reason: 'a name only for Other',
-      );
+      expect(make(reference: 'TCS 8800 1234').problems(), isEmpty);
       expect(make(weight: 0).problems(), isNotEmpty);
     });
   });

@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'helpers/fake_parcel_repository.dart';
+import 'helpers/dropdown_finders.dart';
 
 Future<void> _open(
   WidgetTester t,
@@ -81,7 +82,6 @@ void main() {
       '2 pieces × Rs. 2,500 each = Rs. 5,000',
       'Dry Fruits',
       '1.25 kg × Rs. 800 per kg = Rs. 1,000',
-      'VPP',
       'VPP 12345',
       'Rs. 150.50',
       '3.2 kg',
@@ -124,7 +124,6 @@ void main() {
         testParcel(
           id: 'g',
           method: CollectionMethod.giftFree,
-          service: PostalService.vpl,
           reference: 'VPL 99999',
           items: [
             ParcelItem.pieces(
@@ -146,15 +145,13 @@ void main() {
   });
 
   testWidgets(
-    'Pay Later shows the estimated payment date; "Other" shows the typed service name',
+    'Pay Later shows the estimated payment date and the tracking number',
     (t) async {
       final repo = FakeParcelRepository(
         initial: [
           testParcel(
             id: 'p',
             method: CollectionMethod.payLater,
-            service: PostalService.other,
-            otherName: 'Fast Courier',
             reference: 'ABC 12345',
             payDate: '2026-12-25',
           ),
@@ -163,7 +160,7 @@ void main() {
       await _open(t, repo, 'p');
       expect(find.text('Pay Later'), findsOneWidget);
       expect(find.text('25 Dec 2026'), findsOneWidget);
-      expect(find.text('Fast Courier'), findsOneWidget);
+      expect(find.text('ABC 12345'), findsOneWidget);
     },
   );
 
@@ -219,7 +216,6 @@ void main() {
           ),
         ],
         method: CollectionMethod.advance,
-        service: PostalService.vpl,
         status: ParcelStatus.draft,
       ),
     );
@@ -244,8 +240,6 @@ void main() {
                 id: 'a',
                 customerName: 'Muhammad Afzaal Khan Niazi Son Of Abdul Rehman',
                 customerAddress: 'House 123, Street 45, Block C, Model Town Extension, Near Main Market, Sahiwal, Punjab',
-                service: PostalService.other,
-                otherName: 'A Very Long Courier Service Name',
                 method: CollectionMethod.payLater,
                 payDate: '2026-12-25',
                 packedGrams: 9999999,
@@ -398,7 +392,7 @@ void main() {
         await t.ensureVisible(receive);
         await t.tap(receive);
         await t.pumpAndSettle();
-        await t.tap(find.widgetWithText(ChoiceChip, 'Advance'));
+        await chooseOption(t, 'Payment type', 'Advance');
         await t.enterText(find.byType(TextFormField).first, '2000');
         await t.pump();
         await t.tap(find.widgetWithText(FilledButton, 'Confirm Payment'));
@@ -422,7 +416,7 @@ void main() {
     Finder outlined(String label) => find.widgetWithText(OutlinedButton, label);
 
     testWidgets(
-      'a draft shows what is missing and a prominent "Hand over to post office"',
+      'a draft shows what is missing and a prominent "Hand over parcel"',
       (t) async {
         await _open(
           t,
@@ -438,8 +432,8 @@ void main() {
           ),
           'a',
         );
-        await t.ensureVisible(primary('Hand over to post office'));
-        expect(primary('Hand over to post office'), findsOneWidget);
+        await t.ensureVisible(primary('Hand over parcel'));
+        expect(primary('Hand over parcel'), findsOneWidget);
         expect(
           find.text('Awaiting handover'),
           findsNWidgets(2),
@@ -463,12 +457,12 @@ void main() {
           ],
         );
         await _open(t, repo, 'a');
-        await t.ensureVisible(primary('Hand over to post office'));
+        await t.ensureVisible(primary('Hand over parcel'));
         await t.pump();
-        await t.tap(primary('Hand over to post office'));
+        await t.tap(primary('Hand over parcel'));
         await t.pumpAndSettle();
         await t.enterText(
-          find.widgetWithText(TextFormField, 'Enter reference number'),
+          find.widgetWithText(TextFormField, 'Enter tracking number'),
           'VPP 40404',
         );
         await t.enterText(
@@ -480,7 +474,7 @@ void main() {
         await t.pumpAndSettle();
         expect(find.text('Parcel handed over.'), findsOneWidget);
         expect(find.text('VPP 40404'), findsOneWidget);
-        expect(primary('Hand over to post office'), findsNothing);
+        expect(primary('Hand over parcel'), findsNothing);
         await t.ensureVisible(outlined('Edit handover'));
         expect(outlined('Edit handover'), findsOneWidget);
         expect(repo.handovers.single.handover.deliveryChargePaisa, 12000);
@@ -522,7 +516,7 @@ void main() {
         ]) {
           await _open(t, FakeParcelRepository(initial: [parcel]), 'a');
           expect(
-            primary('Hand over to post office'),
+            primary('Hand over parcel'),
             hand ? findsOneWidget : findsNothing,
             reason: '${parcel.status} archived=${parcel.isArchived}',
           );
@@ -565,7 +559,6 @@ void main() {
               testParcel(
                 id: 'a',
                 method: CollectionMethod.payLater,
-                service: PostalService.vpl,
                 payDate: '2031-02-03',
                 notes: 'Call first',
               ),
@@ -735,7 +728,7 @@ void main() {
         expect(find.text('Select how the review was settled'), findsOneWidget);
         expect(find.text('Note is required'), findsOneWidget);
         expect(repo.reviewsCompleted, isEmpty);
-        await t.tap(find.text('Money kept'));
+        await chooseOption(t, 'How was it settled?', 'Money kept');
         await t.enterText(find.byType(TextFormField).last, 'abc');
         await t.tap(find.widgetWithText(FilledButton, 'Mark Review Completed'));
         await t.pumpAndSettle();
@@ -753,7 +746,7 @@ void main() {
       (t) async {
         final repo = FakeParcelRepository(initial: [flagged]);
         await openSheet(t, repo);
-        await t.tap(find.text('Refund given'));
+        await chooseOption(t, 'How was it settled?', 'Refund given');
         await t.enterText(
           find.byType(TextFormField).last,
           'Refund sent by bank transfer',
@@ -793,7 +786,7 @@ void main() {
       final repo = FakeParcelRepository(initial: [flagged]);
       await openSheet(t, repo);
       repo.failure = const AppFailure('No connection.');
-      await t.tap(find.text('Money kept'));
+      await chooseOption(t, 'How was it settled?', 'Money kept');
       await t.enterText(
         find.byType(TextFormField).last,
         'Advance kept as agreed',

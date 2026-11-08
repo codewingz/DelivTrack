@@ -50,8 +50,8 @@ abstract class ParcelRepository {
   Future<void> update(String id, ParcelInput input);
 
   /// Records the post-office details of a parcel: handing a Draft over to the post office (it becomes
-  /// Sent) or correcting the details of a Sent parcel. The postal reference stays unique per service
-  /// (the old reference is released, the new one reserved, in the same transaction) and the change is
+  /// Sent) or correcting the details of a Sent parcel. The tracking number stays unique
+  /// (the old number is released, the new one reserved, in the same transaction) and the change is
   /// audited. Refused for an archived or returned parcel.
   Future<void> saveHandover(String parcelId, ParcelHandover handover);
 
@@ -123,7 +123,7 @@ abstract class ParcelRepository {
 ///
 /// * Order numbers come from `users/{uid}/counters/orders`, read and bumped in the same
 ///   transaction that writes the parcel, so two saves can never share a number.
-/// * A postal reference may be used once per service: `users/{uid}/postal_refs/{key}` guard
+/// * A tracking number may be used once: `users/{uid}/postal_refs/{key}` guard
 ///   documents are written in the same transaction.
 class FirestoreParcelRepository implements ParcelRepository {
   FirestoreParcelRepository({
@@ -148,21 +148,11 @@ class FirestoreParcelRepository implements ParcelRepository {
   DocumentReference<Map<String, dynamic>> get _counter =>
       _userDoc.collection('counters').doc('orders');
 
-  /// Guard document for a service + reference ("Other" services are told apart by their name).
-  DocumentReference<Map<String, dynamic>> _guard(
-    PostalService service,
-    String? otherName,
-    String normalizedReference,
-  ) {
-    final serviceKey = service == PostalService.other
-        ? 'Other-${collapseSpaces(otherName ?? '').toLowerCase()}'
-        : service.value;
-    return _userDoc
-        .collection('postal_refs')
-        .doc(
-          '${Uri.encodeComponent(serviceKey)}__${Uri.encodeComponent(normalizedReference)}',
-        );
-  }
+  /// Guard document for a tracking number: its id is the normalized number ("/" written %2F).
+  DocumentReference<Map<String, dynamic>> _guard(String normalizedReference) =>
+      _userDoc
+          .collection('postal_refs')
+          .doc(Uri.encodeComponent(normalizedReference));
 
   @override
   Stream<List<Parcel>> watchAll({bool includeArchived = false}) =>
@@ -231,7 +221,7 @@ class FirestoreParcelRepository implements ParcelRepository {
       );
       final guard = normalizedReference.isEmpty
           ? null
-          : _guard(input.service, input.otherServiceName, normalizedReference);
+          : _guard(normalizedReference);
 
       return await retryWhenDenied(
         () => _firestore.runTransaction((tx) async {
@@ -244,7 +234,7 @@ class FirestoreParcelRepository implements ParcelRepository {
             final existing = await tx.get(guard);
             if (existing.exists) {
               throw AppFailure(
-                'This postal reference is already used on ${existing['orderNumber']}.',
+                'This tracking number is already used on ${existing['orderNumber']}.',
               );
             }
           }
@@ -287,7 +277,7 @@ class FirestoreParcelRepository implements ParcelRepository {
       );
       final newGuard = normalizedReference.isEmpty
           ? null
-          : _guard(input.service, input.otherServiceName, normalizedReference);
+          : _guard(normalizedReference);
 
       await _firestore.runTransaction((tx) async {
         final snapshot = await tx.get(parcelRef);
@@ -311,19 +301,13 @@ class FirestoreParcelRepository implements ParcelRepository {
         }
 
         final oldReference = before['postalReferenceNormalized'] as String;
-        final oldGuard = oldReference.isEmpty
-            ? null
-            : _guard(
-                PostalService.fromValue(before['postalServiceType'] as String),
-                before['otherPostalServiceName'] as String?,
-                oldReference,
-              );
+        final oldGuard = oldReference.isEmpty ? null : _guard(oldReference);
 
         if (newGuard != null && newGuard.path != oldGuard?.path) {
           final existing = await tx.get(newGuard);
           if (existing.exists) {
             throw AppFailure(
-              'This postal reference is already used on ${existing['orderNumber']}.',
+              'This tracking number is already used on ${existing['orderNumber']}.',
             );
           }
         }
@@ -381,11 +365,7 @@ class FirestoreParcelRepository implements ParcelRepository {
 
     final parcelRef = _parcels.doc(parcelId);
     final reference = normalizePostalReference(handover.postalReference);
-    final newGuard = _guard(
-      handover.service,
-      handover.otherServiceName,
-      reference,
-    );
+    final newGuard = _guard(reference);
     try {
       await retryWhenDenied(
         () => _firestore.runTransaction((tx) async {
@@ -400,30 +380,18 @@ class FirestoreParcelRepository implements ParcelRepository {
           }
 
           final oldReference = before['postalReferenceNormalized'] as String;
-          final oldGuard = oldReference.isEmpty
-              ? null
-              : _guard(
-                  PostalService.fromValue(
-                    before['postalServiceType'] as String,
-                  ),
-                  before['otherPostalServiceName'] as String?,
-                  oldReference,
-                );
+          final oldGuard = oldReference.isEmpty ? null : _guard(oldReference);
           final guardChanges = newGuard.path != oldGuard?.path;
           if (guardChanges) {
             final existing = await tx.get(newGuard);
             if (existing.exists) {
               throw AppFailure(
-                'This postal reference is already used on ${existing['orderNumber']}.',
+                'This tracking number is already used on ${existing['orderNumber']}.',
               );
             }
           }
 
           final updated = <String, Object?>{
-            'postalServiceType': handover.service.value,
-            'otherPostalServiceName': handover.service == PostalService.other
-                ? collapseSpaces(handover.otherServiceName ?? '')
-                : null,
             'postalReference': handover.postalReference.trim(),
             'postalReferenceNormalized': reference,
             'deliveryChargePaisa': handover.deliveryChargePaisa,
@@ -1100,10 +1068,6 @@ class FirestoreParcelRepository implements ParcelRepository {
     },
     'items': [for (final item in input.items) item.toMap()],
     'collectionMethod': input.method.value,
-    'postalServiceType': input.service.value,
-    'otherPostalServiceName': input.service == PostalService.other
-        ? collapseSpaces(input.otherServiceName ?? '')
-        : null,
     'postalReference': input.postalReference.trim(),
     'postalReferenceNormalized': normalizedReference,
     'deliveryChargePaisa': input.deliveryChargePaisa,
@@ -1142,10 +1106,6 @@ class FirestoreParcelRepository implements ParcelRepository {
       },
       'items': [for (final item in input.items) item.toMap()],
       'collectionMethod': input.method.value,
-      'postalServiceType': input.service.value,
-      'otherPostalServiceName': ?(input.service == PostalService.other
-          ? collapseSpaces(input.otherServiceName ?? '')
-          : null),
       'postalReference': input.postalReference.trim(),
       'postalReferenceNormalized': normalizedReference,
       'postalGuardId': ?guardId,

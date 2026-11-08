@@ -24,8 +24,6 @@ ParcelItem _pieces({String id = 'p1', int qty = 2, int price = 250000}) =>
 ParcelInput _input({
   List<ParcelItem>? items,
   CollectionMethod method = CollectionMethod.postalCollection,
-  PostalService service = PostalService.vpp,
-  String? otherName,
   String reference = 'VPP 12345',
   int? charge = 15000,
   String? payDate,
@@ -34,8 +32,6 @@ ParcelInput _input({
   customer: _customer,
   items: items ?? [_pieces()],
   method: method,
-  service: service,
-  otherServiceName: otherName,
   postalReference: reference,
   deliveryChargePaisa: charge,
   estimatedPaymentDate: payDate,
@@ -174,20 +170,6 @@ void main() {
   });
 
   group('defaults and enums', () {
-    test('postal service suggestion per parcel type', () {
-      expect(
-        PostalService.defaultFor(CollectionMethod.postalCollection),
-        PostalService.vpp,
-      );
-      for (final m in [
-        CollectionMethod.advance,
-        CollectionMethod.payLater,
-        CollectionMethod.giftFree,
-      ]) {
-        expect(PostalService.defaultFor(m), PostalService.vpl, reason: m.name);
-      }
-    });
-
     test('Pay Later is stored as "credit" but shown as "Pay Later"', () {
       expect(CollectionMethod.payLater.value, 'credit');
       expect(CollectionMethod.payLater.label, 'Pay Later');
@@ -196,7 +178,6 @@ void main() {
 
     test('unknown stored values fail loudly', () {
       expect(() => CollectionMethod.fromValue('x'), throwsStateError);
-      expect(() => PostalService.fromValue('x'), throwsStateError);
       expect(() => ParcelStatus.fromValue('x'), throwsStateError);
       expect(() => PaymentStatus.fromValue('x'), throwsStateError);
     });
@@ -268,32 +249,23 @@ void main() {
       );
     });
 
-    test('"Other" needs a service name; other services must not carry one', () {
+    test('any courier: only the tracking number is needed and checked', () {
+      expect(_input().problems(), isEmpty);
+      expect(_input(reference: 'TCS 8800 1234').problems(), isEmpty);
       expect(
-        _input(service: PostalService.other).problems(),
-        contains('Enter the postal service name.'),
+        _input(reference: 'AB').problems(),
+        contains('Tracking number is not valid.'),
       );
       expect(
-        _input(service: PostalService.other, otherName: ' A ').problems(),
-        contains('Enter the postal service name.'),
-      );
-      expect(
-        _input(
-          service: PostalService.other,
-          otherName: 'Fast Courier',
-        ).problems(),
-        isEmpty,
-      );
-      expect(
-        _input(otherName: 'Fast Courier').problems(),
-        contains('A service name is only for "Other".'),
+        _input(reference: '').problems(),
+        contains('A sent parcel needs its tracking number.'),
       );
     });
 
     test('a sent parcel needs reference and charge; an invalid reference is refused', () {
       expect(
         _input(reference: '', charge: 15000).problems(),
-        contains('A sent parcel needs its postal reference.'),
+        contains('A sent parcel needs its tracking number.'),
       );
       expect(
         _input(charge: null).problems(),
@@ -301,7 +273,7 @@ void main() {
       );
       expect(
         _input(reference: 'VPP#1').problems(),
-        contains('Postal reference is not valid.'),
+        contains('Tracking number is not valid.'),
       );
       expect(
         _input(charge: 0).problems(),
@@ -324,7 +296,6 @@ void main() {
       );
       final payLater = _input(
         method: CollectionMethod.payLater,
-        service: PostalService.vpl,
         payDate: '2026-11-06',
       );
       expect(
@@ -334,16 +305,12 @@ void main() {
       expect(
         _input(
           method: CollectionMethod.payLater,
-          service: PostalService.vpl,
           payDate: '2026-11-07',
         ).problems(today: '2026-11-07'),
         isEmpty,
       );
       expect(
-        _input(
-          method: CollectionMethod.payLater,
-          service: PostalService.vpl,
-        ).problems(today: '2026-11-07'),
+        _input(method: CollectionMethod.payLater).problems(today: '2026-11-07'),
         isEmpty,
         reason: 'the date is optional',
       );

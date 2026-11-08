@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'helpers/fake_parcel_repository.dart';
+import 'helpers/dropdown_finders.dart';
 
 class _Clock extends Clock {
   const _Clock();
@@ -25,7 +26,6 @@ Parcel _later(
   sequence: sequence,
   customerName: name,
   method: CollectionMethod.payLater,
-  service: PostalService.vpl,
   payDate: date,
   received: received,
 );
@@ -160,7 +160,7 @@ void main() {
       await _open(t, repo);
       await t.tap(find.text('Mark Received'));
       await t.pumpAndSettle();
-      await t.tap(find.widgetWithText(ChoiceChip, 'Customer payment'));
+      await chooseOption(t, 'Payment type', 'Customer payment');
       await t.pump();
       await t.tap(find.widgetWithText(FilledButton, 'Confirm Payment'));
       await t.pumpAndSettle();

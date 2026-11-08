@@ -271,8 +271,8 @@ class ParcelTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final reference = parcel.postalReference.isEmpty
-        ? 'No postal reference yet'
-        : '${parcel.serviceLabel} · ${parcel.postalReference}';
+        ? 'No tracking number yet'
+        : parcel.postalReference;
     return InkWell(
       onTap: onTap,
       child: Padding(

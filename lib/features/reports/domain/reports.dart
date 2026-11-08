@@ -90,8 +90,8 @@ String _sent(Parcel parcel) =>
     'Sent ${parcel.sendingDateLabel} · ${parcel.method.label}';
 
 String _reference(Parcel parcel) => parcel.postalReference.isEmpty
-    ? 'No postal reference yet'
-    : '${parcel.serviceLabel} · ${parcel.postalReference}';
+    ? 'No tracking number yet'
+    : parcel.postalReference;
 
 String _title(Parcel parcel) =>
     '${parcel.orderNumber} · ${parcel.customerName}';

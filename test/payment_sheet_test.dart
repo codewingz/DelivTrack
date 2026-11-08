@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'helpers/fake_parcel_repository.dart';
+import 'helpers/dropdown_finders.dart';
 
 // Order total Rs. 5,000.
 Parcel _parcel({int received = 0}) => testParcel(id: 'a', received: received);
@@ -58,10 +59,13 @@ void main() {
       await _open(t, received: 200000);
       expect(find.text('ADT-000001 · Outstanding Rs. 3,000'), findsOneWidget);
       expect(find.text('3000'), findsOneWidget);
+      expect(find.text('Select payment type'), findsOneWidget);
+      expect(find.byType(ChoiceChip), findsNothing);
+      await t.tap(dropdownButton('Payment type'));
+      await t.pumpAndSettle();
       for (final type in PaymentType.values) {
-        expect(find.widgetWithText(ChoiceChip, type.label), findsOneWidget);
+        expect(find.text(type.label), findsOneWidget);
       }
-      expect(find.text('Select a payment type'), findsNothing);
     },
   );
 
@@ -79,7 +83,7 @@ void main() {
     'amount: empty, zero and above the outstanding balance are refused',
     (t) async {
       final env = await _open(t);
-      await t.tap(find.widgetWithText(ChoiceChip, 'Advance'));
+      await chooseOption(t, 'Payment type', 'Advance');
       await t.pump();
       for (final entry in {
         '': 'Amount received is required',
@@ -98,7 +102,7 @@ void main() {
 
   testWidgets('a note longer than 200 characters is refused', (t) async {
     final env = await _open(t);
-    await t.tap(find.widgetWithText(ChoiceChip, 'Advance'));
+    await chooseOption(t, 'Payment type', 'Advance');
     await t.enterText(find.byType(TextFormField).last, 'x' * 201);
     await t.pump();
     await t.tap(_confirm);
@@ -111,7 +115,7 @@ void main() {
     'a valid payment is recorded once and the sheet closes with true',
     (t) async {
       final env = await _open(t);
-      await t.tap(find.widgetWithText(ChoiceChip, 'Post office remittance'));
+      await chooseOption(t, 'Payment type', 'Post office remittance');
       await t.enterText(_amountField, '1500.50');
       await t.enterText(find.byType(TextFormField).last, '  first  part ');
       await t.pump();
@@ -131,7 +135,7 @@ void main() {
     final repo = FakeParcelRepository(initial: [_parcel()])
       ..gate = Completer<void>();
     await _open(t, repo: repo);
-    await t.tap(find.widgetWithText(ChoiceChip, 'Advance'));
+    await chooseOption(t, 'Payment type', 'Advance');
     await t.pump();
     await t.tap(_confirm);
     await t.pump();
@@ -151,7 +155,7 @@ void main() {
         failure: const AppFailure('No internet connection.'),
       );
       final env = await _open(t, repo: repo);
-      await t.tap(find.widgetWithText(ChoiceChip, 'Advance'));
+      await chooseOption(t, 'Payment type', 'Advance');
       await t.pump();
       await t.tap(_confirm);
       await t.pumpAndSettle();
@@ -169,7 +173,7 @@ void main() {
       await t.tap(find.byType(Switch));
       await t.pump();
       expect(find.text('Received on'), findsOneWidget);
-      await t.tap(find.widgetWithText(ChoiceChip, 'Advance'));
+      await chooseOption(t, 'Payment type', 'Advance');
       await t.pump();
       await t.ensureVisible(_confirm);
       await t.tap(_confirm);

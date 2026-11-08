@@ -9,6 +9,8 @@ import 'package:deliv_track/features/products/views/products_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'helpers/dropdown_finders.dart';
+
 import 'helpers/fake_product_repository.dart';
 
 Product _p(
@@ -35,20 +37,8 @@ Future<void> _pump(
 }
 
 /// Opens the "Selling unit" dropdown in the product sheet and picks [label].
-Future<void> _chooseUnit(WidgetTester t, String label) async {
-  await t.tap(
-    find
-        .descendant(
-          of: find.byType(ProductFormSheet),
-          matching: find.byType(TextFormField),
-        )
-        .at(1),
-  );
-  await t.pumpAndSettle();
-  // The picker is the top-most sheet; the products list behind it can show the same words.
-  await t.tap(find.widgetWithText(ListTile, label).last);
-  await t.pumpAndSettle();
-}
+Future<void> _chooseUnit(WidgetTester t, String label) =>
+    chooseOption(t, 'Selling unit', label);
 
 Finder get _addFab => find.widgetWithText(FloatingActionButton, 'Add Product');
 Finder get _sheet => find.byType(ProductFormSheet);
@@ -300,13 +290,6 @@ void main() {
   });
 
   group('selling unit dropdown', () {
-    Finder unitField() => find
-        .descendant(
-          of: find.byType(ProductFormSheet),
-          matching: find.byType(TextFormField),
-        )
-        .at(1);
-
     Future<void> openAdd(WidgetTester t, FakeProductRepository repo) async {
       await _pump(t, repo);
       await t.tap(_addFab);
@@ -324,30 +307,34 @@ void main() {
     });
 
     testWidgets(
-      'lists every unit, ticks the current one, and picking closes the list',
+      'opens a menu that lines up with the field, lists the units and ticks the current one',
       (t) async {
         await openAdd(t, FakeProductRepository());
-        await t.tap(unitField());
+        await t.tap(dropdownButton('Selling unit'));
         await t.pumpAndSettle();
-        for (final unit in SaleUnit.values) {
-          await t.scrollUntilVisible(
-            find.widgetWithText(ListTile, unit.label).last,
-            100,
-            scrollable: find.descendant(
-              of: find.byType(BottomSheet).last,
-              matching: find.byType(Scrollable),
-            ),
-          );
-          expect(
-            find.widgetWithText(ListTile, unit.label).last,
-            findsOneWidget,
-          );
-        }
-        await t.tap(find.widgetWithText(ListTile, 'Per Litre').last);
+        final field = t.getRect(dropdownButton('Selling unit'));
+        final first = t.getRect(find.text('Per Piece').last);
+        // The menu is as wide as the field and lines up with it.
+        expect(first.left, greaterThanOrEqualTo(field.left));
+        expect(first.right, lessThanOrEqualTo(field.right));
+        expect(
+          find.byIcon(Icons.check_rounded),
+          findsNothing,
+          reason: 'nothing chosen yet',
+        );
+        // The menu scrolls; the first units are visible and the last one is reachable.
+        expect(find.text('Per Kg'), findsOneWidget);
+        expect(find.text('Per Litre'), findsOneWidget);
+        await t.scrollUntilVisible(
+          find.text('Per Tin'),
+          100,
+          scrollable: find.byType(Scrollable).last,
+        );
+        await t.tap(find.text('Per Tin'));
         await t.pumpAndSettle();
-        expect(find.widgetWithText(TextFormField, 'Per Litre'), findsOneWidget);
+        expect(dropdownShows('Selling unit', 'Per Tin'), isTrue);
 
-        await t.tap(unitField());
+        await t.tap(dropdownButton('Selling unit'));
         await t.pumpAndSettle();
         expect(
           find.byIcon(Icons.check_rounded),
@@ -376,30 +363,39 @@ void main() {
       },
     );
 
-    testWidgets('editing shows the saved unit', (t) async {
+    testWidgets('editing shows the saved unit and another unit can be chosen', (
+      t,
+    ) async {
       final repo = FakeProductRepository(
         initial: [_p('1', 'Milk', unit: SaleUnit.perLitre)],
       );
       await _pump(t, repo);
       await t.tap(find.text('Milk'));
       await t.pumpAndSettle();
-      expect(find.widgetWithText(TextFormField, 'Per Litre'), findsOneWidget);
+      expect(dropdownShows('Selling unit', 'Per Litre'), isTrue);
+      await _chooseUnit(t, 'Per Jar');
+      expect(dropdownShows('Selling unit', 'Per Jar'), isTrue);
+      expect(
+        find.text('Existing parcels keep their old unit.'),
+        findsOneWidget,
+      );
     });
 
     for (final size in const [Size(320, 568), Size(393, 852)]) {
       for (final scale in [1.0, 1.3, 2.0]) {
         testWidgets(
-          'no overflow with the unit list open at $size text x$scale',
+          'no overflow with the unit menu open at $size text x$scale',
           (t) async {
             await _pump(t, FakeProductRepository(), size: size, scale: scale);
             await t.tap(_addFab);
             await t.pumpAndSettle();
-            await t.tap(unitField());
+            await t.tap(dropdownButton('Selling unit'));
             await t.pumpAndSettle();
             expect(t.takeException(), isNull);
-            await t.tap(find.widgetWithText(ListTile, 'Per Piece').last);
+            await t.tap(find.text('Per Piece').last);
             await t.pumpAndSettle();
             expect(t.takeException(), isNull);
+            expect(dropdownShows('Selling unit', 'Per Piece'), isTrue);
           },
         );
       }

@@ -15,8 +15,6 @@ class Parcel {
     required this.customerAddress,
     required this.items,
     required this.method,
-    required this.service,
-    required this.otherServiceName,
     required this.postalReference,
     required this.deliveryChargePaisa,
     required this.packedWeightGrams,
@@ -93,8 +91,6 @@ class Parcel {
           ParcelItem.fromMap(Map<String, dynamic>.from(item as Map)),
       ],
       method: CollectionMethod.fromValue(data['collectionMethod'] as String),
-      service: PostalService.fromValue(data['postalServiceType'] as String),
-      otherServiceName: data['otherPostalServiceName'] as String?,
       postalReference: data['postalReference'] as String,
       deliveryChargePaisa: data['deliveryChargePaisa'] as int?,
       packedWeightGrams: data['actualPackedWeightGrams'] as int?,
@@ -128,8 +124,6 @@ class Parcel {
   final String customerAddress;
   final List<ParcelItem> items;
   final CollectionMethod method;
-  final PostalService service;
-  final String? otherServiceName;
   final String postalReference;
   final int? deliveryChargePaisa;
   final int? packedWeightGrams;
@@ -176,11 +170,6 @@ class Parcel {
       !isArchived &&
       !paymentReviewRequired &&
       (status != ParcelStatus.sent || outstandingPaisa == 0);
-
-  /// The service as shown: the typed name for "Other", otherwise VPP / VPL / VPR.
-  String get serviceLabel => service == PostalService.other
-      ? (otherServiceName ?? 'Other')
-      : service.value;
 
   String get sendingDateLabel => formatDate(sendingDate);
 }

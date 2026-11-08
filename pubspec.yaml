@@ -42,6 +42,7 @@ dependencies:
   url_launcher: ^6.3.3
   flutter_native_contact_picker: ^0.0.13
   google_nav_bar: ^5.0.7
+  dropdown_button2: ^3.1.0
 
 dev_dependencies:
   integration_test:

@@ -1,4 +1,4 @@
-/// Postal reference as compared for uniqueness: no spaces, upper case.
+/// Tracking number as compared for uniqueness: no spaces, upper case.
 String normalizePostalReference(String raw) =>
     raw.replaceAll(RegExp(r'\s+'), '').toUpperCase();
 

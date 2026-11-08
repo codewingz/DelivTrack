@@ -135,11 +135,11 @@ class AppValidators {
     return pieces >= 1 ? null : 'Enter a whole number of $unit (1–99,999)';
   }
 
-  /// A postal reference as printed on the slip (see [isValidPostalReference]).
+  /// A tracking number as printed on the slip (see [isValidPostalReference]).
   static String? postalReference(String? value, {bool isRequired = false}) {
     final trimmed = value?.trim() ?? '';
     if (trimmed.isEmpty) {
-      return isRequired ? 'Postal reference is required to mark as Sent' : null;
+      return isRequired ? 'Tracking number is required to mark as Sent' : null;
     }
     return isValidPostalReference(trimmed)
         ? null

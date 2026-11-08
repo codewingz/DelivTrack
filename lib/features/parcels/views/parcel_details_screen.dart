@@ -207,16 +207,15 @@ class _ParcelView extends StatelessWidget {
           _Section(
             title: 'Postal details',
             children: [
-              _Info('Service', parcel.serviceLabel),
               _Info(
-                'Postal reference',
+                'Tracking number',
                 parcel.postalReference.isEmpty
                     ? 'Awaiting handover'
                     : parcel.postalReference,
                 trailing: parcel.postalReference.isEmpty
                     ? null
                     : IconButton(
-                        tooltip: 'Copy postal reference',
+                        tooltip: 'Copy tracking number',
                         icon: const Icon(Icons.copy_rounded),
                         onPressed: () async {
                           final messenger = ScaffoldMessenger.of(context);
@@ -225,7 +224,7 @@ class _ParcelView extends StatelessWidget {
                           );
                           messenger.showSnackBar(
                             const SnackBar(
-                              content: Text('Postal reference copied.'),
+                              content: Text('Tracking number copied.'),
                             ),
                           );
                         },
@@ -244,7 +243,7 @@ class _ParcelView extends StatelessWidget {
                 ),
               if (!parcel.isArchived && parcel.status == ParcelStatus.draft)
                 PrimaryButton(
-                  label: 'Hand over to post office',
+                  label: 'Hand over parcel',
                   onPressed: () => onAction(
                     () => showHandoverSheet(context, repository, parcel),
                     'Parcel handed over.',

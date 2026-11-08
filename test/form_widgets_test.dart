@@ -65,7 +65,7 @@ void main() {
       expect(AppValidators.postalReference(''), isNull);
       expect(
         AppValidators.postalReference('', isRequired: true),
-        'Postal reference is required to mark as Sent',
+        'Tracking number is required to mark as Sent',
       );
       expect(
         AppValidators.postalReference('ABCD'),
@@ -140,7 +140,7 @@ void main() {
       key.currentState!.validate();
       await t.pump();
       expect(
-        find.text('Postal reference is required to mark as Sent'),
+        find.text('Tracking number is required to mark as Sent'),
         findsOneWidget,
       );
     });

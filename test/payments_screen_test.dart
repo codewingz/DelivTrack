@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'helpers/fake_parcel_repository.dart';
+import 'helpers/dropdown_finders.dart';
 
 class _Clock extends Clock {
   const _Clock();
@@ -198,7 +199,7 @@ void main() {
 
       await t.tap(find.text('Receive'));
       await t.pumpAndSettle();
-      await t.tap(find.widgetWithText(ChoiceChip, 'Customer payment'));
+      await chooseOption(t, 'Payment type', 'Customer payment');
       await t.enterText(find.byType(TextFormField).first, '5000');
       await t.pump();
       await t.tap(find.widgetWithText(FilledButton, 'Confirm Payment'));

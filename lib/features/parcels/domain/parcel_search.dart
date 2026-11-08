@@ -3,7 +3,7 @@ import '../../../utils/postal_reference.dart';
 import 'parcel.dart';
 import 'parcel_enums.dart';
 
-/// Whether [parcel] matches what the user typed: any part of the order number, the postal reference
+/// Whether [parcel] matches what the user typed: any part of the order number, the tracking number
 /// (spaces and case ignored), the customer's name or phone number, or a product name.
 bool parcelMatchesQuery(Parcel parcel, String query) {
   final needle = query.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');

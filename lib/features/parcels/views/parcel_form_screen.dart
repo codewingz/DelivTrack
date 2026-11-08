@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../common_widgets/app_choice_field.dart';
+import '../../../common_widgets/app_dropdown_field.dart';
 import '../../../common_widgets/app_date_field.dart';
 import '../../../common_widgets/app_select_field.dart';
 import '../../../common_widgets/app_text_field.dart';
@@ -163,11 +163,12 @@ class _ParcelFormScreenState extends State<ParcelFormScreen> {
                                 : null,
                           ),
                           const SizedBox(height: AppSpacing.lg),
-                          AppChoiceField<CollectionMethod>(
+                          AppDropdownField<CollectionMethod>(
                             label: 'Parcel type',
+                            hint: 'Select parcel type',
                             isRequired: true,
                             enabled: !busy,
-                            initialValue: _form.method,
+                            value: _form.method,
                             options: [
                               for (final m in CollectionMethod.values)
                                 (value: m, label: m.label),
@@ -240,10 +241,10 @@ class _ParcelFormScreenState extends State<ParcelFormScreen> {
                           const SizedBox(height: AppSpacing.md),
                           Text(
                             widget.parcel == null
-                                ? 'The parcel is saved as a Draft. Open it and tap "Hand over to post office" once you have the slip.'
+                                ? 'The parcel is saved as a Draft. Open it and tap "Hand over parcel" once you have the slip.'
                                 : widget.parcel!.status == ParcelStatus.draft
                                 ? 'This parcel is still a Draft. Hand it over from its details once you have the slip.'
-                                : 'Post-office details are changed with "Edit handover" on the parcel details.',
+                                : 'Handover details are changed with "Edit handover" on the parcel details.',
                             textAlign: TextAlign.center,
                             style: const TextStyle(
                               fontSize: 12,

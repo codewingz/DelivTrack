@@ -12,6 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'helpers/fake_customer_repository.dart';
 import 'helpers/fake_parcel_repository.dart';
 import 'helpers/fake_product_repository.dart';
+import 'helpers/dropdown_finders.dart';
 
 const _ali = Customer(
   id: 'c1',
@@ -145,9 +146,7 @@ Future<void> _tapPickerEntry(WidgetTester t, String name) async {
 }
 
 Future<void> _chooseType(WidgetTester t, String label) async {
-  await _scrollTo(t, find.widgetWithText(ChoiceChip, label));
-  await t.tap(find.widgetWithText(ChoiceChip, label));
-  await t.pump();
+  await chooseOption(t, 'Parcel type', label);
 }
 
 Future<void> _pickProduct(WidgetTester t, String name, {int row = 0}) async {
@@ -219,7 +218,7 @@ void main() {
         }
         for (final gone in [
           'Postal service *',
-          'Postal reference number',
+          'Tracking number',
           'Delivery charges (Rs.)',
           'Actual packed parcel weight (kg)',
         ]) {
@@ -232,7 +231,7 @@ void main() {
         );
         await _scrollTo(t, _saveButton);
         expect(find.textContaining('saved as a Draft'), findsOneWidget);
-        expect(find.textContaining('Hand over to post office'), findsOneWidget);
+        expect(find.textContaining('Hand over parcel'), findsOneWidget);
       },
     );
   });
@@ -582,7 +581,6 @@ void main() {
         final input = env.parcels.created.single;
         expect(input.customer.id, 'c1');
         expect(input.method, CollectionMethod.postalCollection);
-        expect(input.service, PostalService.vpp);
         expect(input.postalReference, isEmpty);
         expect(input.deliveryChargePaisa, isNull);
         expect(input.packedWeightGrams, isNull);
@@ -611,7 +609,6 @@ void main() {
       expect(input.status, ParcelStatus.draft);
       expect(input.postalReference, isEmpty);
       expect(input.deliveryChargePaisa, isNull);
-      expect(input.service, PostalService.vpl);
       expect(input.items.single.lineTotalPaisa, 9999);
     });
 
@@ -698,11 +695,7 @@ void main() {
         await _pickCustomer(t, 'Ali Raza');
         expect(find.widgetWithText(TextFormField, 'Ali Raza'), findsOneWidget);
         expect(
-          t
-              .widget<ChoiceChip>(
-                find.widgetWithText(ChoiceChip, 'Advance paid'),
-              )
-              .selected,
+          dropdownShows('Parcel type', 'Advance paid'),
           isTrue,
           reason: 'unsaved parcel data is preserved',
         );

@@ -11,8 +11,6 @@ class ParcelInput {
     required this.customer,
     required this.items,
     required this.method,
-    required this.service,
-    this.otherServiceName,
     this.postalReference = '',
     this.deliveryChargePaisa,
     this.packedWeightGrams,
@@ -23,12 +21,8 @@ class ParcelInput {
   final Customer customer;
   final List<ParcelItem> items;
   final CollectionMethod method;
-  final PostalService service;
 
-  /// Required when [service] is "Other".
-  final String? otherServiceName;
-
-  /// As typed; empty for a draft without a slip yet.
+  /// The tracking number as typed; empty for a draft that has not been handed over yet.
   final String postalReference;
   final int? deliveryChargePaisa;
   final int? packedWeightGrams;
@@ -62,19 +56,12 @@ class ParcelInput {
         expectedPaisa <= 0) {
       found.add('The products total must be above zero.');
     }
-    if (service == PostalService.other &&
-        (otherServiceName ?? '').trim().length < 2) {
-      found.add('Enter the postal service name.');
-    }
-    if (service != PostalService.other && otherServiceName != null) {
-      found.add('A service name is only for "Other".');
-    }
     if (postalReference.trim().isNotEmpty &&
         !isValidPostalReference(postalReference)) {
-      found.add('Postal reference is not valid.');
+      found.add('Tracking number is not valid.');
     }
     if (status == ParcelStatus.sent && postalReference.trim().isEmpty) {
-      found.add('A sent parcel needs its postal reference.');
+      found.add('A sent parcel needs its tracking number.');
     }
     if (status == ParcelStatus.sent && deliveryChargePaisa == null) {
       found.add('A sent parcel needs its delivery charge.');

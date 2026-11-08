@@ -137,8 +137,7 @@ Map<String, Object?> _parcel({
       },
     ],
     'collectionMethod': 'postal_collection',
-    'postalServiceType': 'VPP',
-    // one reference per order number, so parcels of the same user never share a reference guard
+    // one tracking number per order number, so parcels of the same user never share a guard
     'postalReference': 'VPP ${12344 + seq}',
     'postalReferenceNormalized': 'VPP${12344 + seq}',
     'deliveryChargePaisa': 15000,
@@ -155,12 +154,7 @@ Map<String, Object?> _parcel({
   }
   final normalized = base['postalReferenceNormalized'] as String? ?? '';
   if (normalized.isNotEmpty && !base.containsKey('postalGuardId')) {
-    final service = base['postalServiceType'] as String;
-    final serviceKey = service == 'Other'
-        ? 'Other-${(base['otherPostalServiceName'] as String? ?? '').toLowerCase()}'
-        : service;
-    base['postalGuardId'] =
-        '${Uri.encodeComponent(serviceKey)}__${Uri.encodeComponent(normalized)}';
+    base['postalGuardId'] = Uri.encodeComponent(normalized);
   }
   return base;
 }
@@ -868,7 +862,7 @@ void main() {
       final pid = id();
       expect(await createParcel(a, pid, _parcel(seq: 1)), 200);
       expect(
-        await emu.get(a.token, 'users/${a.uid}/postal_refs/VPP__VPP12345'),
+        await emu.get(a.token, 'users/${a.uid}/postal_refs/VPP12345'),
         200,
         reason: 'A\'s own guard (written with the parcel)',
       );
@@ -885,7 +879,7 @@ void main() {
       );
       expect(await emu.get(b.token, cpath(a.uid)), 403, reason: 'read counter');
       expect(
-        await emu.get(b.token, 'users/${a.uid}/postal_refs/VPP__VPP12345'),
+        await emu.get(b.token, 'users/${a.uid}/postal_refs/VPP12345'),
         403,
         reason: 'read guard',
       );
@@ -895,7 +889,7 @@ void main() {
         reason: 'write into A\'s data',
       );
       expect(
-        await emu.set(b.token, 'users/${a.uid}/postal_refs/VPP__OTHER', {
+        await emu.set(b.token, 'users/${a.uid}/postal_refs/OTHER', {
           'parcelId': 'x',
           'orderNumber': 'ADT-000009',
         }),
@@ -951,15 +945,11 @@ void main() {
         _parcel(seq: 1, overrides: {'collectionMethod': 'barter'}),
       );
       await denied(
-        'unknown service',
-        _parcel(seq: 1, overrides: {'postalServiceType': 'TCS'}),
+        'the old service fields are gone',
+        _parcel(seq: 1, overrides: {'postalServiceType': 'VPP'}),
       );
       await denied(
-        'Other needs a name',
-        _parcel(seq: 1, overrides: {'postalServiceType': 'Other'}),
-      );
-      await denied(
-        'name only for Other',
+        'the old service-name field is gone',
         _parcel(seq: 1, overrides: {'otherPostalServiceName': 'Courier X'}),
       );
       await denied(
@@ -1108,13 +1098,13 @@ void main() {
           _parcel(
             seq: 2,
             overrides: {
-              'postalServiceType': 'Other',
-              'otherPostalServiceName': 'Fast Courier',
+              'postalReference': 'TCS 8800 1234',
+              'postalReferenceNormalized': 'TCS88001234',
             },
           ),
         ),
         200,
-        reason: 'Other',
+        reason: 'any courier: only the tracking number matters',
       );
       expect(
         await createParcel(
@@ -1309,7 +1299,7 @@ void main() {
         403,
         reason: 'the guard already exists',
       );
-      final made = {...second, 'postalGuardId': 'VPP__SOMETHING-ELSE'};
+      final made = {...second, 'postalGuardId': 'SOMETHING-ELSE'};
       expect(
         await create(u, id(), made),
         403,
@@ -1333,7 +1323,7 @@ void main() {
           'postalReferenceNormalized': 'VPP55/66',
         },
       );
-      expect(p['postalGuardId'], 'VPP__VPP55%2F66');
+      expect(p['postalGuardId'], 'VPP55%2F66');
       expect(await create(u, id(), p), 200);
       expect(
         await create(
@@ -1410,7 +1400,7 @@ void main() {
       expect(await create(u, pid, _parcel(seq: 1)), 200);
       final key = _parcel(seq: 1)['postalGuardId'] as String;
       expect(
-        await emu.set(u.token, gpath(u.uid, 'VPP__LONE1'), {
+        await emu.set(u.token, gpath(u.uid, 'LONE1'), {
           'parcelId': pid,
           'orderNumber': 'ADT-000001',
         }),
@@ -1531,10 +1521,7 @@ void main() {
       // an unrelated edit keeps the guard as it is
       expect(await change(u, pid, created, {...third, 'notes': 'edited'}), 200);
       expect(
-        await change(u, pid, created, {
-          ...third,
-          'postalGuardId': 'VPP__VPP12345',
-        }),
+        await change(u, pid, created, {...third, 'postalGuardId': 'VPP12345'}),
         403,
         reason: 'the pointer cannot be moved without a new reference',
       );
@@ -1561,7 +1548,7 @@ void main() {
           ...draft,
           'orderNumber': 'ADT-000002',
           'orderSequence': 2,
-          'postalGuardId': 'VPP__X1234',
+          'postalGuardId': 'X1234',
         }),
         403,
         reason: 'a pointer without a reference',
@@ -1592,7 +1579,7 @@ void main() {
         200,
       );
       expect(
-        await emu.set('owner', gpath(u.uid, 'VPP__VPP12345'), {
+        await emu.set('owner', gpath(u.uid, 'VPP12345'), {
           'parcelId': pid,
           'orderNumber': 'ADT-000001',
         }),
@@ -1610,7 +1597,7 @@ void main() {
         reason: 'same reference, no pointer needed',
       );
       expect(
-        await emu.delete(u.token, gpath(u.uid, 'VPP__VPP12345')),
+        await emu.delete(u.token, gpath(u.uid, 'VPP12345')),
         403,
         reason: 'the old guard cannot be dropped on its own',
       );
@@ -1628,7 +1615,7 @@ void main() {
           created,
           {...changed, 'notes': 'still editable'},
           extra: [
-            DocWrite.delete(gpath(u.uid, 'VPP__VPP12345')),
+            DocWrite.delete(gpath(u.uid, 'VPP12345')),
             ..._guardFor(u.uid, pid, changed),
           ],
         ),
@@ -1637,49 +1624,51 @@ void main() {
       );
     }, skip: skip);
 
-    test('"Other" services: a guard linked to the parcel is required (the service-name part is app-enforced)', () async {
-      final u = await emu.signUp(
-        'oth${DateTime.now().microsecondsSinceEpoch}@x.com',
-      );
-      final other = _parcel(
-        seq: 1,
-        overrides: {
-          'postalServiceType': 'Other',
-          'otherPostalServiceName': 'Courier X',
-          'postalReference': 'CX 1234',
-          'postalReferenceNormalized': 'CX1234',
-        },
-      );
-      expect(other['postalGuardId'], 'Other-courier%20x__CX1234');
-      expect(
-        await create(u, id(), other, guard: false),
-        403,
-        reason: 'no guard',
-      );
-      expect(
-        await create(u, id(), {...other, 'postalGuardId': 'Courier-x__CX1234'}),
-        403,
-        reason: 'wrong shape',
-      );
-      expect(
-        await create(u, id(), {
-          ...other,
-          'postalGuardId': 'Other-courier%20x__WRONG',
-        }),
-        403,
-        reason: 'wrong reference part',
-      );
-      expect(await create(u, id(), other), 200);
-      expect(
-        await create(u, id(), {
-          ...other,
-          'orderNumber': 'ADT-000002',
-          'orderSequence': 2,
-        }),
-        403,
-        reason: 'same Other service and reference',
-      );
-    }, skip: skip);
+    test(
+      'the guard id is exactly the tracking number, whatever the courier',
+      () async {
+        final u = await emu.signUp(
+          'trk${DateTime.now().microsecondsSinceEpoch}@x.com',
+        );
+        final parcel = _parcel(
+          seq: 1,
+          overrides: {
+            'postalReference': 'CX 1234',
+            'postalReferenceNormalized': 'CX1234',
+          },
+        );
+        expect(parcel['postalGuardId'], 'CX1234');
+        expect(
+          await create(u, id(), parcel, guard: false),
+          403,
+          reason: 'no guard',
+        );
+        expect(
+          await create(u, id(), {
+            ...parcel,
+            'postalGuardId': 'Courier-x__CX1234',
+          }),
+          403,
+          reason: 'the old service-prefixed shape',
+        );
+        expect(
+          await create(u, id(), {...parcel, 'postalGuardId': 'WRONG'}),
+          403,
+          reason: 'wrong number',
+        );
+        expect(await create(u, id(), parcel), 200);
+        expect(
+          await create(u, id(), {
+            ...parcel,
+            'orderNumber': 'ADT-000002',
+            'orderSequence': 2,
+          }),
+          403,
+          reason: 'the same tracking number again',
+        );
+      },
+      skip: skip,
+    );
   });
 
   group('audit log', () {

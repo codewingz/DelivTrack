@@ -16,29 +16,6 @@ enum CollectionMethod {
   );
 }
 
-enum PostalService {
-  vpp('VPP'),
-  vpl('VPL'),
-  vpr('VPR'),
-  other('Other');
-
-  const PostalService(this.value);
-
-  /// Stored value and display label are the same.
-  final String value;
-
-  /// Suggested service for a parcel type: collection -> VPP, everything else -> VPL.
-  static PostalService defaultFor(CollectionMethod method) =>
-      method == CollectionMethod.postalCollection
-      ? PostalService.vpp
-      : PostalService.vpl;
-
-  static PostalService fromValue(String value) => values.firstWhere(
-    (s) => s.value == value,
-    orElse: () => throw StateError('Unknown postal service "$value"'),
-  );
-}
-
 /// How a returned parcel's payment review was settled. It only records the decision: nothing is
 /// refunded, adjusted or deleted by completing the review.
 enum ReviewResolution {

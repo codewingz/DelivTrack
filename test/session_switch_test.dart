@@ -129,7 +129,6 @@ void main() {
           testParcel(
             id: 'a',
             method: CollectionMethod.payLater,
-            service: PostalService.vpl,
             payDate: '2000-01-01',
           ),
         ],

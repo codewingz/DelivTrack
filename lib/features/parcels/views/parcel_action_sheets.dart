@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 
-import '../../../common_widgets/app_choice_field.dart';
+import '../../../common_widgets/app_dropdown_field.dart';
 import '../../../common_widgets/app_date_field.dart';
 import '../../../common_widgets/app_form_sheet.dart';
 import '../../../common_widgets/app_text_field.dart';
 import '../../../core/errors/app_failure.dart';
 import '../../../core/money/money.dart';
 import '../../../core/time/pakistan_time.dart';
-import '../../../utils/app_validators.dart';
 import '../../../utils/text.dart';
 import '../data/parcel_repository.dart';
 import '../domain/parcel.dart';
@@ -164,11 +163,12 @@ class _ReviewSheetState extends State<_ReviewSheet> {
         );
       },
       fields: (busy) => [
-        AppChoiceField<ReviewResolution>(
+        AppDropdownField<ReviewResolution>(
           label: 'How was it settled?',
+          hint: 'Select how it was settled',
           isRequired: true,
           enabled: !busy,
-          initialValue: _resolution,
+          value: _resolution,
           options: [
             for (final resolution in ReviewResolution.values)
               (value: resolution, label: resolution.label),
@@ -454,13 +454,6 @@ class _HandoverSheet extends StatefulWidget {
 class _HandoverSheetState extends State<_HandoverSheet> {
   bool get _isDraft => widget.parcel.status == ParcelStatus.draft;
 
-  // A draft starts from the service its parcel type suggests; a sent parcel from what was recorded.
-  late PostalService _service = _isDraft
-      ? PostalService.defaultFor(widget.parcel.method)
-      : widget.parcel.service;
-  late final _other = TextEditingController(
-    text: widget.parcel.otherServiceName,
-  );
   late final _reference = TextEditingController(
     text: widget.parcel.postalReference,
   );
@@ -477,7 +470,6 @@ class _HandoverSheetState extends State<_HandoverSheet> {
 
   @override
   void dispose() {
-    _other.dispose();
     _reference.dispose();
     _charge.dispose();
     _weight.dispose();
@@ -488,47 +480,20 @@ class _HandoverSheetState extends State<_HandoverSheet> {
   Widget build(BuildContext context) {
     final parcel = widget.parcel;
     return AppFormSheet(
-      title: _isDraft ? 'Hand over to post office' : 'Edit handover',
+      title: _isDraft ? 'Hand over parcel' : 'Edit handover',
       subtitle: _isDraft
-          ? '${parcel.orderNumber} · ${parcel.customerName}. Enter the details printed on the post office slip; the parcel then becomes Sent.'
+          ? '${parcel.orderNumber} · ${parcel.customerName}. Enter the tracking number and the delivery charge from the slip; the parcel then becomes Sent.'
           : '${parcel.orderNumber} · ${parcel.customerName}',
       submitLabel: _isDraft ? 'Hand Over' : 'Save Handover',
       onSubmit: () => widget.repository.saveHandover(
         parcel.id,
         ParcelHandover(
-          service: _service,
-          otherServiceName: _service == PostalService.other
-              ? collapseSpaces(_other.text)
-              : null,
           postalReference: _reference.text,
           deliveryChargePaisa: parseRupeesToPaisa(_charge.text),
           packedWeightGrams: parseKgToGrams(_weight.text),
         ),
       ),
       fields: (busy) => [
-        AppChoiceField<PostalService>(
-          label: 'Postal service',
-          isRequired: true,
-          enabled: !busy,
-          initialValue: _service,
-          options: [
-            for (final service in PostalService.values)
-              (value: service, label: service.value),
-          ],
-          onChanged: (service) => setState(() => _service = service),
-          validator: (value) =>
-              value == null ? 'Select a postal service' : null,
-        ),
-        if (_service == PostalService.other)
-          AppTextField(
-            controller: _other,
-            label: 'Service name',
-            hint: 'Enter service name',
-            isRequired: true,
-            enabled: !busy,
-            validator: (value) =>
-                AppValidators.name(value, fieldName: 'Service name'),
-          ),
         AppTextField.reference(
           controller: _reference,
           isRequired: true,

@@ -33,7 +33,6 @@ Parcel testParcelLater(String id, int sequence, String? date) => testParcel(
   id: id,
   sequence: sequence,
   method: CollectionMethod.payLater,
-  service: PostalService.vpl,
   payDate: date,
 );
 

@@ -33,35 +33,6 @@ void main() {
     expect(vm.status, ParcelStatus.draft);
     expect(vm.totalPaisa, 0);
     expect(vm.method, isNull);
-    expect(vm.service, isNull);
-  });
-
-  group('postal service (set at handover, not on this form)', () {
-    test('a new parcel\'s service follows the parcel type', () {
-      final vm = ParcelFormViewModel();
-      vm.setMethod(CollectionMethod.postalCollection);
-      expect(vm.service, PostalService.vpp);
-      vm.setMethod(CollectionMethod.advance);
-      expect(vm.service, PostalService.vpl);
-    });
-
-    test('a draft being edited still follows its type; a sent parcel keeps the service it was handed over with', () {
-      final draft = ParcelFormViewModel.fromParcel(
-        testParcel(
-          status: ParcelStatus.draft,
-          reference: '',
-          charge: null,
-          service: PostalService.vpp,
-        ),
-      );
-      draft.setMethod(CollectionMethod.advance);
-      expect(draft.service, PostalService.vpl);
-      final sent = ParcelFormViewModel.fromParcel(
-        testParcel(service: PostalService.vpr),
-      );
-      sent.setMethod(CollectionMethod.advance);
-      expect(sent.service, PostalService.vpr);
-    });
   });
 
   group('Pay Later date', () {
@@ -96,7 +67,6 @@ void main() {
         reference: 'VPP 55555',
         charge: 12000,
         packedGrams: 2500,
-        service: PostalService.vpr,
       );
       final vm = ParcelFormViewModel.fromParcel(sent);
       expect(vm.status, ParcelStatus.sent);
@@ -105,7 +75,6 @@ void main() {
       expect(input.postalReference, 'VPP 55555');
       expect(input.deliveryChargePaisa, 12000);
       expect(input.packedWeightGrams, 2500);
-      expect(input.service, PostalService.vpr);
       expect(input.problems(), isEmpty);
       final draft = ParcelFormViewModel.fromParcel(
         testParcel(status: ParcelStatus.draft, reference: '', charge: null),
@@ -216,8 +185,6 @@ void main() {
         final input = vm.buildInput();
         expect(input.customer.id, 'c1');
         expect(input.method, CollectionMethod.giftFree);
-        expect(input.service, PostalService.vpl);
-        expect(input.otherServiceName, isNull);
         expect(input.status, ParcelStatus.draft);
         expect(input.items.single.unitPricePaisa, 0);
         expect(input.expectedPaisa, 0);
@@ -235,8 +202,6 @@ void main() {
       final input = vm.buildInput();
       expect(input.items.single.weightGrams, 333);
       expect(input.items.single.lineTotalPaisa, 3333);
-      expect(input.service, PostalService.vpl);
-      expect(input.otherServiceName, isNull);
     });
   });
 }

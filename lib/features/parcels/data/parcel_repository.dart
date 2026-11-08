@@ -157,7 +157,7 @@ class FirestoreParcelRepository implements ParcelRepository {
         }
 
         tx.set(_counter, {'lastSequence': sequence});
-        tx.set(parcelRef, _newParcelFields(input, orderNumber, sequence, normalizedReference));
+        tx.set(parcelRef, _newParcelFields(input, orderNumber, sequence, normalizedReference, guard?.id));
         if (guard != null) tx.set(guard, {'parcelId': parcelRef.id, 'orderNumber': orderNumber});
         return parcelRef.id;
       }));
@@ -225,6 +225,8 @@ class FirestoreParcelRepository implements ParcelRepository {
 
         final expected = input.expectedPaisa;
         final updated = _editableFields(input, normalizedReference, expected, received, isFree);
+        // The guard document id is stored on the parcel; the rules tie the two together.
+        if (newGuard?.path != oldGuard?.path) updated['postalGuardId'] = newGuard?.id;
         final changed = changedKeys(before, {...before, ...updated}..removeWhere((key, value) => value == null));
         if (changed.isEmpty) return;
 
@@ -608,7 +610,7 @@ class FirestoreParcelRepository implements ParcelRepository {
         'parcelStatus': input.status.value,
       };
 
-  Map<String, Object> _newParcelFields(ParcelInput input, String orderNumber, int sequence, String normalizedReference) {
+  Map<String, Object> _newParcelFields(ParcelInput input, String orderNumber, int sequence, String normalizedReference, String? guardId) {
     final isFree = input.method == CollectionMethod.giftFree;
     final expected = input.expectedPaisa;
     return {
@@ -626,6 +628,7 @@ class FirestoreParcelRepository implements ParcelRepository {
       'otherPostalServiceName': ?(input.service == PostalService.other ? collapseSpaces(input.otherServiceName ?? '') : null),
       'postalReference': input.postalReference.trim(),
       'postalReferenceNormalized': normalizedReference,
+      'postalGuardId': ?guardId,
       'deliveryChargePaisa': ?input.deliveryChargePaisa,
       'actualPackedWeightGrams': ?input.packedWeightGrams,
       'estimatedPaymentDateLocal': ?input.estimatedPaymentDate,

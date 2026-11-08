@@ -3,7 +3,14 @@ import 'dart:io';
 
 /// One document write inside [EmulatorClient.commit].
 class DocWrite {
-  const DocWrite(this.path, this.fields, {this.serverTimes = const []});
+  const DocWrite(this.path, this.fields, {this.serverTimes = const []}) : isDelete = false;
+
+  /// Deletes the document (inside the same commit as other writes).
+  const DocWrite.delete(this.path)
+      : fields = const {},
+        serverTimes = const [],
+        isDelete = true;
+  final bool isDelete;
   final String path;
   final Map<String, Object?> fields;
   final List<String> serverTimes;
@@ -43,6 +50,9 @@ class EmulatorClient {
       body: {
         'writes': [
           for (final w in writes)
+            if (w.isDelete)
+              {'delete': _docName(w.path)}
+            else
             {
               'update': {'name': _docName(w.path), 'fields': w.fields.map((k, v) => MapEntry(k, _value(v)))},
               if (w.serverTimes.isNotEmpty)

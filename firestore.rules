@@ -96,7 +96,7 @@ service cloud.firestore {
           'estimatedPaymentDateLocal', 'productAmountExpectedPaisa', 'receivedPaisa', 'outstandingPaisa',
           'paymentStatus', 'parcelStatus', 'sendingDateLocal', 'createdAt', 'updatedAt',
           'notes', 'returnedDateLocal', 'returnReason', 'paymentReviewRequired', 'isArchived', 'lastPaymentId',
-          'paymentReviewReason', 'paymentReviewNote', 'paymentReviewDateLocal', 'paymentReviewResolvedAt']);
+          'paymentReviewReason', 'paymentReviewNote', 'paymentReviewDateLocal', 'paymentReviewResolvedAt', 'postalGuardId']);
     }
 
     // The status the app derives from the amounts (see paymentStatusFor).
@@ -120,9 +120,7 @@ service cloud.firestore {
         && data.customerId is string && data.customerId.size() > 0 && data.customerId.size() <= 40
         && data.customerSnapshot is map
         && data.customerSnapshot.keys().hasOnly(['name', 'phone', 'address'])
-        && trimmedText(data.customerSnapshot.name, 2, 60)
-        && trimmedText(data.customerSnapshot.phone, 10, 20)
-        && trimmedText(data.customerSnapshot.address, 5, 200)
+        // name, phone and address are checked by `customerMatches` (they equal the customer's validated record)
         && data.items is list && data.items.size() >= 1 && data.items.size() <= 20
         && data.collectionMethod in ['postal_collection', 'advance', 'credit', 'free_gift']
         && data.postalServiceType in ['VPP', 'VPL', 'VPR', 'Other']
@@ -142,6 +140,7 @@ service cloud.firestore {
         && data.outstandingPaisa == (data.productAmountExpectedPaisa > data.receivedPaisa ? data.productAmountExpectedPaisa - data.receivedPaisa : 0)
         && (data.collectionMethod != 'free_gift' || data.productAmountExpectedPaisa == 0)
         && data.paymentStatus == statusFor(data)
+        && (!('postalGuardId' in data) || (data.postalGuardId is string && data.postalGuardId.size() > 0 && data.postalGuardId.size() <= 160))
         && (!('lastPaymentId' in data) || (data.lastPaymentId is string && data.lastPaymentId.size() > 0 && data.lastPaymentId.size() <= 80))
         && validDateString(data.sendingDateLocal)
         && (!('notes' in data) || (data.notes is string && data.notes.size() >= 1 && data.notes.size() <= 500))
@@ -186,12 +185,46 @@ service cloud.firestore {
 
     // Postal-reference guards (one doc per service + reference; keeps references unique per user).
     match /users/{uid}/postal_refs/{refKey} {
-      allow read, delete: if isOwner(uid);
+      allow read: if isOwner(uid);
+      // Created together with the parcel that points at it; released only in the commit that moves that
+      // parcel to another reference (or clears it).
+      allow delete: if isOwner(uid)
+        && existsAfter(parcelAt(uid, resource.data.parcelId))
+        && getAfter(parcelAt(uid, resource.data.parcelId)).data.updatedAt == request.time
+        && getAfter(parcelAt(uid, resource.data.parcelId)).data.get('postalGuardId', '') != refKey;
       allow create: if isOwner(uid)
         && request.resource.data.keys().hasOnly(['parcelId', 'orderNumber'])
         && request.resource.data.parcelId is string
-        && request.resource.data.orderNumber is string;
+        && request.resource.data.orderNumber is string
+        && existsAfter(parcelAt(uid, request.resource.data.parcelId))
+        && getAfter(parcelAt(uid, request.resource.data.parcelId)).data.get('postalGuardId', '') == refKey;
       allow update: if false;
+    }
+
+    function guardAt(uid, guardId) {
+      return /databases/$(database)/documents/users/$(uid)/postal_refs/$(guardId);
+    }
+
+    // A parcel's (service, reference) is reserved by a guard document created in the same commit and linked
+    // to the parcel through `postalGuardId`. A second parcel with the same reference would need the same
+    // guard id, which already exists and points at the first parcel, so it is refused.
+    // For VPP / VPL / VPR the id is derived exactly as the app does ("VPP__ABC123", "/" written %2F). For
+    // "Other" the id holds the URL-encoded free-text service name, which rules cannot reproduce: only its
+    // shape, the reference part and the link to this parcel are checked, so uniqueness there is app-enforced.
+    function guardOk(uid, parcelId, data) {
+      return data.get('postalGuardId', '') != ''
+        && existsAfter(guardAt(uid, data.postalGuardId))
+        && getAfter(guardAt(uid, data.postalGuardId)).data.parcelId == parcelId
+        && !exists(guardAt(uid, data.postalGuardId))
+        && (data.postalServiceType == 'Other'
+            ? data.postalGuardId.matches('^Other-.+__' + data.postalReferenceNormalized.replace('/', '%2F') + '$')
+            : data.postalGuardId == data.postalServiceType + '__' + data.postalReferenceNormalized.replace('/', '%2F'));
+    }
+
+    function sameReference(a, b) {
+      return a.postalServiceType == b.postalServiceType
+        && a.get('otherPostalServiceName', '') == b.get('otherPostalServiceName', '')
+        && a.postalReferenceNormalized == b.postalReferenceNormalized;
     }
 
     // The parcel's customer snapshot (name, phone, address) must be a copy of that customer's record.
@@ -212,6 +245,9 @@ service cloud.firestore {
         && request.resource.data.receivedPaisa == 0
         && !('lastPaymentId' in request.resource.data)
         && customerMatches(uid, request.resource.data)
+        && (request.resource.data.postalReferenceNormalized == ''
+            ? !('postalGuardId' in request.resource.data)
+            : guardOk(uid, parcelId, request.resource.data))
         && !('isArchived' in request.resource.data)
         && request.resource.data.paymentStatus in ['pending', 'not_required']
         && request.resource.data.parcelStatus in ['draft', 'sent']
@@ -239,6 +275,13 @@ service cloud.firestore {
         && (request.resource.data.items != resource.data.items
             || request.resource.data.productAmountExpectedPaisa == resource.data.productAmountExpectedPaisa
             || request.resource.data.collectionMethod != resource.data.collectionMethod)
+        // The reference guard follows the reference: unchanged reference keeps the same guard; a new one needs
+        // a new guard created in this commit (and none when the reference is cleared).
+        && (sameReference(request.resource.data, resource.data)
+            ? request.resource.data.get('postalGuardId', '') == resource.data.get('postalGuardId', '')
+            : (request.resource.data.postalReferenceNormalized == ''
+                ? !('postalGuardId' in request.resource.data)
+                : guardOk(uid, parcelId, request.resource.data)))
         // The customer snapshot stays as it is, unless it is replaced by a copy of the (new) customer's record.
         && ((request.resource.data.customerId == resource.data.customerId
               && request.resource.data.customerSnapshot == resource.data.customerSnapshot)

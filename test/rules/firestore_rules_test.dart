@@ -81,8 +81,9 @@ Map<String, Object?> _parcel({
     ],
     'collectionMethod': 'postal_collection',
     'postalServiceType': 'VPP',
-    'postalReference': 'VPP 12345',
-    'postalReferenceNormalized': 'VPP12345',
+    // one reference per order number, so parcels of the same user never share a reference guard
+    'postalReference': 'VPP ${12344 + seq}',
+    'postalReferenceNormalized': 'VPP${12344 + seq}',
     'deliveryChargePaisa': 15000,
     'productAmountExpectedPaisa': 500000,
     'receivedPaisa': 0,
@@ -95,8 +96,20 @@ Map<String, Object?> _parcel({
   for (final key in remove) {
     base.remove(key);
   }
+  final normalized = base['postalReferenceNormalized'] as String? ?? '';
+  if (normalized.isNotEmpty && !base.containsKey('postalGuardId')) {
+    final service = base['postalServiceType'] as String;
+    final serviceKey = service == 'Other' ? 'Other-${(base['otherPostalServiceName'] as String? ?? '').toLowerCase()}' : service;
+    base['postalGuardId'] = '${Uri.encodeComponent(serviceKey)}__${Uri.encodeComponent(normalized)}';
+  }
   return base;
 }
+
+/// The reference-guard document the app writes in the same commit as a parcel that has a reference.
+List<DocWrite> _guardFor(String uid, String parcelId, Map<String, Object?> parcel) => [
+      if (parcel['postalGuardId'] != null)
+        DocWrite('users/$uid/postal_refs/${parcel['postalGuardId']}', {'parcelId': parcelId, 'orderNumber': parcel['orderNumber']}),
+    ];
 
 void main() {
   final emu = EmulatorClient();
@@ -311,6 +324,7 @@ void main() {
         _ensureCustomer(emu, user).then((_) => emu.commit(user.token, [
           DocWrite(cpath(asUid ?? user.uid), {'lastSequence': counterTo ?? parcel['orderSequence'] as int}),
           DocWrite(ppath(asUid ?? user.uid, id), parcel, serverTimes: const ['createdAt', 'updatedAt']),
+          ..._guardFor(asUid ?? user.uid, id, parcel),
         ]));
 
     test('order numbers: only the next number is accepted, counter and parcel move together', () async {
@@ -342,7 +356,7 @@ void main() {
       final b = await emu.signUp('pb${DateTime.now().microsecondsSinceEpoch}@x.com');
       final pid = id();
       expect(await createParcel(a, pid, _parcel(seq: 1)), 200);
-      expect(await emu.set(a.token, 'users/${a.uid}/postal_refs/VPP__VPP12345', {'parcelId': pid, 'orderNumber': 'ADT-000001'}), 200);
+      expect(await emu.get(a.token, 'users/${a.uid}/postal_refs/VPP__VPP12345'), 200, reason: 'A\'s own guard (written with the parcel)');
 
       expect(await emu.get(b.token, ppath(a.uid, pid)), 403, reason: 'read parcel');
       expect((await emu.list(b.token, 'users/${a.uid}/parcels')).status, 403, reason: 'list parcels');
@@ -429,7 +443,14 @@ void main() {
       Future<int> update(Map<String, Object?> parcel) =>
           emu.set(u.token, ppath(u.uid, pid), {...parcel, 'createdAt': created}, serverTimes: const ['updatedAt']);
 
-      expect(await update(_parcel(seq: 1)), 200, reason: 'draft -> sent with a reference and charge');
+      expect(
+        await emu.commit(u.token, [
+          DocWrite(ppath(u.uid, pid), {..._parcel(seq: 1), 'createdAt': created}, serverTimes: const ['updatedAt']),
+          ..._guardFor(u.uid, pid, _parcel(seq: 1)),
+        ]),
+        200,
+        reason: 'draft -> sent with a reference (its guard is created in the same commit) and charge',
+      );
       expect(await update(_parcel(seq: 1, overrides: {'orderNumber': 'ADT-000009', 'orderSequence': 9})), 403, reason: 'order number locked');
       expect(await update(_parcel(seq: 1, overrides: {'sendingDateLocal': '2020-01-01'})), 403, reason: 'sending date locked');
       expect(
@@ -442,15 +463,138 @@ void main() {
       expect(await emu.delete(u.token, ppath(u.uid, pid)), 403);
     }, skip: skip);
 
-    test('postal reference guards: shape is enforced, no updates, owner can delete', () async {
-      final u = await emu.signUp('ref${DateTime.now().microsecondsSinceEpoch}@x.com');
-      final path = 'users/${u.uid}/postal_refs/VPP__ABC12';
-      expect(await emu.set(u.token, path, {'parcelId': 'p1', 'orderNumber': 'ADT-000001'}), 200);
-      expect(await emu.set(u.token, path, {'parcelId': 'p2', 'orderNumber': 'ADT-000002'}), 403, reason: 'no rewriting');
-      expect(await emu.set(u.token, '$path-2', {'parcelId': 'p1'}), 403, reason: 'missing field');
-      expect(await emu.set(u.token, '$path-3', {'parcelId': 'p1', 'orderNumber': 'ADT-000001', 'x': 1}), 403, reason: 'extra field');
-      expect(await emu.set(u.token, '$path-4', {'parcelId': 5, 'orderNumber': 'ADT-000001'}), 403, reason: 'wrong type');
-      expect(await emu.delete(u.token, path), 200, reason: 'released when a reference changes');
+  });
+
+  group('postal reference guards (DT-006)', () {
+    String ppath(String uid, String id) => 'users/$uid/parcels/$id';
+    String gpath(String uid, String key) => 'users/$uid/postal_refs/$key';
+
+    Future<int> create(({String uid, String token}) user, String pid, Map<String, Object?> parcel, {bool guard = true, int? counterTo}) async {
+      await _ensureCustomer(emu, user);
+      return emu.commit(user.token, [
+        DocWrite('users/${user.uid}/counters/orders', {'lastSequence': counterTo ?? parcel['orderSequence'] as int}),
+        DocWrite(ppath(user.uid, pid), parcel, serverTimes: const ['createdAt', 'updatedAt']),
+        if (guard) ..._guardFor(user.uid, pid, parcel),
+      ]);
+    }
+
+    Future<int> change(({String uid, String token}) user, String pid, DateTime created, Map<String, Object?> parcel,
+            {List<DocWrite> extra = const []}) =>
+        emu.commit(user.token, [DocWrite(ppath(user.uid, pid), {...parcel, 'createdAt': created}, serverTimes: const ['updatedAt']), ...extra]);
+
+    test('the same user cannot reuse a reference: with no guard, with the existing guard, or with a made-up guard id', () async {
+      final u = await emu.signUp('dup${DateTime.now().microsecondsSinceEpoch}@x.com');
+      expect(await create(u, id(), _parcel(seq: 1, overrides: {'postalReference': 'VPP 55555', 'postalReferenceNormalized': 'VPP55555'})), 200);
+      final second = _parcel(seq: 2, overrides: {'postalReference': 'VPP 55555', 'postalReferenceNormalized': 'VPP55555'});
+      expect(await create(u, id(), second, guard: false), 403, reason: 'no guard written: the pointer names a guard that belongs to the first parcel');
+      expect(await create(u, id(), second), 403, reason: 'the guard already exists');
+      final made = {...second, 'postalGuardId': 'VPP__SOMETHING-ELSE'};
+      expect(await create(u, id(), made), 403, reason: 'guard id is not the one derived from the reference');
+      expect(await create(u, id(), _parcel(seq: 2)), 200, reason: 'a different reference is fine');
+    }, skip: skip);
+
+    test('a reference with a slash uses the encoded guard id', () async {
+      final u = await emu.signUp('slash${DateTime.now().microsecondsSinceEpoch}@x.com');
+      final p = _parcel(seq: 1, overrides: {'postalReference': 'VPP 55/66', 'postalReferenceNormalized': 'VPP55/66'});
+      expect(p['postalGuardId'], 'VPP__VPP55%2F66');
+      expect(await create(u, id(), p), 200);
+      expect(await create(u, id(), _parcel(seq: 2, overrides: {'postalReference': 'VPP 55/66', 'postalReferenceNormalized': 'VPP55/66'})), 403);
+    }, skip: skip);
+
+    test('different users may use the same reference', () async {
+      final a = await emu.signUp('sa${DateTime.now().microsecondsSinceEpoch}@x.com');
+      final b = await emu.signUp('sb${DateTime.now().microsecondsSinceEpoch}@x.com');
+      final p = _parcel(seq: 1, overrides: {'postalReference': 'VPP 77777', 'postalReferenceNormalized': 'VPP77777'});
+      expect(await create(a, id(), p), 200);
+      expect(await create(b, id(), p), 200);
+    }, skip: skip);
+
+    test('two saves of the same reference at the same moment: only one succeeds', () async {
+      final u = await emu.signUp('race${DateTime.now().microsecondsSinceEpoch}@x.com');
+      await _ensureCustomer(emu, u);
+      final results = await Future.wait([
+        for (var i = 0; i < 4; i++) create(u, id(), _parcel(seq: 1, overrides: {'postalReference': 'VPP 99999', 'postalReferenceNormalized': 'VPP99999'})),
+      ]);
+      expect(results.where((status) => status == 200).length, 1, reason: '$results');
+    }, skip: skip);
+
+    test('a guard cannot be created alone, for another parcel, or deleted on its own', () async {
+      final u = await emu.signUp('g${DateTime.now().microsecondsSinceEpoch}@x.com');
+      final other = await emu.signUp('go${DateTime.now().microsecondsSinceEpoch}@x.com');
+      final pid = id();
+      expect(await create(u, pid, _parcel(seq: 1)), 200);
+      final key = _parcel(seq: 1)['postalGuardId'] as String;
+      expect(await emu.set(u.token, gpath(u.uid, 'VPP__LONE1'), {'parcelId': pid, 'orderNumber': 'ADT-000001'}), 403, reason: 'no parcel points at it');
+      expect(await emu.set(u.token, gpath(u.uid, key), {'parcelId': pid, 'orderNumber': 'ADT-000001'}), 403, reason: 'cannot be rewritten');
+      expect(await emu.delete(u.token, gpath(u.uid, key)), 403, reason: 'the parcel still uses it');
+      expect(await emu.delete(other.token, gpath(u.uid, key)), 403, reason: 'another user');
+      expect(await emu.get(u.token, gpath(u.uid, key)), 200, reason: 'still there');
+    }, skip: skip);
+
+    test('changing a reference: the new guard comes with it and the old one is released in the same commit', () async {
+      final u = await emu.signUp('chg${DateTime.now().microsecondsSinceEpoch}@x.com');
+      final pid = id();
+      final first = _parcel(seq: 1);
+      expect(await create(u, pid, first), 200);
+      final created = await emu.createdAt(u.token, ppath(u.uid, pid));
+      final changed = _parcel(seq: 1, overrides: {'postalReference': 'VPP 88888', 'postalReferenceNormalized': 'VPP88888'});
+      expect(await change(u, pid, created, changed), 403, reason: 'new reference without its guard');
+      expect(await change(u, pid, created, changed, extra: _guardFor(u.uid, pid, changed)), 200, reason: 'new guard, old one kept');
+      expect(await emu.delete(u.token, gpath(u.uid, first['postalGuardId'] as String)), 403, reason: 'cannot be released on its own, even when stale');
+      final back = _parcel(seq: 1, overrides: {'postalReference': 'VPP 12345', 'postalReferenceNormalized': 'VPP12345'});
+      expect(await change(u, pid, created, back, extra: [..._guardFor(u.uid, pid, back)]), 403, reason: 'the old guard still exists');
+      final third = _parcel(seq: 1, overrides: {'postalReference': 'VPP 31313', 'postalReferenceNormalized': 'VPP31313'});
+      expect(
+        await change(u, pid, created, third, extra: [DocWrite.delete(gpath(u.uid, changed['postalGuardId'] as String)), ..._guardFor(u.uid, pid, third)]),
+        200,
+        reason: 'move on and release the previous guard',
+      );
+      expect(await emu.get(u.token, gpath(u.uid, changed['postalGuardId'] as String)), 404, reason: 'released');
+      // an unrelated edit keeps the guard as it is
+      expect(await change(u, pid, created, {...third, 'notes': 'edited'}), 200);
+      expect(await change(u, pid, created, {...third, 'postalGuardId': 'VPP__VPP12345'}), 403, reason: 'the pointer cannot be moved without a new reference');
+    }, skip: skip);
+
+    test('a draft has no reference and no guard; releasing it frees the reference for another parcel', () async {
+      final u = await emu.signUp('drf${DateTime.now().microsecondsSinceEpoch}@x.com');
+      final pid = id();
+      final draft = _parcel(seq: 1, overrides: {'parcelStatus': 'draft', 'postalReference': '', 'postalReferenceNormalized': ''}, remove: ['deliveryChargePaisa']);
+      expect(draft.containsKey('postalGuardId'), isFalse);
+      expect(await create(u, pid, draft), 200);
+      expect(await create(u, id(), {...draft, 'orderNumber': 'ADT-000002', 'orderSequence': 2, 'postalGuardId': 'VPP__X1234'}), 403, reason: 'a pointer without a reference');
+    }, skip: skip);
+
+    test('records created before guards were enforced stay editable', () async {
+      final u = await emu.signUp('leg${DateTime.now().microsecondsSinceEpoch}@x.com');
+      await _ensureCustomer(emu, u);
+      final pid = id();
+      final legacy = _parcel(seq: 1)..remove('postalGuardId');
+      // written with the emulator's admin token, which bypasses the rules (as the old rules allowed it)
+      expect(await emu.set('owner', 'users/${u.uid}/counters/orders', {'lastSequence': 1}), 200);
+      expect(await emu.set('owner', ppath(u.uid, pid), legacy, serverTimes: const ['createdAt', 'updatedAt']), 200);
+      expect(await emu.set('owner', gpath(u.uid, 'VPP__VPP12345'), {'parcelId': pid, 'orderNumber': 'ADT-000001'}), 200);
+      final created = await emu.createdAt(u.token, ppath(u.uid, pid));
+      expect(await emu.get(u.token, ppath(u.uid, pid)), 200, reason: 'readable');
+      expect(await change(u, pid, created, {...legacy, 'notes': 'still editable'}), 200, reason: 'same reference, no pointer needed');
+      expect(await emu.delete(u.token, gpath(u.uid, 'VPP__VPP12345')), 403, reason: 'the old guard cannot be dropped on its own');
+      final changed = _parcel(seq: 1, overrides: {'postalReference': 'VPP 42424', 'postalReferenceNormalized': 'VPP42424'});
+      expect(
+        await change(u, pid, created, {...changed, 'notes': 'still editable'},
+            extra: [DocWrite.delete(gpath(u.uid, 'VPP__VPP12345')), ..._guardFor(u.uid, pid, changed)]),
+        200,
+        reason: 'moving to a new reference releases the old guard',
+      );
+    }, skip: skip);
+
+    test('"Other" services: a guard linked to the parcel is required (the service-name part is app-enforced)', () async {
+      final u = await emu.signUp('oth${DateTime.now().microsecondsSinceEpoch}@x.com');
+      final other = _parcel(seq: 1, overrides: {'postalServiceType': 'Other', 'otherPostalServiceName': 'Courier X', 'postalReference': 'CX 1234', 'postalReferenceNormalized': 'CX1234'});
+      expect(other['postalGuardId'], 'Other-courier%20x__CX1234');
+      expect(await create(u, id(), other, guard: false), 403, reason: 'no guard');
+      expect(await create(u, id(), {...other, 'postalGuardId': 'Courier-x__CX1234'}), 403, reason: 'wrong shape');
+      expect(await create(u, id(), {...other, 'postalGuardId': 'Other-courier%20x__WRONG'}), 403, reason: 'wrong reference part');
+      expect(await create(u, id(), other), 200);
+      expect(await create(u, id(), {...other, 'orderNumber': 'ADT-000002', 'orderSequence': 2}), 403, reason: 'same Other service and reference');
     }, skip: skip);
   });
 
@@ -516,6 +660,7 @@ void main() {
         await emu.commit(u.token, [
           DocWrite('users/${u.uid}/counters/orders', {'lastSequence': 1}),
           DocWrite(ppath(u.uid, pid), _parcel(seq: 1, overrides: overrides), serverTimes: const ['createdAt', 'updatedAt']),
+          ..._guardFor(u.uid, pid, _parcel(seq: 1, overrides: overrides)),
         ]),
         200,
       );
@@ -780,6 +925,7 @@ void main() {
         await emu.commit(u.token, [
           DocWrite('users/${u.uid}/counters/orders', {'lastSequence': 1}),
           DocWrite(ppath(u.uid, pid), _parcel(seq: 1, overrides: overrides), serverTimes: const ['createdAt', 'updatedAt']),
+          ..._guardFor(u.uid, pid, _parcel(seq: 1, overrides: overrides)),
         ]),
         200,
       );
@@ -1032,6 +1178,7 @@ void main() {
         await emu.commit(u.token, [
           DocWrite('users/${u.uid}/counters/orders', {'lastSequence': 1}),
           DocWrite(ppath(u.uid, pid), _parcel(seq: 1), serverTimes: const ['createdAt', 'updatedAt']),
+          ..._guardFor(u.uid, pid, _parcel(seq: 1)),
         ]),
         200,
       );
@@ -1110,7 +1257,8 @@ void main() {
       expect(
         await emu.commit(u.token, [
           DocWrite('users/${u.uid}/counters/orders', {'lastSequence': 1}),
-          DocWrite(ppath(u.uid, id()), _parcel(seq: 1, overrides: {'customerSnapshot': other}), serverTimes: const ['createdAt', 'updatedAt']),
+          DocWrite(ppath(u.uid, 'snapparcel'), _parcel(seq: 1, overrides: {'customerSnapshot': other}), serverTimes: const ['createdAt', 'updatedAt']),
+          ..._guardFor(u.uid, 'snapparcel', _parcel(seq: 1, overrides: {'customerSnapshot': other})),
         ]),
         403,
       );
@@ -1135,6 +1283,7 @@ void main() {
         await emu.commit(u.token, [
           DocWrite('users/${u.uid}/counters/orders', {'lastSequence': 1}),
           DocWrite(ppath(u.uid, pid), _parcel(seq: 1, overrides: {'actualPackedWeightGrams': 1500}), serverTimes: const ['createdAt', 'updatedAt']),
+          ..._guardFor(u.uid, pid, _parcel(seq: 1, overrides: {'actualPackedWeightGrams': 1500})),
         ]),
         200,
       );
@@ -1143,16 +1292,24 @@ void main() {
           emu.set(u.token, ppath(u.uid, pid), {...parcel, 'createdAt': created}, serverTimes: const ['updatedAt']);
 
       // back to a draft: no reference, no charge, no packed weight
+      final draftAgain = _parcel(seq: 1, overrides: {'parcelStatus': 'draft', 'postalReference': '', 'postalReferenceNormalized': ''}, remove: ['deliveryChargePaisa', 'actualPackedWeightGrams']);
       expect(
-        await replace(_parcel(seq: 1, overrides: {'parcelStatus': 'draft', 'postalReference': '', 'postalReferenceNormalized': ''}, remove: ['deliveryChargePaisa', 'actualPackedWeightGrams'])),
+        await emu.commit(u.token, [
+          DocWrite(ppath(u.uid, pid), {...draftAgain, 'createdAt': created}, serverTimes: const ['updatedAt']),
+          DocWrite.delete('users/${u.uid}/postal_refs/${_parcel(seq: 1)['postalGuardId']}'),
+        ]),
         200,
       );
       // bigger order: expected and outstanding move together
       final bigger = [
         {'productId': 'p1', 'productName': 'Mango Box', 'saleUnit': 'per_piece', 'quantity': 2, 'unitPricePaisa': 450000, 'lineTotalPaisa': 900000},
       ];
+      final biggerParcel = _parcel(seq: 1, overrides: {'items': bigger, 'productAmountExpectedPaisa': 900000, 'outstandingPaisa': 900000});
       expect(
-        await replace(_parcel(seq: 1, overrides: {'items': bigger, 'productAmountExpectedPaisa': 900000, 'outstandingPaisa': 900000})),
+        await emu.commit(u.token, [
+          DocWrite(ppath(u.uid, pid), {...biggerParcel, 'createdAt': created}, serverTimes: const ['updatedAt']),
+          ..._guardFor(u.uid, pid, biggerParcel), // back from a draft: the reference is reserved again
+        ]),
         200,
       );
       expect(await replace(_parcel(seq: 1, overrides: {'items': bigger, 'productAmountExpectedPaisa': 900000, 'outstandingPaisa': 100})), 403);

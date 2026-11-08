@@ -95,8 +95,8 @@ No responsive-sizing package (forbidden by policy). No state-management package 
 
 ### 2.3 IDs and order numbers (FR-01)
 - Document IDs: Firestore auto IDs. Order number: `ADT-` + 6-digit zero-padded sequence (`ADT-000001`, grows past 6 digits naturally).
-- Counter doc `app_settings/main.nextOrderSequence`. **One Firestore transaction** reads the counter, writes the parcel with its number, increments the counter. Gaps allowed, duplicates impossible.
-- A single counter document is sufficient: Firestore documents a ~1 write/second sustained soft limit per document and this app has one user. **No sharded counters** (they cannot give gapless ordered numbers anyway).
+- Counter doc `users/{uid}/counters/orders.lastSequence` (per account; the original design had one shared `app_settings/main`). **One Firestore transaction** reads the counter, writes the parcel with its number, increments the counter. Gaps allowed, duplicates impossible.
+- A single counter document per account is sufficient: Firestore documents a ~1 write/second sustained soft limit per document and one account does not create parcels that fast. **No sharded counters** (they cannot give gapless ordered numbers anyway).
 - Save button disabled while saving; on failure nothing is shown as saved.
 
 ### 2.4 Shared validators (`AppValidators`, extend existing)
@@ -146,7 +146,7 @@ Written for: parcel edit (changed fields), return, payment correction, Pay Later
 
 | Collection | Key fields |
 |---|---|
-| `app_settings/main` | `companyName, orderPrefix="ADT", nextOrderSequence, timezone, reminderHour=9` |
+| `users/{uid}/counters/orders` | `lastSequence` (order prefix `ADT`, Pakistan time and 9:00 reminder hour are app constants) |
 | `products/{id}` | `name, nameLower, saleUnit(per_piece|per_kg), isActive, createdAt, updatedAt` |
 | `customers/{id}` | `displayName, displayNameLower, phone, phoneNormalized, address, createdAt, updatedAt` |
 | `parcels/{id}` | `orderNumber, orderSequence, customerId, customerSnapshot{name,phone,address}, items[{productId, productNameSnapshot, saleUnitSnapshot, quantityPieces?, weightKg?, negotiatedUnitPricePaisa, lineTotalPaisa}], itemProductNames[] (for search), actualPackedWeightGrams?, sendingDateLocal, postalServiceType, otherPostalServiceName?, postalReference, postalReferenceNormalized, deliveryChargePaisa, collectionMethod, productAmountExpectedPaisa, **receivedPaisa**, **outstandingPaisa**, **paymentStatus**, estimatedPaymentDateLocal?, parcelStatus, returnedAt?, returnReason?, paymentReviewRequired, notes?, searchOrderLower, searchCustomerLower, isArchived, createdAt, updatedAt` |
@@ -468,7 +468,7 @@ Tests: AT-24 and totals equal the Payments screen; Free excluded.
 Account email (read-only) · Notification permission status + **Open system settings / Enable** button · Reminder time "9:00 AM (Pakistan time)" (info) · Last reminder scheduling error (if any) · Backup info text · App version · **Log out** (confirm) .
 
 ### 13.2 Auth leftovers
-- **D1 Sign Up:** spec says no public sign-up. Options: remove screen, or keep with the Firestore owner-UID rule (data stays private either way).
+- **D1 Sign Up:** DECIDED. DelivTrack is public: Sign Up stays, every account has its own private data (spec v1.3).
 - Logout confirm dialog; logout also cancels local notifications on the device [DECISION 22].
 - Email verification and change-password are **not** in the spec (not planned).
 - Custom reset email: sender name/subject/body customizable in the Firebase console (no code); custom link needs a hosted handler page (separate decision).
@@ -542,3 +542,11 @@ Mapping to spec acceptance tests: AT-01…05 (M3), 06…08 (M1/M3), 09…12 (M3/
 | Firestore backups | [Firebase backups doc](https://firebase.google.com/docs/firestore/backups) | scheduled backups, Blaze plan, retention up to 14 weeks. Point-in-time recovery details came from a third-party tutorial → **unverified** |
 | Auth session behavior | [Manage User Sessions](https://firebase.google.com/docs/auth/admin/manage-sessions) | already implemented |
 | Spec | `DelivTrack_Project_Requirements.md` v1.2 (read in full; unchanged since first commit) | all functional rules |
+
+---
+
+## Account model and quotas (spec v1.3, 8 Nov 2026)
+- **Public multi-user app.** Anyone can sign up (Firebase Auth email/password) and gets a private tree `users/{uid}/…` with its own order sequence (`ADT-000001`…). Rules: `request.auth.uid == uid` on every path, default deny elsewhere. Two-user rules tests (80) and emulator repository tests (account switching: a second account sees nothing of the first, starts at `ADT-000001` and may reuse the same postal reference) verify it.
+- **Quotas are shared by all users.** The Firestore free (Spark) plan has daily project-wide quotas for reads, writes and deletes (published by Firebase as 50,000 reads, 20,000 writes and 20,000 deletes per day and 1 GiB stored; check the current Firebase pricing page before relying on the figures). One busy or abusive account can use the whole day's allowance for everyone; there is no per-user cap in the app. Mitigations that need the owner: Firebase App Check (Play Integrity) enforcement, a billing plan with budget alerts, and a password policy in the Firebase console. Read cost is reduced in the app by caching payment reads (DT-012).
+- **Backups are owner-managed** (Firebase console/CLI; see `docs/BACKUP_AND_RESTORE.md`); the app does no backup work.
+- **Reminders:** local notifications scheduled while the app is open (section 9 and G2). **Android:** Flutter + `go_router` + feature-first MVVM; release builds need the upload key (`README.md`).

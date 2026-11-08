@@ -1,11 +1,13 @@
 # DelivTrack
 
 **Document:** Project Requirements & Development Specification  
-**Version:** 1.2  
+**Version:** 1.3  
 **Status:** Owner-reviewed scope, updated Android implementation baseline  
 **Owner:** CodeWingz  
-**Use:** Private, internal company app  
-**Last updated:** 7 November 2026
+**Use:** Public Android app: anyone can sign up; every account is private to its owner  
+**Last updated:** 8 November 2026
+
+> **v1.3 account model (owner decision, 8 Nov 2026):** DelivTrack is launched **publicly**. Anyone can sign up with their own Firebase Authentication account. Every account has its **own private data** under `users/{uid}/…` (parcels, customers, products, payments, reminders, audit, its own order-number counter starting at `ADT-000001`). Firestore rules allow access only when `request.auth.uid == uid`, so one user can never read or write another user's data. Statements elsewhere in this document that say "one private account", "no public sign-up" or "one approved UID" are superseded by this note. Password reset is Firebase's standard email link. Firebase free-plan quotas are shared by all users of the project (see the development plan, section "Account model and quotas").
 
 > **Scope rule:** Section 1–13 describes the requirements confirmed by the owner and the minimum technical behavior required to make them work. Section 14 clearly identifies optional ideas and open decisions. Developers must **not** treat optional ideas as approved features.
 
@@ -29,7 +31,7 @@ DelivTrack is a small internal parcel, customer, and payment tracking app. The c
 
 ### 1.2 Out of scope unless separately approved
 
-- A public customer portal or public signup.
+- A public customer portal (the business's own customers never log in). Public sign-up for the business owners who use the app **is** in scope (v1.3).
 - A complete courier dispatch platform or automatic Pakistan Post tracking API integration.
 - A multi-employee permission system.
 - Automatic SMS/WhatsApp reminders sent to customers.
@@ -277,12 +279,12 @@ Also provide these practical filtered views using the same data:
 - Customer may have multiple Pay Later parcels with separate optional estimated dates.
 - Editing a customer's details never changes historic payment records; archived/history records retain needed customer snapshots.
 
-### FR-14. Single-account access and cloud backup
+### FR-14. Account access and cloud backup
 
-- **One private company account**; no public sign-up or staff-role management.
+- **Public sign-up; each user has one private account** with its own private data and its own order-number sequence. No staff-role management and no sharing of one account's data between accounts.
 - Sign in through **Firebase Authentication**.
 - Store parcel, product, customer, payment, reminder, and audit metadata in **Cloud Firestore**.
-- Cloud-saved records must remain available after signing into the same account on another supported device.
+- Cloud-saved records must remain available after signing into the same account on another supported device, and a user must never see another account's records.
 - Log out safely; sensitive records must not be accessible without authorization.
 - Cloud data is the primary record store. Define recovery/export procedures; syncing to Firestore alone is **not** the same as an independent backup.
 
@@ -294,7 +296,7 @@ Also provide these practical filtered views using the same data:
 
 | Screen | Main content/actions |
 |---|---|
-| **Login** | Private single-account Firebase Auth sign in. |
+| **Login / Sign up** | Firebase Auth sign in, public account creation and password reset by email. |
 | **Dashboard** | Parcel/payment totals, due Pay Later notifications, recent records. |
 | **Add Parcel** | Simplified form: customer, parcel type, product rows, optional estimated date, post-office service/reference/charges. No sending-date field, expected total box, or notes field. |
 | **Add / Edit Customer** | **Full screen** with required name, phone and address; go back to the previous screen after save/cancel. |
@@ -313,7 +315,7 @@ Also provide these practical filtered views using the same data:
 
 ### WF-01: First-time setup
 
-1. Provision the one private account in Firebase Authentication; no public sign-up.
+1. Create your account on the Sign Up screen (name, email, password of at least 8 characters with letters and numbers), or log in if you already have one.
 2. Sign in on Android.
 3. Add products with **name** and **Per Piece** or **Per Kg** unit; do not save catalog prices.
 4. Add customers with required name, phone number and address, or create them during parcel entry.
@@ -437,13 +439,11 @@ Round and store money safely in integer paisa. Delivery charges are separate fro
 
 > This is an **implementation design**, not a new user-requested feature. Collection names may change, but the information and relationships below must be preserved.
 
-### `app_settings/main`
+> **All collections below live under `users/{uid}/…` (one private tree per account).**
 
-- `companyName`
-- `orderPrefix` = `ADT`
-- `nextOrderSequence` (transactional counter)
-- `timezone` = `Asia/Karachi`
-- `createdAt`, `updatedAt`
+### `users/{uid}/counters/orders`
+
+- `lastSequence` (transactional counter; the order prefix `ADT` and the Pakistan time zone are app constants)
 
 ### `products/{productId}`
 
@@ -510,15 +510,15 @@ Round and store money safely in integer paisa. Delivery charges are separate fro
 
 | Need | Selected service |
 |---|---|
-| Single account login | Firebase Authentication |
+| Account login and sign-up | Firebase Authentication |
 | Structured text/records | Firebase Cloud Firestore |
 
 ### 8.2 Needed implementation components
 
 - **Android-only Flutter app** using feature-first **MVVM** (feature folders; ViewModel separates state/logic from widgets) and **`go_router`** navigation.
-- **Firebase Authentication:** One provisioned company account; public sign-up disabled.
+- **Firebase Authentication:** public sign-up enabled; email/password; password reset by email.
 - **Cloud Firestore:** Products, customers, parcels, order sequences, payments, optional estimated dates and basic audit data. No Cloudflare R2 or image/file upload service.
-- **Firestore rules:** Restrict all app data to the one approved Firebase user UID; enforce required customer fields and valid financial record structure.
+- **Firestore rules:** Restrict each account's data to its own user (`request.auth.uid == uid`); enforce required customer fields and valid financial record structure.
 - **Trusted order-number generator:** Use a Firestore transaction or a secure server endpoint to reserve `ADT-000001`, `ADT-000002`, etc. without duplicates.
 - **Android scheduled notifications:** Prefer `flutter_local_notifications` for the single owner's **device notification bar**. Schedule locally when a Pay Later date is saved; update/cancel on edit/payment. Handle Android notification permission and any exact-alarm requirements. Firestore saves reminder date so it can be restored when the app is reinstalled or used on a new authorized phone.
 - **In-app notifications:** Query Firestore Pay Later parcels with an estimated date on/before today and an outstanding balance; provide bell, list, and tap-through to Parcel Details. Keep this usable even if Android notification permission is denied.
@@ -602,15 +602,15 @@ Round and store money safely in integer paisa. Delivery charges are separate fro
 
 ## 11. Security and privacy
 
-1. One pre-provisioned Firebase account only; no public signup.
-2. Firestore security rules enforce the approved Firebase user UID and access checks, not just hidden UI buttons.
+1. Public sign-up with one private data tree per account; no account can reach another's data.
+2. Firestore security rules enforce the signed-in user's own `uid` and access checks, not just hidden UI buttons.
 3. Never store API secrets in Flutter app files or Git history.
 4. Validate customer name, phone and address; input length and numbers; reject invalid amounts.
 5. Use Firestore transaction/server logic to prevent duplicate order IDs and double payments.
 6. Save changes with clear success/errors; audit financial edits and corrections.
 7. Avoid showing full customer address on phone lock-screen reminders.
 8. No camera, photos, payment proof uploads, postal slip images, PDF storage, or Cloudflare R2.
-9. Test Firestore backup/restore and ensure one account can access its own synced data securely.
+9. Test Firestore backup/restore (owner-managed) and ensure each account can access only its own synced data (two-user rules tests).
 
 ## 12. Acceptance criteria — test cases
 
@@ -676,7 +676,7 @@ Round and store money safely in integer paisa. Delivery charges are separate fro
 ## 13. Suggested build order (not an approval of extra features)
 
 1. **Flutter Android foundation:** feature-first MVVM, `go_router`, Emerald & Ivory Material theme and approved DelivTrack app icon.
-2. **Firebase setup:** one private Firebase Auth account, Firestore rules, environments and backup plan.
+2. **Firebase setup:** Firebase Auth with public sign-up, per-user Firestore rules, environments and backup plan (owner-managed).
 3. **Products:** product name, unit = per piece/per kg, dropdown and archive; test history snapshots.
 4. **Customers:** required name/phone/address full-screen form and return-to-parcel navigation.
 5. **Parcels:** auto unique order ID, hidden automatic sending date, customer, multi-product lines, negotiated unit prices and totals.
@@ -698,7 +698,7 @@ Round and store money safely in integer paisa. Delivery charges are separate fro
 - Automatic WhatsApp/SMS reminders to customers.
 - Advanced analytics/charts, profitability, and delivery-fee margin reports.
 - Bulk payment marking for multiple parcels.
-- Multiple user roles/accounts (owner explicitly chose one account).
+- Staff roles or one account shared between several people (not approved); independent accounts for separate businesses are supported.
 - Built-in offline-first local data synchronization.
 - Advanced partial-payment UI (underlying support for balances is included; exact interface needs approval).
 - Automatically recurring reminders beyond the selected estimated date (not approved; avoid notification spam).

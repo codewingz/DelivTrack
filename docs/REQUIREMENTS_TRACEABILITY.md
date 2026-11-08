@@ -11,7 +11,7 @@ Every functional requirement (FR-01…FR-14) and acceptance test (AT-01…AT-44)
 | FR-02 "audited correction flow" for a historical sending date | The spec says to build it only "if the owner ever needs" it. | Not built (not needed now). |
 | Optional / not approved (spec 14.1) | Report export (CSV/Excel/PDF), bulk payment marking, tracking lookups, rate calculator, SMS/WhatsApp, analytics, roles, offline-first | Not built, by the spec's scope rule. |
 
-Owner decision recorded in the plan (D1): **Sign Up is kept** and every user's data is isolated under `users/{uid}/…` (the spec's "single approved UID" became "each user only their own data", enforced by the rules).
+Owner decision (plan D1, spec v1.3): **DelivTrack is public. Sign Up is kept** and every user's data is isolated under `users/{uid}/…` with its own order sequence, enforced by the rules (two-user rules tests and emulator account-switching test). The requirements document now says the same.
 
 ## Functional requirements
 

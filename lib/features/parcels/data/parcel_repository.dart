@@ -17,8 +17,10 @@ import '../domain/payment_rules.dart';
 import '../../../utils/postal_reference.dart';
 
 abstract class ParcelRepository {
-  /// All of the signed-in user's parcels, newest first. Archived parcels are not included.
-  Stream<List<Parcel>> watchAll();
+  /// All of the signed-in user's parcels, newest first. Archived parcels are left out unless
+  /// [includeArchived] is set: archiving is organisational, so money totals use the full list while
+  /// counts and lists use the active parcels.
+  Stream<List<Parcel>> watchAll({bool includeArchived = false});
 
   /// The archived parcels, newest first.
   Stream<List<Parcel>> watchArchived();
@@ -115,17 +117,17 @@ class FirestoreParcelRepository implements ParcelRepository {
   }
 
   @override
-  Stream<List<Parcel>> watchAll() => _watchParcels(archived: false);
+  Stream<List<Parcel>> watchAll({bool includeArchived = false}) => _watchParcels(archived: includeArchived ? null : false);
 
   @override
   Stream<List<Parcel>> watchArchived() => _watchParcels(archived: true);
 
-  Stream<List<Parcel>> _watchParcels({required bool archived}) => _parcels
+  Stream<List<Parcel>> _watchParcels({required bool? archived}) => _parcels
       .orderBy('orderSequence', descending: true)
       .snapshots()
       .map((snapshot) => [
             for (final parcel in _read(snapshot).parcels)
-              if (parcel.isArchived == archived) parcel,
+              if (archived == null || parcel.isArchived == archived) parcel,
           ])
       .withFirestoreFailures();
 

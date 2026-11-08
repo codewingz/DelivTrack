@@ -41,7 +41,7 @@ class CustomerDetailsScreen extends StatefulWidget {
 
 class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
   late final Stream<List<Customer>> _customers = widget.customerRepository.watchAll();
-  late final Stream<List<Parcel>> _parcels = widget.parcelRepository.watchAll();
+  late final Stream<List<Parcel>> _parcels = widget.parcelRepository.watchAll(includeArchived: true);
 
   Future<void> _call(Customer customer) async {
     final messenger = ScaffoldMessenger.of(context);
@@ -91,7 +91,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
     return StreamBuilder<List<Parcel>>(
       stream: _parcels,
       builder: (context, parcelSnapshot) {
+        // Archived parcels stay in the money figures (lifetime), but not in the history list or the count.
         final parcels = [for (final parcel in parcelSnapshot.data ?? const <Parcel>[]) if (parcel.customerId == customer.id) parcel];
+        final active = [for (final parcel in parcels) if (!parcel.isArchived) parcel];
         return CustomScrollView(
           slivers: [
             SliverToBoxAdapter(child: _Contact(customer: customer, onCall: () => _call(customer))),
@@ -100,15 +102,15 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
             else if (parcelSnapshot.connectionState == ConnectionState.waiting)
               const SliverToBoxAdapter(child: ListSkeleton())
             else ...[
-              SliverToBoxAdapter(child: _Totals(parcels: parcels)),
-              SliverToBoxAdapter(child: _PayLaterReminders(parcels: parcels, today: pakistanDate(widget.clock.nowUtc()), onOpen: widget.onOpenParcel)),
+              SliverToBoxAdapter(child: _Totals(parcels: parcels, parcelCount: active.length)),
+              SliverToBoxAdapter(child: _PayLaterReminders(parcels: active, today: pakistanDate(widget.clock.nowUtc()), onOpen: widget.onOpenParcel)),
               const SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsetsDirectional.fromSTEB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.sm),
                   child: Text('Parcel history', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
                 ),
               ),
-              if (parcels.isEmpty)
+              if (active.isEmpty)
                 const SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsetsDirectional.all(AppSpacing.lg),
@@ -117,9 +119,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                 )
               else
                 SliverList.separated(
-                  itemCount: parcels.length,
+                  itemCount: active.length,
                   separatorBuilder: (_, _) => const Divider(height: 1),
-                  itemBuilder: (context, index) => ParcelTile(parcel: parcels[index], onTap: () => widget.onOpenParcel(parcels[index])),
+                  itemBuilder: (context, index) => ParcelTile(parcel: active[index], onTap: () => widget.onOpenParcel(active[index])),
                 ),
               const SliverPadding(padding: EdgeInsetsDirectional.only(bottom: AppSpacing.xxl)),
             ],
@@ -172,8 +174,13 @@ class _Contact extends StatelessWidget {
 }
 
 class _Totals extends StatelessWidget {
-  const _Totals({required this.parcels});
+  const _Totals({required this.parcels, required this.parcelCount});
+
+  /// Every parcel of the customer, archived ones included (the money figures are lifetime).
   final List<Parcel> parcels;
+
+  /// Active parcels only.
+  final int parcelCount;
 
   @override
   Widget build(BuildContext context) {
@@ -184,7 +191,7 @@ class _Totals extends StatelessWidget {
         spacing: AppSpacing.md,
         runSpacing: AppSpacing.md,
         children: [
-          _Stat(label: 'Parcels', value: '${parcels.length}'),
+          _Stat(label: 'Parcels', value: '$parcelCount'),
           _Stat(label: 'Outstanding', value: formatRupees(totals.outstandingPaisa)),
           _Stat(label: 'Pay Later balance', value: formatRupees(totals.payLaterPaisa)),
           _Stat(label: 'Advance received', value: formatRupees(totals.advancePaisa)),

@@ -129,7 +129,7 @@ class FakeParcelRepository implements ParcelRepository {
     _changes.add(null);
   }
 
-  List<Parcel> _sorted({bool archived = false}) => [for (final p in _parcels) if (p.isArchived == archived) p]..sort((a, b) => b.orderSequence.compareTo(a.orderSequence));
+  List<Parcel> _sorted({bool? archived = false}) => [for (final p in _parcels) if (archived == null || p.isArchived == archived) p]..sort((a, b) => b.orderSequence.compareTo(a.orderSequence));
 
   void emitError(Object error) => _changes.addError(error);
 
@@ -350,11 +350,11 @@ class FakeParcelRepository implements ParcelRepository {
   }
 
   @override
-  Stream<List<Parcel>> watchAll() async* {
+  Stream<List<Parcel>> watchAll({bool includeArchived = false}) async* {
     watchAllCalls++;
-    yield _sorted(archived: false);
+    yield _sorted(archived: includeArchived ? null : false);
     await for (final _ in _changes.stream) {
-      yield _sorted(archived: false);
+      yield _sorted(archived: includeArchived ? null : false);
     }
   }
 

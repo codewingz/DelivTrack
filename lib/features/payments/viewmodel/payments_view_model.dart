@@ -6,7 +6,7 @@ import '../domain/payment_tabs.dart';
 
 /// Payments: the selected list (newest parcel first, 20 at a time) and the header totals.
 class PaymentsViewModel extends LiveListViewModel<Parcel> {
-  PaymentsViewModel(ParcelRepository repository, {this.clock = const Clock()}) : super(repository.watchAll);
+  PaymentsViewModel(ParcelRepository repository, {this.clock = const Clock()}) : super(() => repository.watchAll(includeArchived: true));
 
   static const pageSize = 20;
 
@@ -16,6 +16,7 @@ class PaymentsViewModel extends LiveListViewModel<Parcel> {
 
   PaymentTab get tab => _tab;
   String get today => pakistanDate(clock.nowUtc());
+  /// Lifetime figures: archived parcels keep their received money (an archived parcel owes nothing).
   PaymentTotals get totals => PaymentTotals.from(all);
 
   void select(PaymentTab tab) {
@@ -26,7 +27,7 @@ class PaymentsViewModel extends LiveListViewModel<Parcel> {
   }
 
   /// Everything in the selected list.
-  List<Parcel> get matching => [for (final parcel in all) if (_tab.includes(parcel, today)) parcel];
+  List<Parcel> get matching => [for (final parcel in all) if (!parcel.isArchived && _tab.includes(parcel, today)) parcel];
 
   /// The part of the list shown so far.
   List<Parcel> get visible => matching.take(_pages * pageSize).toList();

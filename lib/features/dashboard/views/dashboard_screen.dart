@@ -50,7 +50,7 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   // Every parcel, live. The figures, the bell and the phone's reminders all come from this one list.
-  late final _parcels = ReminderListViewModel(widget.parcelRepository);
+  late final _parcels = ReminderListViewModel(widget.parcelRepository, includeArchived: true);
   Set<int>? _plannedIds;
   bool _askedForPermission = false;
 
@@ -176,6 +176,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const ListSkeleton()
             else ...[
               _Figures(stats: DashboardStats.from(_parcels.all, _parcels.today), widget: widget),
+              const SizedBox(height: AppSpacing.sm),
+              const Text(
+                'Parcel counts and balances cover active parcels. Total received and Advance amount also include archived parcels.',
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              ),
               const SizedBox(height: AppSpacing.xl),
               _Recent(stats: DashboardStats.from(_parcels.all, _parcels.today), widget: widget),
             ],

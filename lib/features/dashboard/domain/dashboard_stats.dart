@@ -39,15 +39,21 @@ class DashboardStats {
     required this.recent,
   });
 
-  factory DashboardStats.from(List<Parcel> parcels, String today) {
+  /// [everyParcel] may include archived parcels. Archiving is organisational, not a financial event, so
+  /// the money received stays in "Total received" and "Advance amount"; every count, list, balance and
+  /// reminder covers the active (not archived) parcels only.
+  factory DashboardStats.from(List<Parcel> everyParcel, String today) {
+    final parcels = [for (final parcel in everyParcel) if (!parcel.isArchived) parcel];
     int count(ParcelFilters list) => parcels.where((parcel) => list.matches(parcel, today)).length;
     var received = 0;
     var outstanding = 0;
     var payLater = 0;
     var advance = 0;
-    for (final parcel in parcels) {
+    for (final parcel in everyParcel) {
       received += parcel.receivedPaisa;
       if (parcel.method == CollectionMethod.advance) advance += parcel.receivedPaisa;
+    }
+    for (final parcel in parcels) {
       if (parcel.method == CollectionMethod.giftFree || parcel.status == ParcelStatus.returned) continue;
       outstanding += parcel.outstandingPaisa;
       if (parcel.method == CollectionMethod.payLater) payLater += parcel.outstandingPaisa;

@@ -7,9 +7,10 @@ import '../../parcels/domain/parcel_enums.dart';
 import '../../parcels/domain/payment.dart';
 import '../domain/reports.dart';
 
-/// One report over the user's live parcels, limited to an optional From / To date range.
+/// One report over the user's live parcels, limited to an optional From / To date range. The payment
+/// history also covers archived parcels (archiving never removes received money from the history).
 class ReportViewModel extends LiveListViewModel<Parcel> {
-  ReportViewModel(this._repository, this.type, {this.clock = const Clock()}) : super(_repository.watchAll) {
+  ReportViewModel(this._repository, this.type, {this.clock = const Clock()}) : super(() => _repository.watchAll(includeArchived: type.needsPayments)) {
     addListener(_loadPaymentsOnceParcelsArrive);
   }
 

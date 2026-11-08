@@ -77,6 +77,24 @@ void main() {
     expect(order, [1, 2]);
   });
 
+  testWidgets('a failure while setting the plugin up never throws; it is kept as a readable problem', (t) async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, (call) async {
+      if (call.method == 'initialize') throw PlatformException(code: 'boom');
+      return null;
+    });
+    final scheduler = LocalNotificationScheduler();
+    await scheduler.init();
+    expect(scheduler.lastProblem, contains('could not be set up'));
+  });
+
+  testWidgets('reminders are private on a locked screen', (t) async {
+    final scheduler = LocalNotificationScheduler();
+    await scheduler.sync([_r(1)]);
+    final platformSpecifics = (of('zonedSchedule').single.arguments as Map)['platformSpecifics'] as Map;
+    // NotificationVisibility.private has the integer value 0 on Android.
+    expect(platformSpecifics['visibility'], 0);
+  });
+
   testWidgets('cancelAll clears the phone; permission calls go through', (t) async {
     final scheduler = LocalNotificationScheduler();
     await scheduler.cancelAll();

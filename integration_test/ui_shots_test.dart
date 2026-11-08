@@ -173,7 +173,7 @@ void main() {
     await t.tap(find.byTooltip('Clear'));
     await _settle(t);
 
-    await t.tap(find.text('Sara Khan'));
+    await _tapRow(t, 'Sara Khan');
     await shot(t, '18_customer_details');
     await t.tap(find.byTooltip('Edit customer'));
     await shot(t, '18b_customer_edit');

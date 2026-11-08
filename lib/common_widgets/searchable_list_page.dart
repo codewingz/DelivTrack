@@ -55,7 +55,9 @@ class SearchableListPage<T> extends StatelessWidget {
       appBar: AppBar(title: Text(title)),
       floatingActionButton: addLabel == null || onAdd == null
           ? null
-          : FloatingActionButton.extended(onPressed: onAdd, icon: const Icon(Icons.add), label: Text(addLabel!)),
+          // No hero animation: the tabs stay alive side by side, and two buttons with the default hero tag
+          // make Flutter throw when any screen is pushed.
+          : FloatingActionButton.extended(heroTag: null, onPressed: onAdd, icon: const Icon(Icons.add), label: Text(addLabel!)),
       body: SafeArea(
         child: Align(
           alignment: Alignment.topCenter,

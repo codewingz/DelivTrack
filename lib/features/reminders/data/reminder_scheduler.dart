@@ -69,11 +69,23 @@ class LocalNotificationScheduler implements ReminderScheduler {
       channelDescription: 'Payments due on Pay Later parcels',
       importance: Importance.high,
       priority: Priority.high,
+      // A reminder names a customer and an amount: on a locked phone Android shows only the basics
+      // unless the owner chose to show notification contents there.
+      visibility: NotificationVisibility.private,
     ),
   );
 
-  /// Call once at start-up, before the first [sync].
+  /// Call once at start-up, before the first [sync]. A failure is kept in [lastProblem] and never stops
+  /// the app from starting: the in-app Reminders list works without the plugin.
   Future<void> init() async {
+    try {
+      await _initialize();
+    } on Object {
+      _problem = 'Phone notifications could not be set up on this phone. The Reminders list inside the app still works.';
+    }
+  }
+
+  Future<void> _initialize() async {
     await _plugin.initialize(
       settings: const InitializationSettings(android: AndroidInitializationSettings('@mipmap/ic_launcher')),
       onDidReceiveNotificationResponse: (response) {

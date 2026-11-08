@@ -180,7 +180,7 @@ class _FilterBar extends StatelessWidget {
             spacing: AppSpacing.sm,
             children: [
               for (final chip in chips)
-                InputChip(label: Text(chip.label, maxLines: 3), onDeleted: () => viewModel.setFilters(chip.without)),
+                InputChip(label: Text(chip.label, maxLines: 1, overflow: TextOverflow.ellipsis), onDeleted: () => viewModel.setFilters(chip.without)),
             ],
           ),
       ],

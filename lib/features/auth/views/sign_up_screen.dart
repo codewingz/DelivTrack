@@ -59,6 +59,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
             AppTextField.email(controller: _email, enabled: !busy),
             AppTextField.password(
               controller: _password,
+              isNew: true,
+              helperText: 'At least 8 characters with letters and numbers',
               enabled: !busy,
               textInputAction: TextInputAction.next,
             ),

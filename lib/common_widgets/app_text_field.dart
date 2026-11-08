@@ -225,7 +225,8 @@ class AppTextField extends StatefulWidget {
     );
   }
 
-  /// Password field with visibility toggle and minimum length validation.
+  /// Password field with visibility toggle and minimum length validation. [isNew] is for choosing a new
+  /// password (sign-up): the stronger rule of [AppValidators.newPassword] applies.
   factory AppTextField.password({
     Key? key,
     TextEditingController? controller,
@@ -235,6 +236,7 @@ class AppTextField extends StatefulWidget {
     bool isRequired = true,
     bool enabled = true,
     int minLength = 6,
+    bool isNew = false,
     TextInputAction textInputAction = TextInputAction.done,
     String? Function(String?)? validator,
     ValueChanged<String>? onChanged,
@@ -255,7 +257,7 @@ class AppTextField extends StatefulWidget {
       textInputAction: textInputAction,
       prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20, color: AppColors.label),
       validator: (value) {
-        final err = AppValidators.password(value, isRequired: isRequired, minLength: minLength);
+        final err = isNew ? AppValidators.newPassword(value, isRequired: isRequired) : AppValidators.password(value, isRequired: isRequired, minLength: minLength);
         if (err != null) return err;
         return validator?.call(value);
       },

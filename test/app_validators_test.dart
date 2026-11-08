@@ -25,6 +25,20 @@ void main() {
       expect(AppValidators.password('123456', isRequired: true), isNull);
     });
 
+    test('new password rule (sign-up): 8+ characters with a letter and a number', () {
+      expect(AppValidators.newPassword(null), 'Password is required');
+      expect(AppValidators.newPassword('abc123'), 'Password must be at least 8 characters');
+      expect(AppValidators.newPassword('1234567'), 'Password must be at least 8 characters');
+      expect(AppValidators.newPassword('12345678'), 'Use a mix of letters and numbers');
+      expect(AppValidators.newPassword('abcdefgh'), 'Use a mix of letters and numbers');
+      expect(AppValidators.newPassword('abcd1234'), isNull);
+      expect(AppValidators.newPassword('Secret #1 phrase'), isNull);
+    });
+
+    test('logging in still accepts an existing 6-character password', () {
+      expect(AppValidators.password('abc123', isRequired: true), isNull);
+    });
+
     test('amount validator', () {
       expect(AppValidators.amount(null, isRequired: true), 'Amount is required');
       expect(AppValidators.amount('abc', isRequired: true), 'Enter a valid amount');

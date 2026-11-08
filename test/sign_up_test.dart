@@ -35,7 +35,7 @@ void main() {
   group('authErrorMessage', () {
     test('maps known Firebase codes and falls back', () {
       expect(authErrorMessage('email-already-in-use'), contains('already registered'));
-      expect(authErrorMessage('weak-password'), contains('6 characters'));
+      expect(authErrorMessage('weak-password'), contains('8 characters'));
       expect(authErrorMessage('network-request-failed'), contains('internet'));
       expect(authErrorMessage('invalid-email'), contains('valid email'));
       expect(authErrorMessage('invalid-credential'), 'Incorrect email or password.');
@@ -121,6 +121,16 @@ void main() {
       expect(repo.signUps, isEmpty);
     });
 
+    testWidgets('a password without a number is refused with a clear message', (t) async {
+      final repo = FakeAuthRepository();
+      await _pump(t, repo);
+      await _fill(t, pw: 'abcdefgh', confirm: 'abcdefgh');
+      await t.tap(_signUpButton);
+      await t.pump();
+      expect(find.text('Use a mix of letters and numbers'), findsOneWidget);
+      expect(repo.signUps, isEmpty);
+    });
+
     testWidgets('invalid email, short password and mismatch are blocked', (t) async {
       final repo = FakeAuthRepository();
       await _pump(t, repo);
@@ -128,7 +138,7 @@ void main() {
       await t.tap(_signUpButton);
       await t.pump();
       expect(find.text('Enter a valid email address'), findsOneWidget);
-      expect(find.text('Password must be at least 6 characters'), findsOneWidget);
+      expect(find.text('Password must be at least 8 characters'), findsOneWidget);
       expect(find.text('Passwords do not match'), findsOneWidget);
       expect(repo.signUps, isEmpty);
     });

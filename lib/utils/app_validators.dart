@@ -53,6 +53,16 @@ class AppValidators {
     return null;
   }
 
+  /// The rule for choosing a NEW password (sign-up): at least 8 characters with a letter and a number.
+  /// Logging in only needs the existing password, so older 6-character passwords keep working there.
+  static String? newPassword(String? value, {bool isRequired = true}) {
+    final val = value ?? '';
+    if (val.isEmpty) return isRequired ? 'Password is required' : null;
+    if (val.length < 8) return 'Password must be at least 8 characters';
+    if (!RegExp('[A-Za-z]').hasMatch(val) || !RegExp('[0-9]').hasMatch(val)) return 'Use a mix of letters and numbers';
+    return null;
+  }
+
   /// Validates that a confirmation field equals [original].
   static String? confirmPassword(String? value, String original) {
     if ((value ?? '').isEmpty) return 'Please confirm your password';

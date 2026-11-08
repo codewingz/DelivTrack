@@ -118,7 +118,7 @@ String authErrorMessage(String code) => switch (code) {
       'invalid-login-credentials' =>
         'Incorrect email or password.',
       'user-disabled' => 'This account has been disabled.',
-      'weak-password' => 'Password is too weak. Use at least 6 characters.',
+      'weak-password' => 'Password is too weak. Use at least 8 characters with letters and numbers.',
       'network-request-failed' => 'No internet connection. Check your network and try again.',
       'too-many-requests' => 'Too many attempts. Please wait a moment and try again.',
       'operation-not-allowed' => 'Email sign-up is not enabled for this app.',

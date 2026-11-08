@@ -390,6 +390,9 @@ class FirestoreParcelRepository implements ParcelRepository {
         if (archived && parcel['parcelStatus'] == ParcelStatus.sent.value && (parcel['outstandingPaisa'] as int) > 0) {
           throw const AppFailure("A parcel that still has money to collect can't be archived.");
         }
+        if (archived && parcel['paymentReviewRequired'] == true) {
+          throw const AppFailure("A parcel can't be archived until its payment review is completed.");
+        }
         tx.update(parcelRef, {'isArchived': archived ? true : FieldValue.delete(), 'updatedAt': FieldValue.serverTimestamp()});
         _audit(tx, archived ? 'archive' : 'restore', parcelId, parcel['orderNumber'] as String, ['isArchived']);
       });

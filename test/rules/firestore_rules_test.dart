@@ -606,11 +606,16 @@ void main() {
 
         final returned = await setup();
         expect(await replace(returned, _parcel(seq: 1, overrides: _returned())), 200);
-        expect(await replace(returned, archived(_returned())), 200, reason: 'returned');
+        expect(await replace(returned, archived(_returned())), 403, reason: 'returned, but its payment review is still open (DT-003)');
+        expect(await replace(returned, archived(_returned(review: false))), 403, reason: 'the review flag cannot be dropped while archiving');
 
         const freeOverrides = {'collectionMethod': 'free_gift', 'productAmountExpectedPaisa': 0, 'outstandingPaisa': 0, 'paymentStatus': 'not_required'};
         final free = await setup(overrides: freeOverrides);
         expect(await replace(free, archived(freeOverrides)), 200, reason: 'Gift / Free');
+
+        final freeReturned = await setup(overrides: freeOverrides);
+        expect(await replace(freeReturned, _parcel(seq: 1, overrides: {...freeOverrides, ..._returned(review: false)})), 200);
+        expect(await replace(freeReturned, archived({...freeOverrides, ..._returned(review: false)})), 200, reason: 'returned with nothing to review');
       }, skip: skip);
 
       test('archiving changes nothing else, and only `true` is ever stored', () async {

@@ -204,6 +204,12 @@ void main() {
       }
     });
 
+    testWidgets('a returned parcel with an open payment review explains why it cannot be archived', (t) async {
+      await _open(t, FakeParcelRepository(initial: [testParcel(id: 'a', status: ParcelStatus.returned, paymentReviewRequired: true)]), 'a');
+      await t.scrollUntilVisible(find.textContaining('payment review is completed'), 200, scrollable: find.byType(Scrollable).first);
+      expect(find.textContaining("can't be archived until its payment review is completed"), findsOneWidget);
+    });
+
     testWidgets('recording a payment updates the amounts, adds a history row and confirms with a snackbar', (t) async {
       await _open(t, FakeParcelRepository(initial: [testParcel(id: 'a')]), 'a');
       await t.ensureVisible(receive);
@@ -321,7 +327,8 @@ void main() {
         (testParcel(id: 'a', received: 100000), false),
         (testParcel(id: 'a', received: 500000), true),
         (testParcel(id: 'a', status: ParcelStatus.draft, reference: '', charge: null), true),
-        (testParcel(id: 'a', status: ParcelStatus.returned, paymentReviewRequired: true), true),
+        (testParcel(id: 'a', status: ParcelStatus.returned, paymentReviewRequired: true), false),
+        (testParcel(id: 'a', status: ParcelStatus.returned), true),
         (testParcel(id: 'a', method: CollectionMethod.giftFree), true),
       ]) {
         await _open(t, FakeParcelRepository(initial: [parcel]), 'a');

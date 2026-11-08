@@ -216,14 +216,15 @@ service cloud.firestore {
         && request.resource.data.createdAt == resource.data.createdAt
         && request.resource.data.sendingDateLocal == resource.data.sendingDateLocal
         // An archived parcel cannot be edited; the only change allowed is restoring it. A parcel can be
-        // archived only when nothing is left to chase (a draft, a returned parcel, or nothing owed), and
-        // archiving changes nothing else.
+        // archived only when nothing is left to chase (a draft, a returned parcel, or nothing owed) and no
+        // payment review is open; archiving changes nothing else.
         && (request.resource.data.get('isArchived', false) == resource.data.get('isArchived', false)
             ? !resource.data.get('isArchived', false)
             : (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isArchived', 'updatedAt'])
                 && (resource.data.get('isArchived', false)
-                    || resource.data.parcelStatus in ['draft', 'returned']
-                    || resource.data.outstandingPaisa == 0)))
+                    || (!resource.data.get('paymentReviewRequired', false)
+                        && (resource.data.parcelStatus in ['draft', 'returned']
+                            || resource.data.outstandingPaisa == 0)))))
         // The expected amount can change only together with the item lines.
         && (request.resource.data.items != resource.data.items
             || request.resource.data.productAmountExpectedPaisa == resource.data.productAmountExpectedPaisa

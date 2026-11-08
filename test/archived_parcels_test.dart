@@ -1,4 +1,5 @@
 import 'package:deliv_track/features/parcels/domain/parcel_enums.dart';
+import 'package:deliv_track/core/errors/app_failure.dart';
 import 'package:deliv_track/features/parcels/views/archived_parcels_screen.dart';
 import 'package:deliv_track/main.dart';
 import 'package:flutter/material.dart';
@@ -13,9 +14,19 @@ void main() {
     expect(testParcel().canArchive, isFalse, reason: 'sent, owes Rs. 5,000');
     expect(testParcel(received: 500000).canArchive, isTrue);
     expect(testParcel(status: ParcelStatus.draft, reference: '', charge: null).canArchive, isTrue);
-    expect(testParcel(status: ParcelStatus.returned).canArchive, isTrue);
+    expect(testParcel(status: ParcelStatus.returned).canArchive, isTrue, reason: 'returned, nothing to review');
+    expect(testParcel(status: ParcelStatus.returned, paymentReviewRequired: true).canArchive, isFalse, reason: 'DT-003: payment review still open');
     expect(testParcel(method: CollectionMethod.giftFree).canArchive, isTrue);
     expect(testParcel(received: 500000, isArchived: true).canArchive, isFalse, reason: 'already archived');
+  });
+
+  test('a returned parcel with an open payment review cannot be archived and stays on the lists', () async {
+    final repo = FakeParcelRepository(initial: [testParcel(id: 'a', status: ParcelStatus.returned, received: 100000, paymentReviewRequired: true)]);
+    await expectLater(repo.archive('a'), throwsA(isA<AppFailure>()));
+    final all = await repo.watchAll().first;
+    expect(all.map((p) => p.id), ['a']);
+    expect(all.single.receivedPaisa, 100000, reason: 'the money is still counted');
+    expect(await repo.watchArchived().first, isEmpty);
   });
 
   test('archived parcels leave watchAll and appear in watchArchived; restoring reverses it', () async {

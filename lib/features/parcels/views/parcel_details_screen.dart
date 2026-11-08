@@ -198,6 +198,8 @@ class _ParcelView extends StatelessWidget {
                 onPressed: () => onAction(() => showReturnSheet(context, repository, parcel), 'Parcel marked as returned.'),
                 child: const Text('Mark Returned'),
               ),
+            if (parcel.paymentReviewRequired)
+              const _Info('Archive', "This parcel can't be archived until its payment review is completed."),
             if (parcel.canArchive)
               OutlinedButton(
                 onPressed: () => onAction(() async {

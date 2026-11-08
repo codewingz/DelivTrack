@@ -101,8 +101,9 @@ class Parcel {
   final bool isArchived;
 
   /// A parcel can be archived once nothing is left to chase: a draft, a returned parcel, or one that
-  /// owes nothing (paid in full, or Gift / Free).
-  bool get canArchive => !isArchived && (status != ParcelStatus.sent || outstandingPaisa == 0);
+  /// owes nothing (paid in full, or Gift / Free). A returned parcel whose payment review is still open
+  /// stays on the lists until the review is completed.
+  bool get canArchive => !isArchived && !paymentReviewRequired && (status != ParcelStatus.sent || outstandingPaisa == 0);
 
   /// The service as shown: the typed name for "Other", otherwise VPP / VPL / VPR.
   String get serviceLabel => service == PostalService.other ? (otherServiceName ?? 'Other') : service.value;

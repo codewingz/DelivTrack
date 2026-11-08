@@ -18,7 +18,8 @@ class ItemDraft {
   int? weightGrams;
   int? pricePaisa;
 
-  bool get isPerKg => product?.saleUnit == SaleUnit.perKg;
+  /// Kg or litre: a decimal amount instead of a whole number of pieces, boxes...
+  bool get isMeasured => product?.saleUnit.isMeasured ?? false;
 }
 
 /// State of the Add Parcel form and the rules that connect its fields.
@@ -186,7 +187,7 @@ class ParcelFormViewModel extends ChangeNotifier {
     final product = item.product;
     final price = item.pricePaisa;
     if (product == null || price == null) return null;
-    if (item.isPerKg) {
+    if (item.isMeasured) {
       final grams = item.weightGrams;
       if (grams == null || grams <= 0) return null;
       return ParcelItem.weight(
@@ -194,6 +195,7 @@ class ParcelFormViewModel extends ChangeNotifier {
         productName: product.name,
         weightGrams: grams,
         unitPricePaisa: price,
+        saleUnit: product.saleUnit,
       );
     }
     final pieces = item.quantity;
@@ -203,6 +205,7 @@ class ParcelFormViewModel extends ChangeNotifier {
       productName: product.name,
       quantity: pieces,
       unitPricePaisa: price,
+      saleUnit: product.saleUnit,
     );
   }
 
@@ -213,18 +216,20 @@ class ParcelFormViewModel extends ChangeNotifier {
       final product = item.product!;
       final price = isFree ? 0 : item.pricePaisa!;
       lines.add(
-        item.isPerKg
+        item.isMeasured
             ? ParcelItem.weight(
                 productId: product.id,
                 productName: product.name,
                 weightGrams: item.weightGrams!,
                 unitPricePaisa: price,
+                saleUnit: product.saleUnit,
               )
             : ParcelItem.pieces(
                 productId: product.id,
                 productName: product.name,
                 quantity: item.quantity!,
                 unitPricePaisa: price,
+                saleUnit: product.saleUnit,
               ),
       );
     }

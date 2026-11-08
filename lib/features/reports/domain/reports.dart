@@ -3,6 +3,7 @@ import '../../../core/time/pakistan_time.dart';
 import '../../parcels/domain/parcel.dart';
 import '../../parcels/domain/parcel_enums.dart';
 import '../../parcels/domain/payment.dart';
+import '../../products/domain/product.dart';
 
 enum ReportType {
   outstanding(
@@ -269,7 +270,7 @@ ReportResult buildReport(
       final byProduct =
           <
             String,
-            ({String name, Set<String> parcelIds, int pieces, int grams})
+            ({String name, Set<String> parcelIds, Map<SaleUnit, int> amounts})
           >{};
       for (final parcel in inRange) {
         for (final item in parcel.items) {
@@ -278,14 +279,19 @@ ReportResult buildReport(
               (
                 name: item.productName,
                 parcelIds: <String>{},
-                pieces: 0,
-                grams: 0,
+                amounts: <SaleUnit, int>{},
               );
+          // Whole count for counted units, thousandths for kg / litres.
+          final amount = item.saleUnit.isMeasured
+              ? item.weightGrams ?? 0
+              : item.quantity ?? 0;
           byProduct[item.productId] = (
             name: current.name,
             parcelIds: {...current.parcelIds, parcel.id},
-            pieces: current.pieces + (item.quantity ?? 0),
-            grams: current.grams + (item.weightGrams ?? 0),
+            amounts: {
+              ...current.amounts,
+              item.saleUnit: (current.amounts[item.saleUnit] ?? 0) + amount,
+            },
           );
         }
       }
@@ -299,9 +305,21 @@ ReportResult buildReport(
               lines: [
                 _plural(entry.parcelIds.length, 'parcel', 'parcels'),
                 [
-                  if (entry.pieces > 0)
-                    _plural(entry.pieces, 'piece', 'pieces'),
-                  if (entry.grams > 0) formatKg(entry.grams),
+                  // In dropdown order, so pieces come before kg, then the rest.
+                  for (final unit in SaleUnit.values)
+                    if ((entry.amounts[unit] ?? 0) > 0)
+                      unit.isMeasured
+                          ? formatMeasure(
+                              entry.amounts[unit]!,
+                              entry.amounts[unit] == 1000
+                                  ? unit.singular
+                                  : unit.plural,
+                            )
+                          : _plural(
+                              entry.amounts[unit]!,
+                              unit.singular,
+                              unit.plural,
+                            ),
                 ].join(' · '),
               ],
             ),

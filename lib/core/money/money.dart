@@ -50,11 +50,14 @@ int? parseKgToGrams(String text) {
 }
 
 /// 1250 -> "1.25 kg"; 2000 -> "2 kg"; 5 -> "0.005 kg".
-String formatKg(int grams) {
-  final whole = grams ~/ 1000;
-  final fraction = grams % 1000;
-  if (fraction == 0) return '$whole kg';
-  return '$whole.${fraction.toString().padLeft(3, '0').replaceFirst(RegExp(r'0+$'), '')} kg';
+String formatKg(int grams) => formatMeasure(grams, 'kg');
+
+/// [thousandths] of a unit as text: formatMeasure(1250, 'litres') -> "1.25 litres".
+String formatMeasure(int thousandths, String unit) {
+  final whole = thousandths ~/ 1000;
+  final fraction = thousandths % 1000;
+  if (fraction == 0) return '$whole $unit';
+  return '$whole.${fraction.toString().padLeft(3, '0').replaceFirst(RegExp(r'0+$'), '')} $unit';
 }
 
 /// Price of [quantity] pieces at [unitPricePaisa] each.

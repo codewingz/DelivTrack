@@ -123,6 +123,12 @@ void main() {
       test('"$bad" is rejected', () => expect(parseKgToGrams(bad), isNull));
     }
 
+    test('formatMeasure', () {
+      expect(formatMeasure(1500, 'litres'), '1.5 litres');
+      expect(formatMeasure(1000, 'litre'), '1 litre');
+      expect(formatMeasure(5, 'litres'), '0.005 litres');
+    });
+
     test('formatKg', () {
       expect(formatKg(1250), '1.25 kg');
       expect(formatKg(2000), '2 kg');

@@ -38,12 +38,33 @@ const _honey = Product(
   isActive: true,
 );
 
+const _soapBox = Product(
+  id: 'p4',
+  name: 'Soap Box',
+  saleUnit: SaleUnit.perBox,
+  isActive: true,
+);
+const _milk = Product(
+  id: 'p5',
+  name: 'Fresh Milk',
+  saleUnit: SaleUnit.perLitre,
+  isActive: true,
+);
+const _eggs = Product(
+  id: 'p6',
+  name: 'Egg Tray',
+  saleUnit: SaleUnit.perDozen,
+  isActive: true,
+);
+
 class _Env {
   _Env({FakeParcelRepository? parcels})
     : parcels = parcels ?? FakeParcelRepository();
   final FakeParcelRepository parcels;
   final customers = FakeCustomerRepository(initial: [_ali]);
-  final products = FakeProductRepository(initial: [_mango, _fruits, _honey]);
+  final products = FakeProductRepository(
+    initial: [_mango, _fruits, _honey, _soapBox, _milk, _eggs],
+  );
   String? result;
   bool popped = false;
 }
@@ -311,6 +332,78 @@ void main() {
       await _type(t, 'Enter agreed price', '100.10');
       expect(find.text('Line total: Rs. 33.33'), findsOneWidget);
     });
+
+    testWidgets(
+      'per box: quantity in boxes and a price per box, saved with the unit',
+      (t) async {
+        final env = await _open(t);
+        await _pickCustomer(t, 'Ali Raza');
+        await _chooseType(t, 'Post office collection');
+        await _pickProduct(t, 'Soap Box');
+        expect(find.textContaining('Quantity (boxes)'), findsOneWidget);
+        expect(find.textContaining('Price per box (Rs.)'), findsOneWidget);
+        await _type(t, 'Enter quantity', '0');
+        expect(
+          find.text('Enter a whole number of boxes (1–99,999)'),
+          findsOneWidget,
+        );
+        await _type(t, 'Enter quantity', '3');
+        await _type(t, 'Enter agreed price', '100');
+        expect(find.text('Line total: Rs. 300'), findsOneWidget);
+        await _tapSave(t);
+        await t.pumpAndSettle();
+        final item = env.parcels.created.single.items.single;
+        expect(item.saleUnit, SaleUnit.perBox);
+        expect(item.quantity, 3);
+        expect(item.amountLabel, '3 boxes');
+        expect(item.priceLabel, 'per box');
+      },
+    );
+
+    testWidgets('per dozen: the word dozen is used for one and many', (
+      t,
+    ) async {
+      await _open(t);
+      await _chooseType(t, 'Post office collection');
+      await _pickProduct(t, 'Egg Tray');
+      expect(find.textContaining('Quantity (dozen)'), findsOneWidget);
+      expect(find.textContaining('Price per dozen (Rs.)'), findsOneWidget);
+    });
+
+    testWidgets('per litre: a decimal volume in litres and a price per litre', (
+      t,
+    ) async {
+      final env = await _open(t);
+      await _pickCustomer(t, 'Ali Raza');
+      await _chooseType(t, 'Post office collection');
+      await _pickProduct(t, 'Fresh Milk');
+      expect(find.textContaining('Volume (litres)'), findsOneWidget);
+      expect(find.textContaining('Price per litre (Rs.)'), findsOneWidget);
+      await _type(t, 'Enter volume', '0');
+      expect(find.text('Enter a valid volume in litres'), findsOneWidget);
+      await _type(t, 'Enter volume', '1.5');
+      await _type(t, 'Enter agreed price', '200');
+      expect(find.text('Line total: Rs. 300'), findsOneWidget);
+      await _tapSave(t);
+      await t.pumpAndSettle();
+      final item = env.parcels.created.single.items.single;
+      expect(item.saleUnit, SaleUnit.perLitre);
+      expect(item.weightGrams, 1500);
+      expect(item.amountLabel, '1.5 litres');
+    });
+
+    testWidgets(
+      'changing to a product with another unit clears the typed amount',
+      (t) async {
+        await _open(t);
+        await _chooseType(t, 'Post office collection');
+        await _pickProduct(t, 'Soap Box');
+        await _type(t, 'Enter quantity', '4');
+        await _pickProduct(t, 'Fresh Milk');
+        expect(find.textContaining('Volume (litres)'), findsOneWidget);
+        expect(find.widgetWithText(TextFormField, '4'), findsNothing);
+      },
+    );
 
     testWidgets('several rows add up; removing a row updates the total', (
       t,

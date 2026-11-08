@@ -16,6 +16,36 @@ Widget _wrap(Widget child) => MaterialApp(
 
 void main() {
   group('AppValidators.quantity / postalReference', () {
+    test('quantity and weight messages name the unit', () {
+      expect(
+        AppValidators.quantity('', unit: 'boxes'),
+        'Enter the number of boxes',
+      );
+      expect(
+        AppValidators.quantity('0', unit: 'boxes'),
+        'Enter a whole number of boxes (1–99,999)',
+      );
+      expect(AppValidators.quantity('5', unit: 'boxes'), isNull);
+      expect(
+        AppValidators.weight('0', unit: 'litres', fieldName: 'Volume'),
+        'Enter a valid volume in litres',
+      );
+      expect(
+        AppValidators.weight(
+          '',
+          isRequired: true,
+          fieldName: 'Volume',
+          unit: 'litres',
+        ),
+        'Volume is required',
+      );
+      expect(
+        AppValidators.weight('1.5', unit: 'litres', fieldName: 'Volume'),
+        isNull,
+      );
+      expect(AppValidators.weight('0'), 'Enter a valid weight in kg');
+    });
+
     test('quantity: whole number 1-99,999', () {
       expect(AppValidators.quantity(null), 'Enter the number of pieces');
       expect(AppValidators.quantity('  '), 'Enter the number of pieces');

@@ -24,10 +24,41 @@ void main() {
   });
 
   group('SaleUnit', () {
+    test('the dropdown lists pieces, kg and litres first, with unique stored values', () {
+      expect(SaleUnit.values.take(3), [
+        SaleUnit.perPiece,
+        SaleUnit.perKg,
+        SaleUnit.perLitre,
+      ]);
+      expect(
+        SaleUnit.values.map((u) => u.value).toSet().length,
+        SaleUnit.values.length,
+      );
+      expect(
+        SaleUnit.values.map((u) => u.label).toSet().length,
+        SaleUnit.values.length,
+      );
+      for (final unit in SaleUnit.values) {
+        expect(SaleUnit.fromValue(unit.value), unit);
+        expect(
+          unit.label,
+          'Per ${unit.singular[0].toUpperCase()}${unit.singular.substring(1)}',
+        );
+      }
+    });
+
+    test('kg and litre are measured; everything else is counted', () {
+      expect(SaleUnit.values.where((u) => u.isMeasured), [
+        SaleUnit.perKg,
+        SaleUnit.perLitre,
+      ]);
+    });
+
     test('round-trips stored values and rejects unknown ones', () {
       expect(SaleUnit.fromValue('per_piece'), SaleUnit.perPiece);
       expect(SaleUnit.fromValue('per_kg'), SaleUnit.perKg);
-      expect(() => SaleUnit.fromValue('per_box'), throwsStateError);
+      expect(SaleUnit.fromValue('per_box'), SaleUnit.perBox);
+      expect(() => SaleUnit.fromValue('per_ton'), throwsStateError);
     });
   });
 

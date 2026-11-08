@@ -82,11 +82,12 @@ class AppTextField extends StatefulWidget {
     this.clearable = false,
   }) : assert(!clearable || controller != null, 'clearable needs a controller');
 
-  /// Whole-number quantity (pieces), 1-99,999.
+  /// Whole-number quantity, 1-99,999, counted in [unit] (pieces, boxes, dozen...).
   factory AppTextField.integer({
     Key? key,
     TextEditingController? controller,
     String label = 'Quantity (pieces)',
+    String unit = 'pieces',
     String hint = 'Enter quantity',
     bool enabled = true,
     TextInputAction textInputAction = TextInputAction.next,
@@ -110,7 +111,7 @@ class AppTextField extends StatefulWidget {
         FilteringTextInputFormatter.digitsOnly,
         LengthLimitingTextInputFormatter(5),
       ],
-      validator: AppValidators.quantity,
+      validator: (value) => AppValidators.quantity(value, unit: unit),
       onChanged: onChanged,
     );
   }
@@ -388,11 +389,13 @@ class AppTextField extends StatefulWidget {
     );
   }
 
-  /// Weight field with 'kg' suffix and decimal numeric keypad.
+  /// Measured amount (weight in kg by default, or litres...) with the unit as suffix and a decimal keypad.
   factory AppTextField.weight({
     Key? key,
     TextEditingController? controller,
     String label = 'Weight',
+    String unit = 'kg',
+    String fieldName = 'Weight',
     String hint = 'Enter weight',
     String? helperText,
     bool isRequired = false,
@@ -413,7 +416,7 @@ class AppTextField extends StatefulWidget {
       enabled: enabled,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       textInputAction: textInputAction,
-      suffixText: 'kg',
+      suffixText: unit,
       prefixIcon: const Icon(
         Icons.scale_outlined,
         size: 20,
@@ -423,7 +426,12 @@ class AppTextField extends StatefulWidget {
         FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,3}')),
       ],
       validator: (value) {
-        final err = AppValidators.weight(value, isRequired: isRequired);
+        final err = AppValidators.weight(
+          value,
+          isRequired: isRequired,
+          fieldName: fieldName,
+          unit: unit,
+        );
         if (err != null) return err;
         return validator?.call(value);
       },

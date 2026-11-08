@@ -52,6 +52,53 @@ void main() {
       expect(_pieces(qty: 1).amountLabel, '1 piece');
     });
 
+    test('other counted units use their own words and a price label', () {
+      ParcelItem boxes(int qty) => ParcelItem.pieces(
+        productId: 'p4',
+        productName: 'Soap Box',
+        quantity: qty,
+        unitPricePaisa: 10000,
+        saleUnit: SaleUnit.perBox,
+      );
+      expect(boxes(1).amountLabel, '1 box');
+      expect(boxes(3).amountLabel, '3 boxes');
+      expect(boxes(3).lineTotalPaisa, 30000);
+      expect(boxes(3).priceLabel, 'per box');
+      expect(boxes(3).toMap()['saleUnit'], 'per_box');
+      final dozens = ParcelItem.pieces(
+        productId: 'p6',
+        productName: 'Eggs',
+        quantity: 2,
+        unitPricePaisa: 100,
+        saleUnit: SaleUnit.perDozen,
+      );
+      expect(dozens.amountLabel, '2 dozen');
+      expect(_pieces().priceLabel, 'each');
+      expect(
+        ParcelItem.fromMap({...boxes(2).toMap()}).saleUnit,
+        SaleUnit.perBox,
+      );
+    });
+
+    test(
+      'litres are measured like kg: thousandths, singular only for exactly one',
+      () {
+        ParcelItem litres(int thousandths) => ParcelItem.weight(
+          productId: 'p5',
+          productName: 'Milk',
+          weightGrams: thousandths,
+          unitPricePaisa: 20000,
+          saleUnit: SaleUnit.perLitre,
+        );
+        expect(litres(1500).amountLabel, '1.5 litres');
+        expect(litres(1000).amountLabel, '1 litre');
+        expect(litres(250).amountLabel, '0.25 litres');
+        expect(litres(1500).lineTotalPaisa, 30000);
+        expect(litres(1500).priceLabel, 'per litre');
+        expect(litres(1500).toMap()['saleUnit'], 'per_litre');
+      },
+    );
+
     test('per-kg line total uses grams and rounds half up', () {
       final item = ParcelItem.weight(
         productId: 'p2',

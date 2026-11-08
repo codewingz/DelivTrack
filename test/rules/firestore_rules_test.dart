@@ -364,10 +364,38 @@ void main() {
       skip: skip,
     );
 
+    test('every selling unit of the dropdown is accepted', () async {
+      for (final unit in const [
+        'per_piece',
+        'per_kg',
+        'per_litre',
+        'per_dozen',
+        'per_pack',
+        'per_box',
+        'per_carton',
+        'per_bag',
+        'per_bottle',
+        'per_jar',
+        'per_tin',
+      ]) {
+        expect(
+          await createProduct(
+            alice.token,
+            alice.uid,
+            id(),
+            _product(unit: unit),
+          ),
+          200,
+          reason: unit,
+        );
+      }
+    }, skip: skip);
+
     test(
       'rejects bad unit, non-bool isActive, extra and missing fields',
       () async {
-        await denied(_product(unit: 'per_box'));
+        await denied(_product(unit: 'per_ton'));
+        await denied(_product(unit: 'Per Box'));
         await denied(_product(active: 'yes'));
         await denied({..._product(), 'price': 5});
         final missing = _product()..remove('saleUnit');

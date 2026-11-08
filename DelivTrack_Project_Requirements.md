@@ -87,10 +87,10 @@ DelivTrack is a small internal parcel, customer, and payment tracking app. The c
 
 - Products page: add, view, edit, and archive a product.
 - **Only product name and selling unit are required during product setup** (plus active/archive status handled by the app).
-- Selling unit is one of: **Per Piece (quantity)** or **Per Kg (weight)**.
+- Selling unit is chosen from a dropdown. Counted units (whole-number quantity): **Per Piece, Per Dozen, Per Pack, Per Box, Per Carton, Per Bag, Per Bottle, Per Jar, Per Tin**. Measured units (decimal quantity, up to 3 places): **Per Kg (weight), Per Litre (volume)**. (Owner-approved extension of the original Per Piece / Per Kg pair, 8 Nov 2026.)
 - Product catalog does **not** require a fixed selling price. Prices are normally agreed with each customer by phone, so the app asks for a **negotiated unit price inside each parcel product row**.
-- For a Per Piece product, show **Quantity (pieces)** and **Price per piece (Rs.)** while adding the parcel.
-- For a Per Kg product, show **Weight (kg)** and **Price per kg (Rs.)** while adding the parcel.
+- For a counted product, show **Quantity (<unit>)** and **Price per <unit> (Rs.)** while adding the parcel (for example Quantity (boxes), Price per box). For a Per Piece product that is **Quantity (pieces)** and **Price per piece (Rs.)**.
+- For a Per Kg product, show **Weight (kg)** and **Price per kg (Rs.)**; for a Per Litre product, show **Volume (litres)** and **Price per litre (Rs.)**.
 - A parcel may contain multiple different products, including a mix of piece and kg items.
 - Store the product name, unit type, quantity/weight, negotiated price and line total as an immutable historical snapshot for each saved parcel.
 - New catalog edits must not rewrite historical units or agreed prices.
@@ -450,7 +450,7 @@ Round and store money safely in integer paisa. Delivery charges are separate fro
 ### `products/{productId}`
 
 - `name` (required)
-- `saleUnit`: `per_piece | per_kg` (required)
+- `saleUnit`: `per_piece | per_kg | per_litre | per_dozen | per_pack | per_box | per_carton | per_bag | per_bottle | per_jar | per_tin` (required)
 - `isActive`, `createdAt`, `updatedAt`
 - **No fixed catalog selling price required**. Negotiated prices live in each parcel item.
 

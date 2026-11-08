@@ -200,7 +200,7 @@ class _ParcelView extends StatelessWidget {
                   item.productName,
                   isFree
                       ? item.amountLabel
-                      : '${item.amountLabel} × ${formatRupees(item.unitPricePaisa)}${item.saleUnit.value == 'per_kg' ? ' per kg' : ' each'} = ${formatRupees(item.lineTotalPaisa)}',
+                      : '${item.amountLabel} × ${formatRupees(item.unitPricePaisa)} ${item.priceLabel} = ${formatRupees(item.lineTotalPaisa)}',
                 ),
             ],
           ),

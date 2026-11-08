@@ -21,7 +21,8 @@ service cloud.firestore {
         && data.keys().hasAll(['name', 'nameLower', 'saleUnit', 'isActive', 'createdAt', 'updatedAt'])
         && trimmedText(data.name, 2, 60)
         && data.nameLower == data.name.lower()
-        && data.saleUnit in ['per_piece', 'per_kg']
+        && data.saleUnit in ['per_piece', 'per_kg', 'per_litre', 'per_dozen', 'per_pack', 'per_box', 'per_carton',
+          'per_bag', 'per_bottle', 'per_jar', 'per_tin']
         && data.isActive is bool
         && data.createdAt is timestamp
         && data.updatedAt == request.time;

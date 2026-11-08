@@ -13,16 +13,17 @@ class ParcelItem {
     required this.lineTotalPaisa,
   });
 
-  /// A per-piece line: [quantity] pieces at [unitPricePaisa] each.
+  /// A counted line: [quantity] pieces (or boxes, dozens...) at [unitPricePaisa] each.
   factory ParcelItem.pieces({
     required String productId,
     required String productName,
     required int quantity,
     required int unitPricePaisa,
+    SaleUnit saleUnit = SaleUnit.perPiece,
   }) => ParcelItem._(
     productId: productId,
     productName: productName,
-    saleUnit: SaleUnit.perPiece,
+    saleUnit: saleUnit,
     quantity: quantity,
     weightGrams: null,
     unitPricePaisa: unitPricePaisa,
@@ -32,16 +33,17 @@ class ParcelItem {
     ),
   );
 
-  /// A per-kg line: [weightGrams] at [unitPricePaisa] per kg.
+  /// A measured line: [weightGrams] (thousandths of a kg or litre) at [unitPricePaisa] per unit.
   factory ParcelItem.weight({
     required String productId,
     required String productName,
     required int weightGrams,
     required int unitPricePaisa,
+    SaleUnit saleUnit = SaleUnit.perKg,
   }) => ParcelItem._(
     productId: productId,
     productName: productName,
-    saleUnit: SaleUnit.perKg,
+    saleUnit: saleUnit,
     quantity: null,
     weightGrams: weightGrams,
     unitPricePaisa: unitPricePaisa,
@@ -68,13 +70,13 @@ class ParcelItem {
   final String productName;
   final SaleUnit saleUnit;
 
-  /// Pieces (per-piece lines only).
+  /// Whole number of pieces, boxes, dozens... (counted lines only).
   final int? quantity;
 
-  /// Grams (per-kg lines only).
+  /// Thousandths of a kg or litre (measured lines only; the name is from when kg was the only one).
   final int? weightGrams;
 
-  /// Price per piece, or per kg, in paisa.
+  /// Price per piece, box, kg, litre... in paisa.
   final int unitPricePaisa;
   final int lineTotalPaisa;
 
@@ -88,8 +90,15 @@ class ParcelItem {
     'lineTotalPaisa': lineTotalPaisa,
   };
 
-  /// "3 pieces" or "1.25 kg".
-  String get amountLabel => saleUnit == SaleUnit.perPiece
-      ? '$quantity ${quantity == 1 ? 'piece' : 'pieces'}'
-      : formatKg(weightGrams!);
+  /// "3 pieces", "2 boxes", "1.25 kg" or "1 litre".
+  String get amountLabel => saleUnit.isMeasured
+      ? formatMeasure(
+          weightGrams!,
+          weightGrams == 1000 ? saleUnit.singular : saleUnit.plural,
+        )
+      : '$quantity ${quantity == 1 ? saleUnit.singular : saleUnit.plural}';
+
+  /// "each" for pieces, otherwise "per box", "per kg"...
+  String get priceLabel =>
+      saleUnit == SaleUnit.perPiece ? 'each' : 'per ${saleUnit.singular}';
 }

@@ -449,11 +449,18 @@ class _ItemCardState extends State<_ItemCard> {
             ),
             if (item.product != null) ...[
               const SizedBox(height: AppSpacing.lg),
-              if (item.isPerKg)
+              if (item.isMeasured)
                 AppTextField.weight(
                   controller: _weight,
-                  label: 'Weight (kg)',
-                  hint: 'Enter weight',
+                  label: item.product!.saleUnit == SaleUnit.perKg
+                      ? 'Weight (kg)'
+                      : 'Volume (${item.product!.saleUnit.plural})',
+                  fieldName: item.product!.saleUnit == SaleUnit.perKg
+                      ? 'Weight'
+                      : 'Volume',
+                  unit: item.product!.saleUnit.plural,
+                  hint:
+                      'Enter ${item.product!.saleUnit == SaleUnit.perKg ? 'weight' : 'volume'}',
                   isRequired: true,
                   enabled: widget.enabled,
                   onChanged: (value) =>
@@ -462,6 +469,8 @@ class _ItemCardState extends State<_ItemCard> {
               else
                 AppTextField.integer(
                   controller: _quantity,
+                  label: 'Quantity (${item.product!.saleUnit.plural})',
+                  unit: item.product!.saleUnit.plural,
                   enabled: widget.enabled,
                   onChanged: (value) =>
                       form.setQuantity(item, int.tryParse(value.trim())),
@@ -470,9 +479,7 @@ class _ItemCardState extends State<_ItemCard> {
                 const SizedBox(height: AppSpacing.lg),
                 AppTextField.amount(
                   controller: _price,
-                  label: item.isPerKg
-                      ? 'Price per kg (Rs.)'
-                      : 'Price per piece (Rs.)',
+                  label: 'Price per ${item.product!.saleUnit.singular} (Rs.)',
                   hint: 'Enter agreed price',
                   minPaisa: 1,
                   enabled: widget.enabled,

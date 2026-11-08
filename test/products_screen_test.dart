@@ -34,10 +34,26 @@ Future<void> _pump(
   await t.pump();
 }
 
+/// Opens the "Selling unit" dropdown in the product sheet and picks [label].
+Future<void> _chooseUnit(WidgetTester t, String label) async {
+  await t.tap(
+    find
+        .descendant(
+          of: find.byType(ProductFormSheet),
+          matching: find.byType(TextFormField),
+        )
+        .at(1),
+  );
+  await t.pumpAndSettle();
+  // The picker is the top-most sheet; the products list behind it can show the same words.
+  await t.tap(find.widgetWithText(ListTile, label).last);
+  await t.pumpAndSettle();
+}
+
 Finder get _addFab => find.widgetWithText(FloatingActionButton, 'Add Product');
 Finder get _sheet => find.byType(ProductFormSheet);
 Finder get _sheetName =>
-    find.descendant(of: _sheet, matching: find.byType(TextFormField));
+    find.descendant(of: _sheet, matching: find.byType(TextFormField)).first;
 Finder _sheetButton(String label) => find.descendant(
   of: _sheet,
   matching: find.widgetWithText(FilledButton, label),
@@ -184,7 +200,7 @@ void main() {
         await _pump(t, repo);
         await t.tap(_addFab);
         await t.pumpAndSettle();
-        await t.tap(find.widgetWithText(ChoiceChip, 'Per Piece'));
+        await _chooseUnit(t, 'Per Piece');
         await t.enterText(_sheetName, 'A');
         await t.tap(_sheetButton('Add Product'));
         await t.pump();
@@ -214,7 +230,7 @@ void main() {
         await t.tap(_addFab);
         await t.pumpAndSettle();
         await t.enterText(_sheetName, 'Mango Box');
-        await t.tap(find.widgetWithText(ChoiceChip, 'Per Kg'));
+        await _chooseUnit(t, 'Per Kg');
         await t.tap(_sheetButton('Add Product'));
         await t.pumpAndSettle();
         expect(_sheet, findsNothing);
@@ -232,7 +248,7 @@ void main() {
       await t.tap(_addFab);
       await t.pumpAndSettle();
       await t.enterText(_sheetName, 'mango  BOX');
-      await t.tap(find.widgetWithText(ChoiceChip, 'Per Piece'));
+      await _chooseUnit(t, 'Per Piece');
       await t.tap(_sheetButton('Add Product'));
       await t.pumpAndSettle();
       expect(_sheet, findsOneWidget);
@@ -250,7 +266,7 @@ void main() {
         await t.tap(_addFab);
         await t.pumpAndSettle();
         await t.enterText(_sheetName, 'Mango Box');
-        await t.tap(find.widgetWithText(ChoiceChip, 'Per Piece'));
+        await _chooseUnit(t, 'Per Piece');
         await t.tap(_sheetButton('Add Product'));
         await t.pumpAndSettle();
         expect(find.text('No internet connection.'), findsOneWidget);
@@ -268,7 +284,7 @@ void main() {
       await t.tap(_addFab);
       await t.pumpAndSettle();
       await t.enterText(_sheetName, 'Mango Box');
-      await t.tap(find.widgetWithText(ChoiceChip, 'Per Piece'));
+      await _chooseUnit(t, 'Per Piece');
       await t.tap(_sheetButton('Add Product'));
       await t.pump();
       await t.tap(
@@ -281,6 +297,113 @@ void main() {
       await t.pumpAndSettle();
       expect(repo.items, hasLength(1));
     });
+  });
+
+  group('selling unit dropdown', () {
+    Finder unitField() => find
+        .descendant(
+          of: find.byType(ProductFormSheet),
+          matching: find.byType(TextFormField),
+        )
+        .at(1);
+
+    Future<void> openAdd(WidgetTester t, FakeProductRepository repo) async {
+      await _pump(t, repo);
+      await t.tap(_addFab);
+      await t.pumpAndSettle();
+    }
+
+    testWidgets('is a dropdown field, not a row of chips, and starts empty', (
+      t,
+    ) async {
+      await openAdd(t, FakeProductRepository());
+      expect(find.text('Selling unit *'), findsOneWidget);
+      expect(find.text('Select a unit'), findsOneWidget);
+      expect(find.byIcon(Icons.arrow_drop_down_rounded), findsOneWidget);
+      expect(find.widgetWithText(ChoiceChip, 'Per Piece'), findsNothing);
+    });
+
+    testWidgets(
+      'lists every unit, ticks the current one, and picking closes the list',
+      (t) async {
+        await openAdd(t, FakeProductRepository());
+        await t.tap(unitField());
+        await t.pumpAndSettle();
+        for (final unit in SaleUnit.values) {
+          await t.scrollUntilVisible(
+            find.widgetWithText(ListTile, unit.label).last,
+            100,
+            scrollable: find.descendant(
+              of: find.byType(BottomSheet).last,
+              matching: find.byType(Scrollable),
+            ),
+          );
+          expect(
+            find.widgetWithText(ListTile, unit.label).last,
+            findsOneWidget,
+          );
+        }
+        await t.tap(find.widgetWithText(ListTile, 'Per Litre').last);
+        await t.pumpAndSettle();
+        expect(find.widgetWithText(TextFormField, 'Per Litre'), findsOneWidget);
+
+        await t.tap(unitField());
+        await t.pumpAndSettle();
+        expect(
+          find.byIcon(Icons.check_rounded),
+          findsOneWidget,
+          reason: 'the current choice',
+        );
+      },
+    );
+
+    testWidgets(
+      'saving without a unit asks for one; a new unit is saved with the product',
+      (t) async {
+        final repo = FakeProductRepository();
+        await openAdd(t, repo);
+        await t.enterText(_sheetName, 'Soap');
+        await t.tap(_sheetButton('Add Product'));
+        await t.pumpAndSettle();
+        expect(find.text('Choose how this product is sold'), findsOneWidget);
+        expect(repo.adds, 0);
+
+        await _chooseUnit(t, 'Per Box');
+        expect(find.text('Choose how this product is sold'), findsNothing);
+        await t.tap(_sheetButton('Add Product'));
+        await t.pumpAndSettle();
+        expect(repo.items.single.saleUnit, SaleUnit.perBox);
+      },
+    );
+
+    testWidgets('editing shows the saved unit', (t) async {
+      final repo = FakeProductRepository(
+        initial: [_p('1', 'Milk', unit: SaleUnit.perLitre)],
+      );
+      await _pump(t, repo);
+      await t.tap(find.text('Milk'));
+      await t.pumpAndSettle();
+      expect(find.widgetWithText(TextFormField, 'Per Litre'), findsOneWidget);
+    });
+
+    for (final size in const [Size(320, 568), Size(393, 852)]) {
+      for (final scale in [1.0, 1.3, 2.0]) {
+        testWidgets(
+          'no overflow with the unit list open at $size text x$scale',
+          (t) async {
+            await _pump(t, FakeProductRepository(), size: size, scale: scale);
+            await t.tap(_addFab);
+            await t.pumpAndSettle();
+            await t.tap(unitField());
+            await t.pumpAndSettle();
+            expect(t.takeException(), isNull);
+            await t.tap(find.widgetWithText(ListTile, 'Per Piece').last);
+            await t.pumpAndSettle();
+            expect(t.takeException(), isNull);
+          },
+        );
+      }
+    }
   });
 
   group('edit product', () {
@@ -299,7 +422,7 @@ void main() {
           findsNothing,
         );
 
-        await t.tap(find.widgetWithText(ChoiceChip, 'Per Kg'));
+        await _chooseUnit(t, 'Per Kg');
         await t.pump();
         expect(
           find.text('Existing parcels keep their old unit.'),

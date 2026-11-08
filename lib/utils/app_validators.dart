@@ -106,26 +106,33 @@ class AppValidators {
     String? value, {
     bool isRequired = false,
     String fieldName = 'Weight',
+    String unit = 'kg',
   }) {
     final trimmed = value?.trim() ?? '';
     if (trimmed.isEmpty) {
       return isRequired ? '$fieldName is required' : null;
     }
     final grams = parseKgToGrams(trimmed);
-    if (grams == null || grams <= 0) return 'Enter a valid weight in kg';
+    if (grams == null || grams <= 0) {
+      return 'Enter a valid ${fieldName.toLowerCase()} in $unit';
+    }
     return null;
   }
 
-  /// Whole number of pieces: 1-99,999.
-  static String? quantity(String? value, {bool isRequired = true}) {
+  /// Whole number of pieces (or boxes, dozens... as [unit]): 1-99,999.
+  static String? quantity(
+    String? value, {
+    bool isRequired = true,
+    String unit = 'pieces',
+  }) {
     final trimmed = value?.trim() ?? '';
     if (trimmed.isEmpty) {
-      return isRequired ? 'Enter the number of pieces' : null;
+      return isRequired ? 'Enter the number of $unit' : null;
     }
     final pieces = RegExp(r'^[0-9]{1,5}$').hasMatch(trimmed)
         ? int.parse(trimmed)
         : 0;
-    return pieces >= 1 ? null : 'Enter a whole number of pieces (1–99,999)';
+    return pieces >= 1 ? null : 'Enter a whole number of $unit (1–99,999)';
   }
 
   /// A postal reference as printed on the slip (see [isValidPostalReference]).

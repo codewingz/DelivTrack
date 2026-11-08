@@ -3,6 +3,7 @@ import 'package:deliv_track/features/parcels/domain/parcel_enums.dart';
 import 'package:deliv_track/features/parcels/domain/parcel_item.dart';
 import 'package:deliv_track/features/parcels/domain/payment.dart';
 import 'package:deliv_track/features/payments/domain/payment_tabs.dart';
+import 'package:deliv_track/features/products/domain/product.dart';
 import 'package:deliv_track/features/reports/domain/reports.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -342,6 +343,40 @@ void main() {
       );
       expect(r.rows.map((row) => row.parcelId), ['a', 'b']);
     });
+  });
+
+  test('Product-wise: boxes and litres are totalled in their own units', () {
+    ParcelItem boxes(int qty) => ParcelItem.pieces(
+      productId: 'p4',
+      productName: 'Soap Box',
+      quantity: qty,
+      unitPricePaisa: 100,
+      saleUnit: SaleUnit.perBox,
+    );
+    ParcelItem milk(int thousandths) => ParcelItem.weight(
+      productId: 'p5',
+      productName: 'Fresh Milk',
+      weightGrams: thousandths,
+      unitPricePaisa: 100,
+      saleUnit: SaleUnit.perLitre,
+    );
+    final r = _build(ReportType.productWise, [
+      testParcel(
+        id: 'a',
+        sequence: 1,
+        sendingDate: '2026-11-01',
+        items: [boxes(1), milk(1000)],
+      ),
+      testParcel(
+        id: 'b',
+        sequence: 2,
+        sendingDate: '2026-11-02',
+        items: [boxes(4), milk(1500)],
+      ),
+    ]);
+    expect(r.rows.map((row) => row.title), ['Fresh Milk', 'Soap Box']);
+    expect(r.rows[0].lines, ['2 parcels', '2.5 litres']);
+    expect(r.rows[1].lines, ['2 parcels', '5 boxes']);
   });
 
   test(

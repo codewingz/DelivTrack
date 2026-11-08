@@ -43,6 +43,18 @@ Finder get _moreTab => find.descendant(
 void main() {
   group('bottom navigation shell', () {
     testWidgets(
+      'tab bar is not padded by the status bar (regression: extra height)',
+      (t) async {
+        t.view.padding = const FakeViewPadding(top: 40);
+        t.view.viewPadding = const FakeViewPadding(top: 40);
+        addTearDown(t.view.reset);
+        await _launch(t, FakeAuthRepository(signedIn: true, name: 'Ali'));
+        // 80 is the Material 3 default; the top inset must not be added on top of it.
+        expect(t.getSize(find.byType(NavigationBar)).height, 80);
+      },
+    );
+
+    testWidgets(
       'signed-in user sees Home and More tabs; More opens and Home returns',
       (t) async {
         await _launch(t, FakeAuthRepository(signedIn: true, name: 'Ali'));

@@ -21,38 +21,44 @@ class AppShell extends StatelessWidget {
             child: navigationShell,
           ),
         ),
-        NavigationBar(
-          selectedIndex: navigationShell.currentIndex,
-          onDestinationSelected: (index) => navigationShell.goBranch(
-            index,
-            initialLocation: index == navigationShell.currentIndex,
+        // NavigationBar's SafeArea would also pad the top by the status-bar height here (no Scaffold
+        // above it removes that), leaving empty space above the icons.
+        MediaQuery.removePadding(
+          context: context,
+          removeTop: true,
+          child: NavigationBar(
+            selectedIndex: navigationShell.currentIndex,
+            onDestinationSelected: (index) => navigationShell.goBranch(
+              index,
+              initialLocation: index == navigationShell.currentIndex,
+            ),
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.home_outlined),
+                selectedIcon: Icon(Icons.home),
+                label: 'Home',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.local_shipping_outlined),
+                selectedIcon: Icon(Icons.local_shipping),
+                label: 'Parcels',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.payments_outlined),
+                selectedIcon: Icon(Icons.payments),
+                label: 'Payments',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.people_outline_rounded),
+                selectedIcon: Icon(Icons.people_rounded),
+                label: 'Customers',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.menu_rounded),
+                label: 'More',
+              ),
+            ],
           ),
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.home_outlined),
-              selectedIcon: Icon(Icons.home),
-              label: 'Home',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.local_shipping_outlined),
-              selectedIcon: Icon(Icons.local_shipping),
-              label: 'Parcels',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.payments_outlined),
-              selectedIcon: Icon(Icons.payments),
-              label: 'Payments',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.people_outline_rounded),
-              selectedIcon: Icon(Icons.people_rounded),
-              label: 'Customers',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.menu_rounded),
-              label: 'More',
-            ),
-          ],
         ),
       ],
     );

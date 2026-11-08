@@ -1,10 +1,9 @@
-import 'dart:math';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../core/errors/app_failure.dart';
 import '../../../core/data/changed_keys.dart';
+import '../../../core/data/retry_when_denied.dart';
 import '../../../core/errors/firestore_failure.dart';
 import '../../../core/ids/order_number.dart';
 import '../../../core/money/money.dart';
@@ -227,7 +226,7 @@ class FirestoreParcelRepository implements ParcelRepository {
           ? null
           : _guard(input.service, input.otherServiceName, normalizedReference);
 
-      return await _retryWhenDenied(
+      return await retryWhenDenied(
         () => _firestore.runTransaction((tx) async {
           final counter = await tx.get(_counter);
           final sequence =
@@ -265,30 +264,6 @@ class FirestoreParcelRepository implements ParcelRepository {
       );
     } on FirebaseException catch (e) {
       throw firestoreFailure(e);
-    }
-  }
-
-  static const _maxAttempts = 5;
-  static final _jitter = Random();
-
-  /// Two writes at the same moment both read the same document. The mobile SDK commits with an
-  /// "unchanged since read" precondition, but Firestore checks the rules first, so the loser is
-  /// answered "permission-denied" (not the retryable "aborted"). Verified against the real backend
-  /// (5 parallel saves: one wins per round, all succeed within 5 attempts). So a denied attempt is
-  /// retried a few times with a fresh read; a genuine denial fails the same way every time and is
-  /// reported after the last attempt.
-  Future<T> _retryWhenDenied<T>(Future<T> Function() attempt) async {
-    for (var tries = 1; ; tries++) {
-      try {
-        return await attempt();
-      } on FirebaseException catch (e) {
-        if (e.code != 'permission-denied' || tries >= _maxAttempts) {
-          throw firestoreFailure(e);
-        }
-        await Future<void>.delayed(
-          Duration(milliseconds: 25 * tries + _jitter.nextInt(75)),
-        );
-      }
     }
   }
 
@@ -525,7 +500,7 @@ class FirestoreParcelRepository implements ParcelRepository {
     final parcelRef = _parcels.doc(parcelId);
     final paymentRef = parcelRef.collection('payments').doc();
     try {
-      await _retryWhenDenied(
+      await retryWhenDenied(
         () => _firestore.runTransaction((tx) async {
           final snapshot = await tx.get(parcelRef);
           if (!snapshot.exists) {
@@ -898,7 +873,7 @@ class FirestoreParcelRepository implements ParcelRepository {
         .collection('payments')
         .doc('cor_$paymentId');
     try {
-      await _retryWhenDenied(
+      await retryWhenDenied(
         () => _firestore.runTransaction((tx) async {
           final snapshot = await tx.get(parcelRef);
           if (!snapshot.exists) {

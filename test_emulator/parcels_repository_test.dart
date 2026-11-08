@@ -1600,10 +1600,17 @@ void main() {
           reason:
               'A\'s payments are not readable through B\'s repository calls',
         );
+        final denied = Stopwatch()..start();
         await expectLater(
           repo.recordPayment(a, amountPaisa: 1000, type: PaymentType.advance),
           throwsA(isA<AppFailure>()),
           reason: 'B cannot write to a parcel id of A',
+        );
+        expect(
+          denied.elapsedMilliseconds,
+          lessThan(4000),
+          reason:
+              'a genuine denial is reported after a few quick retries (DT-022)',
         );
         // B's own first parcel starts at number 1 again
         final b = await repo.create(_input(reference: 'VPP 60001'));

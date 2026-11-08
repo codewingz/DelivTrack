@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:deliv_track/core/errors/app_failure.dart';
+import 'package:deliv_track/features/customers/data/contact_picker.dart';
 import 'package:deliv_track/features/customers/domain/customer.dart';
 import 'package:deliv_track/features/customers/views/customer_form_screen.dart';
 import 'package:flutter/material.dart';
@@ -27,6 +28,7 @@ Future<_Harness> _pump(
   Customer? customer,
   Size size = const Size(393, 852),
   double scale = 1,
+  ContactPicker contactPicker = const NoContactPicker(),
 }) async {
   t.view.physicalSize = size;
   t.view.devicePixelRatio = 1;
@@ -46,6 +48,7 @@ Future<_Harness> _pump(
                     builder: (_) => CustomerFormScreen(
                       repository: repo,
                       customer: customer,
+                      contactPicker: contactPicker,
                     ),
                   ),
                 );
@@ -248,6 +251,234 @@ void main() {
     );
   });
 
+  group('choose from contacts', () {
+    Finder contactsButton() => find.byTooltip('Choose from contacts');
+
+    testWidgets(
+      'the phone field has a contacts button; the other fields do not',
+      (t) async {
+        await _pump(t, FakeCustomerRepository());
+        expect(contactsButton(), findsOneWidget);
+        expect(find.byIcon(Icons.contacts_outlined), findsOneWidget);
+        // the button is a full-size touch target
+        expect(
+          t.getSize(contactsButton()).shortestSide,
+          greaterThanOrEqualTo(48),
+        );
+      },
+    );
+
+    testWidgets(
+      'picking a contact fills the number (tidied) and, while the name is empty, the name',
+      (t) async {
+        final picker = _FakePicker([
+          const PickedContact(name: '  Sara   Khan ', phone: '+92 300 1234567'),
+        ]);
+        await _pump(t, FakeCustomerRepository(), contactPicker: picker);
+        await t.tap(contactsButton());
+        await t.pumpAndSettle();
+        expect(picker.calls, 1);
+        expect(
+          find.widgetWithText(TextFormField, '03001234567'),
+          findsOneWidget,
+          reason: '+92 becomes the local form',
+        );
+        expect(find.widgetWithText(TextFormField, 'Sara Khan'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'a name the user already typed is kept; only the number is replaced',
+      (t) async {
+        final picker = _FakePicker([
+          const PickedContact(name: 'Sara Khan', phone: '0300-7654321'),
+        ]);
+        await _pump(t, FakeCustomerRepository(), contactPicker: picker);
+        await t.enterText(_name, 'Ali Raza');
+        await t.enterText(_phone, '03111111111');
+        await t.tap(contactsButton());
+        await t.pumpAndSettle();
+        expect(find.widgetWithText(TextFormField, 'Ali Raza'), findsOneWidget);
+        expect(
+          find.widgetWithText(TextFormField, '03007654321'),
+          findsOneWidget,
+        );
+        expect(find.widgetWithText(TextFormField, 'Sara Khan'), findsNothing);
+      },
+    );
+
+    testWidgets('a number saved without a name still fills the number', (
+      t,
+    ) async {
+      final picker = _FakePicker([
+        const PickedContact(name: '', phone: '0321 7654321'),
+      ]);
+      await _pump(t, FakeCustomerRepository(), contactPicker: picker);
+      await t.tap(contactsButton());
+      await t.pumpAndSettle();
+      expect(find.widgetWithText(TextFormField, '03217654321'), findsOneWidget);
+      expect(t.widget<TextFormField>(_name).controller!.text, isEmpty);
+    });
+
+    testWidgets('backing out of the picker changes nothing', (t) async {
+      final picker = _FakePicker([null]);
+      await _pump(t, FakeCustomerRepository(), contactPicker: picker);
+      await t.enterText(_phone, '03001234567');
+      await t.tap(contactsButton());
+      await t.pumpAndSettle();
+      expect(picker.calls, 1);
+      expect(find.widgetWithText(TextFormField, '03001234567'), findsOneWidget);
+      expect(t.widget<TextFormField>(_name).controller!.text, isEmpty);
+    });
+
+    testWidgets(
+      'when the contacts cannot be opened a plain message says to type the number, and typing still works',
+      (t) async {
+        final picker = _FakePicker([
+          const AppFailure(
+            "Couldn't open your contacts. Type the number instead.",
+          ),
+        ]);
+        final repo = FakeCustomerRepository();
+        await _pump(t, repo, contactPicker: picker);
+        await t.tap(contactsButton());
+        await t.pumpAndSettle();
+        expect(
+          find.text("Couldn't open your contacts. Type the number instead."),
+          findsOneWidget,
+        );
+        await _fill(t);
+        await t.tap(_save);
+        await t.pumpAndSettle();
+        expect(repo.items.single.phone, '03001234567');
+      },
+    );
+
+    testWidgets(
+      'a picked foreign number keeps its + and is saved as it was picked',
+      (t) async {
+        final picker = _FakePicker([
+          const PickedContact(name: 'Omar Ali', phone: '+971 50 123 4567'),
+        ]);
+        final repo = FakeCustomerRepository();
+        await _pump(t, repo, contactPicker: picker);
+        await t.tap(contactsButton());
+        await t.pumpAndSettle();
+        await t.enterText(_address, 'House 5, Dubai');
+        await t.tap(_save);
+        await t.pumpAndSettle();
+        expect(repo.items.single.phone, '+971 50 123 4567');
+        expect(repo.items.single.name, 'Omar Ali');
+      },
+    );
+
+    testWidgets('tapping twice while the picker is open opens it once', (
+      t,
+    ) async {
+      final picker = _FakePicker([
+        const PickedContact(name: 'Sara Khan', phone: '03001234567'),
+      ])..gate = Completer<void>();
+      await _pump(t, FakeCustomerRepository(), contactPicker: picker);
+      await t.tap(contactsButton());
+      await t.pump();
+      await t.tap(contactsButton());
+      await t.pump();
+      expect(picker.calls, 1);
+      picker.gate!.complete();
+      await t.pumpAndSettle();
+      expect(find.widgetWithText(TextFormField, 'Sara Khan'), findsOneWidget);
+    });
+
+    testWidgets(
+      'after a failed Save, picking a number clears the phone error',
+      (t) async {
+        final picker = _FakePicker([
+          const PickedContact(name: 'Sara Khan', phone: '03001234567'),
+        ]);
+        await _pump(t, FakeCustomerRepository(), contactPicker: picker);
+        await t.tap(_save);
+        await t.pump();
+        expect(find.text('Phone number is required'), findsOneWidget);
+        await t.tap(contactsButton());
+        await t.pumpAndSettle();
+        expect(find.text('Phone number is required'), findsNothing);
+        expect(
+          find.text('Full address is required'),
+          findsOneWidget,
+          reason: 'the other errors stay',
+        );
+      },
+    );
+
+    testWidgets('while the form is saving the contacts button is disabled', (
+      t,
+    ) async {
+      final repo = FakeCustomerRepository()..gate = Completer<void>();
+      await _pump(t, repo, contactPicker: _FakePicker([null]));
+      await _fill(t);
+      await t.tap(_save);
+      await t.pump();
+      expect(
+        t
+            .widget<IconButton>(
+              find.widgetWithIcon(IconButton, Icons.contacts_outlined),
+            )
+            .onPressed,
+        isNull,
+      );
+      repo.gate!.complete();
+      await t.pumpAndSettle();
+    });
+
+    testWidgets(
+      'editing a customer: the picked number replaces the saved one',
+      (t) async {
+        final picker = _FakePicker([
+          const PickedContact(name: 'Someone Else', phone: '+92 321 7654321'),
+        ]);
+        await _pump(
+          t,
+          FakeCustomerRepository(initial: [_existing]),
+          customer: _existing,
+          contactPicker: picker,
+        );
+        await t.tap(contactsButton());
+        await t.pumpAndSettle();
+        expect(
+          find.widgetWithText(TextFormField, '03217654321'),
+          findsOneWidget,
+        );
+        expect(
+          find.widgetWithText(TextFormField, 'Ali Raza'),
+          findsOneWidget,
+          reason: 'the saved name is not overwritten',
+        );
+      },
+    );
+
+    for (final size in const [Size(320, 568), Size(393, 852)]) {
+      for (final scale in [1.0, 1.3, 2.0]) {
+        testWidgets(
+          'no overflow with the contacts button at $size text x$scale',
+          (t) async {
+            await _pump(
+              t,
+              FakeCustomerRepository(),
+              size: size,
+              scale: scale,
+              contactPicker: _FakePicker([
+                const PickedContact(name: 'Sara Khan', phone: '03001234567'),
+              ]),
+            );
+            await t.tap(contactsButton());
+            await t.pumpAndSettle();
+            expect(t.takeException(), isNull);
+          },
+        );
+      }
+    }
+  });
+
   group('duplicate phone warning', () {
     testWidgets(
       'same number in another format: warns, Cancel keeps the form, Save anyway saves',
@@ -429,4 +660,22 @@ void main() {
       }
     }
   });
+}
+
+/// Answers each tap on the contacts button with the next prepared result (a contact, null = backed out,
+/// or an [AppFailure] = the contacts could not be opened).
+class _FakePicker implements ContactPicker {
+  _FakePicker(this._results);
+  final List<Object?> _results;
+  int calls = 0;
+  Completer<void>? gate;
+
+  @override
+  Future<PickedContact?> pick() async {
+    calls++;
+    await gate?.future;
+    final next = _results.removeAt(0);
+    if (next is AppFailure) throw next;
+    return next as PickedContact?;
+  }
 }

@@ -433,7 +433,8 @@ class AppTextField extends StatefulWidget {
     );
   }
 
-  /// Phone number field with phone keypad and length validation.
+  /// Phone number field with phone keypad and length validation. With [onPickContact] a contacts button
+  /// at the end of the field lets the user choose the number from the phone's contacts instead of typing.
   factory AppTextField.phone({
     Key? key,
     TextEditingController? controller,
@@ -447,6 +448,7 @@ class AppTextField extends StatefulWidget {
     ValueChanged<String>? onChanged,
     ValueChanged<String>? onFieldSubmitted,
     FocusNode? focusNode,
+    VoidCallback? onPickContact,
   }) {
     return AppTextField(
       key: key,
@@ -463,6 +465,14 @@ class AppTextField extends StatefulWidget {
         size: 20,
         color: AppColors.label,
       ),
+      suffixIcon: onPickContact == null
+          ? null
+          : IconButton(
+              tooltip: 'Choose from contacts',
+              icon: const Icon(Icons.contacts_outlined),
+              color: AppColors.primary,
+              onPressed: enabled ? onPickContact : null,
+            ),
       inputFormatters: [
         FilteringTextInputFormatter.allow(RegExp(r'[0-9+\s-]')),
         LengthLimitingTextInputFormatter(20),

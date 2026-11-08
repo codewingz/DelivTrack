@@ -4,9 +4,13 @@ import '../../../common_widgets/app_text_field.dart';
 import '../../../common_widgets/confirm_dialog.dart';
 import '../../../common_widgets/primary_button.dart';
 import '../../../constants/app_colors.dart';
+import '../../../core/errors/app_failure.dart';
 import '../../../core/view_models/action_view_model.dart';
 import '../../../design_system/foundations/spacing/app_spacing.dart';
 import '../../../utils/app_validators.dart';
+import '../../../utils/phone.dart';
+import '../../../utils/text.dart';
+import '../data/contact_picker.dart';
 import '../data/customer_repository.dart';
 import '../domain/customer.dart';
 
@@ -17,8 +21,12 @@ class CustomerFormScreen extends StatefulWidget {
     super.key,
     required this.repository,
     this.customer,
+    this.contactPicker = const SystemContactPicker(),
   });
   final CustomerRepository repository;
+
+  /// Where "Choose from contacts" gets the number from.
+  final ContactPicker contactPicker;
 
   /// Null when adding.
   final Customer? customer;
@@ -34,6 +42,8 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
   late final _address = TextEditingController(text: widget.customer?.address);
   final _viewModel = ActionViewModel();
   bool _saved = false;
+  bool _picking = false;
+  bool _triedToSave = false;
 
   bool get _isEditing => widget.customer != null;
 
@@ -51,7 +61,33 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
     super.dispose();
   }
 
+  /// Fills the phone number (and the name, when it is still empty) from a contact the user picks.
+  Future<void> _pickContact() async {
+    if (_picking) return;
+    _picking = true;
+    PickedContact? picked;
+    String? problem;
+    try {
+      picked = await widget.contactPicker.pick();
+    } on AppFailure catch (e) {
+      problem = e.message;
+    } finally {
+      _picking = false;
+    }
+    if (!mounted) return;
+    if (problem != null) return _viewModel.fail(problem);
+    if (picked == null) return;
+    _phone.text = cleanContactPhone(picked.phone);
+    final name = collapseSpaces(picked.name);
+    if (_name.text.trim().isEmpty && name.isNotEmpty) {
+      _name.text = name.length > 60 ? name.substring(0, 60).trim() : name;
+    }
+    // Once Save has shown errors, picking a number should clear the phone error right away.
+    if (_triedToSave) _formKey.currentState?.validate();
+  }
+
   Future<void> _save() async {
+    _triedToSave = true;
     if (!_formKey.currentState!.validate()) return;
 
     Customer? duplicate;
@@ -151,6 +187,7 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
                             controller: _phone,
                             label: 'Phone number',
                             enabled: !busy,
+                            onPickContact: _pickContact,
                           ),
                           const SizedBox(height: AppSpacing.lg),
                           AppTextField.multiline(

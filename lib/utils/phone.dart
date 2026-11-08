@@ -29,3 +29,16 @@ String phoneSearchDigits(String raw) {
   if (digits.startsWith('0092')) return '0${digits.substring(4)}';
   return digits;
 }
+
+/// A number picked from the contacts, tidied for the phone field. Pakistan mobiles in any spelling
+/// (+92 300 1234567, 0092-300-1234567, 0300 123 4567) become 03001234567; any other number keeps its
+/// digits, spaces, dashes and leading + (so a foreign number can still be dialled), at most 20 characters.
+String cleanContactPhone(String raw) {
+  final local = normalizePhone(raw);
+  if (local.startsWith('03') && local.length == 11) return local;
+  final kept = raw
+      .replaceAll(RegExp(r'[^0-9+\s-]'), '')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+  return kept.length > 20 ? kept.substring(0, 20).trim() : kept;
+}

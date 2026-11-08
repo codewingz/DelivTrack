@@ -10,6 +10,7 @@ import '../features/auth/views/sign_up_screen.dart';
 import '../features/customers/data/customer_repository.dart';
 import '../features/customers/domain/customer.dart';
 import '../features/customers/views/customer_form_screen.dart';
+import '../features/customers/data/contact_picker.dart';
 import '../features/customers/data/phone_dialer.dart';
 import '../features/customers/views/customer_details_screen.dart';
 import '../features/customers/views/customers_screen.dart';
@@ -80,6 +81,7 @@ GoRouter createRouter(
   ParcelRepository parcelRepository, {
   ReminderScheduler reminderScheduler = const NoReminderScheduler(),
   PhoneDialer dialer = const UrlLauncherDialer(),
+  ContactPicker contactPicker = const SystemContactPicker(),
 }) {
   return GoRouter(
     initialLocation: AppRoutes.splash,
@@ -227,8 +229,10 @@ GoRouter createRouter(
       GoRoute(
         path: AppRoutes.customerNew,
         name: 'customerNew',
-        builder: (context, state) =>
-            CustomerFormScreen(repository: customerRepository),
+        builder: (context, state) => CustomerFormScreen(
+          repository: customerRepository,
+          contactPicker: contactPicker,
+        ),
       ),
       GoRoute(
         path: AppRoutes.customerEdit,
@@ -239,6 +243,7 @@ GoRouter createRouter(
         builder: (context, state) => CustomerFormScreen(
           repository: customerRepository,
           customer: state.extra! as Customer,
+          contactPicker: contactPicker,
         ),
       ),
       // After /customers/new and /customers/edit, so those words are not read as a customer id.

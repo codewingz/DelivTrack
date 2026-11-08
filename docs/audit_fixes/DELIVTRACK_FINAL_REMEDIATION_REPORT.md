@@ -1,8 +1,8 @@
 # DelivTrack — Final remediation report (8 Nov 2026)
 
 ## Executive summary
-The 22 applicable findings of the full audit were processed one at a time (investigate → test → fix → verify → report), each as its own local commit on `dev` (nothing pushed, deployed or changed in Firebase). Public sign-up stays enabled (DT-001 skipped by decision) and backup work stays excluded (DT-005). Money, status, customer snapshot, reference uniqueness, review completion and audit entries are now enforced by the Firestore rules and covered by two-user emulator tests; repositories are covered by 55-odd real-transaction tests on an Android emulator; the project is formatted, analysed cleanly and has an (inactive) CI workflow.
-**Eleven issues are FIXED AND VERIFIED, ten are PARTIALLY FIXED (the remainder needs the owner, a trusted server, or a physical phone), one was NOT REPRODUCED as a defect, two are EXCLUDED BY OWNER.** Details and honest limits are in each `DT-XXX_FIX_REPORT.md` and in `REMAINING_BLOCKERS.md`.
+The 22 applicable findings of the full audit were processed one at a time (investigate → test → fix → verify → report), each as its own local commit on `dev` (nothing pushed, deployed or changed in Firebase). Public sign-up stays enabled (DT-001 skipped by decision) and backup work stays excluded (DT-005). Money, status, customer snapshot, reference uniqueness, review completion and audit entries are now enforced by the Firestore rules and covered by two-user emulator tests; the repositories and auth are covered by about 60 real-transaction tests on an Android emulator; the project is formatted, analysed cleanly and has an (inactive) CI workflow.
+**Of the 24 findings: 12 are FIXED AND VERIFIED, 9 PARTIALLY FIXED (the remainder needs the owner, a trusted server or a physical phone), 1 NOT REPRODUCED as a defect, 2 EXCLUDED BY OWNER (DT-001, DT-005).** Details and honest limits are in each `DT-XXX_FIX_REPORT.md` and in `REMAINING_BLOCKERS.md`.
 
 ## Issue status
 | ID | Sev. | Final status | Main files | Tests / verification | Remaining risk |
@@ -32,7 +32,7 @@ The 22 applicable findings of the full audit were processed one at a time (inves
 | DT-023 | Low | **FIXED AND VERIFIED** | `firebase.json` | `lsof` before/after; rules + emulator suites | Phones need `adb reverse` |
 | DT-024 | Low | **FIXED AND VERIFIED** | requirements v1.3, plan, traceability | text checks; two-user tests | Quota figures not re-checked live |
 
-(Counts: Fixed and verified 11 — DT-003, 008, 009, 010, 011, 016, 017, 018, 019, 022, 023 and DT-024 = 12 including documentation; partially fixed 10 — DT-002, 004, 006, 007, 012, 013, 014, 015, 021 and DT-024 is counted as fixed; not reproduced 1 — DT-020; excluded 2.)
+(Tally: FIXED AND VERIFIED 12 — DT-003, 008, 009, 010, 011, 016, 017, 018, 019, 022, 023, 024; PARTIALLY FIXED 9 — DT-002, 004, 006, 007, 012, 013, 014, 015, 021; NOT REPRODUCED 1 — DT-020; EXCLUDED 2 — DT-001, DT-005.)
 
 ## Tests summary (commands run 8 Nov 2026, final state)
 - `flutter analyze`: no issues. `dart format --output=none --set-exit-if-changed lib test test_emulator`: exit 0.
@@ -41,7 +41,7 @@ The 22 applicable findings of the full audit were processed one at a time (inves
 - Repository suites on the Android emulator (`sh test_emulator/run.sh`): auth, parcels, customers, products all passed — runner totals 8 / 38 / 7 / 10 (each includes set-up/tear-down entries).
 - Builds: debug APK and release APK (58.6 MB, signed by the upload key CN=DelivTrack; permissions unchanged: INTERNET, ACCESS_NETWORK_STATE, POST_NOTIFICATIONS, RECEIVE_BOOT_COMPLETED, VIBRATE, READ_GSERVICES, one signature-level permission).
 - Mutation checks (rule clause removed → tests fail) for DT-002, DT-006, DT-007 and the archived-money totals.
-- Final checks: no secret patterns in the 21,7xx added lines since the baseline commit, no keystore / `key.properties` tracked, no upload/camera/storage package, no billing/backup file touched, no deploy command run.
+- Final checks: no secret patterns in the ~21,700 lines added since the baseline commit, no keystore / `key.properties` tracked, no upload/camera/storage package, no billing/backup file touched, no deploy command run.
 
 ## Security results
 Isolation holds: every path is `users/{uid}/…` with `request.auth.uid == uid`, default deny; 80 two-user rules tests and the emulator account-switching test (second account sees nothing of the first, starts at ADT-000001, may reuse a reference). New: received money moves only with a new payment document in the same commit; payment status must follow the amounts; expected amount cannot change alone; the customer snapshot must match a real customer record; postal-reference guards are created with the parcel and released only when it moves; audit entries must describe a real simultaneous edit; a returned parcel with an open review cannot be archived. Not enforceable without a server: item line arithmetic, omitted audit entries, "Other" service names.

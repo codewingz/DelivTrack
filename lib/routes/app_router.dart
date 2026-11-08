@@ -30,6 +30,7 @@ import '../features/reminders/views/reminders_screen.dart';
 import '../features/products/data/product_repository.dart';
 import '../features/products/views/products_screen.dart';
 import '../features/more/views/more_screen.dart';
+import '../common_widgets/empty_state.dart';
 import '../screens/splash_screen.dart';
 import 'app_shell.dart';
 import 'stream_listenable.dart';
@@ -90,6 +91,20 @@ GoRouter createRouter(
       if (repository.isSignedIn) return isPublic ? AppRoutes.home : null;
       return isPublic ? null : AppRoutes.login;
     },
+    // An address that matches no page (a stale link, a typo): say so and offer the way home. Signed-out
+    // users never get here, the redirect above sends them to Log in first.
+    errorBuilder: (context, state) => Scaffold(
+      appBar: AppBar(title: const Text('DelivTrack')),
+      body: SafeArea(
+        child: EmptyState(
+          icon: Icons.search_off_rounded,
+          title: 'Page not found',
+          message: 'This page does not exist.',
+          actionLabel: 'Go to Home',
+          onAction: () => context.go(AppRoutes.home),
+        ),
+      ),
+    ),
     routes: [
       GoRoute(
         path: AppRoutes.splash,

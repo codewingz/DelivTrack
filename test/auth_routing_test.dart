@@ -169,4 +169,63 @@ void main() {
     await t.pump();
     expect(repo.verifyCalls, before + 1);
   });
+
+  group('unknown addresses', () {
+    GoRouter routerOf(WidgetTester t) =>
+        GoRouter.of(t.element(find.byType(Scaffold).first));
+
+    testWidgets(
+      'signed in: a page that does not exist says so and Go to Home returns to the dashboard',
+      (t) async {
+        await _launch(t, FakeAuthRepository(signedIn: true, name: 'Ali'));
+        routerOf(t).go('/no-such-page');
+        await t.pumpAndSettle();
+        expect(find.text('Page not found'), findsOneWidget);
+        expect(_onDashboard, findsNothing);
+        await t.tap(find.text('Go to Home'));
+        await t.pumpAndSettle();
+        expect(_onDashboard, findsOneWidget);
+        expect(find.text('Page not found'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'signed out: an unknown address leads to Log in, never into the app',
+      (t) async {
+        await _launch(t, FakeAuthRepository());
+        routerOf(t).go('/no-such-page');
+        await t.pumpAndSettle();
+        expect(_onLogin, findsOneWidget);
+        expect(find.text('Page not found'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'a parcel id that does not exist shows the not-found state, and Back returns',
+      (t) async {
+        await _launch(t, FakeAuthRepository(signedIn: true, name: 'Ali'));
+        routerOf(t).push(AppRoutes.parcelPath('ghost'));
+        await t.pumpAndSettle();
+        expect(
+          find.textContaining('not found', findRichText: true),
+          findsWidgets,
+        );
+        await t.pageBack();
+        await t.pumpAndSettle();
+        expect(_onDashboard, findsOneWidget);
+      },
+    );
+
+    testWidgets('after signing out, a stale deep link is not reachable', (
+      t,
+    ) async {
+      final repo = FakeAuthRepository(signedIn: true, name: 'Ali');
+      await _launch(t, repo);
+      routerOf(t).go(AppRoutes.parcelPath('p1'));
+      await t.pumpAndSettle();
+      await repo.signOut();
+      await t.pumpAndSettle();
+      expect(_onLogin, findsOneWidget);
+    });
+  });
 }

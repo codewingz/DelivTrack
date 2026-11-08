@@ -95,11 +95,22 @@ service cloud.firestore {
           'postalReferenceNormalized', 'deliveryChargePaisa', 'actualPackedWeightGrams',
           'estimatedPaymentDateLocal', 'productAmountExpectedPaisa', 'receivedPaisa', 'outstandingPaisa',
           'paymentStatus', 'parcelStatus', 'sendingDateLocal', 'createdAt', 'updatedAt',
-          'notes', 'returnedDateLocal', 'returnReason', 'paymentReviewRequired', 'isArchived']);
+          'notes', 'returnedDateLocal', 'returnReason', 'paymentReviewRequired', 'isArchived', 'lastPaymentId']);
     }
 
-    // Field-level checks. Rules cannot loop over `items`, so the per-line maths is checked by the
-    // app; what matters for security (only the owner reaches this data) is enforced above.
+    // The status the app derives from the amounts (see paymentStatusFor).
+    function statusFor(data) {
+      return data.collectionMethod == 'free_gift' ? 'not_required'
+        : (data.productAmountExpectedPaisa > 0 && data.receivedPaisa >= data.productAmountExpectedPaisa) ? 'received'
+        : data.receivedPaisa > 0 ? 'partial'
+        : 'pending';
+    }
+
+    // Field-level checks, including the money maths: outstanding = expected - received (never negative),
+    // the payment status follows from the amounts, Gift / Free expects nothing.
+    // Limit: rules cannot loop over `items` and Firestore caps one evaluation at 1,000 expressions, so
+    // "expected = sum of the line totals" and "line total = quantity x price" are kept by the app (and
+    // its tests); the rules only forbid changing the expected amount when the lines are not edited.
     function validParcel(data) {
       return validParcelShape(data)
         && data.orderNumber is string && data.orderNumber.matches('^ADT-[0-9]{6,}$')
@@ -129,7 +140,8 @@ service cloud.firestore {
         && data.outstandingPaisa is int && data.outstandingPaisa >= 0
         && data.outstandingPaisa == (data.productAmountExpectedPaisa > data.receivedPaisa ? data.productAmountExpectedPaisa - data.receivedPaisa : 0)
         && (data.collectionMethod != 'free_gift' || data.productAmountExpectedPaisa == 0)
-        && data.paymentStatus in ['not_required', 'pending', 'partial', 'received']
+        && data.paymentStatus == statusFor(data)
+        && (!('lastPaymentId' in data) || (data.lastPaymentId is string && data.lastPaymentId.size() > 0 && data.lastPaymentId.size() <= 80))
         && validDateString(data.sendingDateLocal)
         && (!('notes' in data) || (data.notes is string && data.notes.size() >= 1 && data.notes.size() <= 500))
         && (!('isArchived' in data) || data.isArchived == true)
@@ -172,6 +184,14 @@ service cloud.firestore {
       allow update: if false;
     }
 
+    // The parcel's customer snapshot (name, phone, address) must be a copy of that customer's record.
+    function customerMatches(uid, data) {
+      let c = get(/databases/$(database)/documents/users/$(uid)/customers/$(data.customerId)).data;
+      return c.displayName == data.customerSnapshot.name
+        && c.phone == data.customerSnapshot.phone
+        && c.address == data.customerSnapshot.address;
+    }
+
     // Parcels: created with the next order number, never deleted.
     match /users/{uid}/parcels/{parcelId} {
       allow read: if isOwner(uid);
@@ -180,6 +200,8 @@ service cloud.firestore {
         && request.resource.data.createdAt == request.time
         && request.resource.data.sendingDateLocal == pakistanDate(request.time)
         && request.resource.data.receivedPaisa == 0
+        && !('lastPaymentId' in request.resource.data)
+        && customerMatches(uid, request.resource.data)
         && !('isArchived' in request.resource.data)
         && request.resource.data.paymentStatus in ['pending', 'not_required']
         && request.resource.data.parcelStatus in ['draft', 'sent']
@@ -202,6 +224,22 @@ service cloud.firestore {
                 && (resource.data.get('isArchived', false)
                     || resource.data.parcelStatus in ['draft', 'returned']
                     || resource.data.outstandingPaisa == 0)))
+        // The expected amount can change only together with the item lines.
+        && (request.resource.data.items != resource.data.items
+            || request.resource.data.productAmountExpectedPaisa == resource.data.productAmountExpectedPaisa
+            || request.resource.data.collectionMethod != resource.data.collectionMethod)
+        // The customer snapshot stays as it is, unless it is replaced by a copy of the (new) customer's record.
+        && ((request.resource.data.customerId == resource.data.customerId
+              && request.resource.data.customerSnapshot == resource.data.customerSnapshot)
+            || customerMatches(uid, request.resource.data))
+        // Received money moves only together with a NEW payment document (the payment rules below then
+        // check the amount); nothing else may touch `lastPaymentId`.
+        && (request.resource.data.receivedPaisa == resource.data.receivedPaisa
+            ? request.resource.data.get('lastPaymentId', '') == resource.data.get('lastPaymentId', '')
+            : (request.resource.data.get('lastPaymentId', '') != resource.data.get('lastPaymentId', '')
+                && request.resource.data.get('lastPaymentId', '') != ''
+                && existsAfter(paymentAt(uid, parcelId, request.resource.data.lastPaymentId))
+                && !exists(paymentAt(uid, parcelId, request.resource.data.lastPaymentId))))
         // A returned parcel only takes notes; Sent -> Returned changes nothing but the return fields.
         && (resource.data.parcelStatus != 'returned'
             || (request.resource.data.parcelStatus == 'returned'

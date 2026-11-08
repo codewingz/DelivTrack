@@ -333,6 +333,7 @@ class FirestoreParcelRepository implements ParcelRepository {
               'receivedPaisa': received,
               'outstandingPaisa': outstandingFor(expectedPaisa: expected, receivedPaisa: received),
               'paymentStatus': paymentStatusFor(isFree: isFree, expectedPaisa: expected, receivedPaisa: received).value,
+              'lastPaymentId': paymentRef.id,
               'updatedAt': FieldValue.serverTimestamp(),
             });
             tx.set(paymentRef, {
@@ -511,6 +512,7 @@ class FirestoreParcelRepository implements ParcelRepository {
               'receivedPaisa': received,
               'outstandingPaisa': outstandingFor(expectedPaisa: expected, receivedPaisa: received),
               'paymentStatus': paymentStatusFor(isFree: isFree, expectedPaisa: expected, receivedPaisa: received).value,
+              'lastPaymentId': reversalRef.id,
               'updatedAt': FieldValue.serverTimestamp(),
             });
             final type = original['paymentType'] as String;

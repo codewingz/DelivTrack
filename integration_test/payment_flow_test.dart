@@ -95,6 +95,7 @@ void main() {
     // --- another user: no parcels, and cannot read this user's payments
     await FirebaseAuth.instance.signOut();
     await pumpUntil(t, find.text('Welcome back'));
+    await t.pumpAndSettle(); // let the first user's screens finish leaving
     await auth.signUp(name: 'Payer Two', email: 'pf2${DateTime.now().microsecondsSinceEpoch}@codewingz.com', password: 'secret123');
     await pumpUntil(t, find.text('Welcome, Payer Two'));
     await expectLater(parcels.watchPayments(id).first, completion(isEmpty), reason: "scoped to the signed-in user's own data");

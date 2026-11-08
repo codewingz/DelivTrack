@@ -134,6 +134,7 @@ void main() {
     // Log out, then a different user: sees nothing of the first user's data.
     await FirebaseAuth.instance.signOut();
     await pumpUntil(t, find.text('Welcome back'));
+    await t.pumpAndSettle(); // let the first user's screens finish leaving
     await auth.signUp(name: 'Owner Two', email: 'two${DateTime.now().microsecondsSinceEpoch}@codewingz.com', password: 'secret123');
     await pumpUntil(t, find.text('Welcome, Owner Two'));
     await openProducts(t);

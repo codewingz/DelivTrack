@@ -132,7 +132,7 @@ void main() {
     Future<({FakeParcelRepository repo, List<bool> results})> openCorrect(WidgetTester t, {Size size = const Size(393, 852), double scale = 1}) {
       final parcel = _sent(received: 200000);
       final repo = FakeParcelRepository(initial: [parcel])..payments['a'] = [payment];
-      return _open(t, parcel, (c, r, p) => showCorrectPaymentSheet(c, r, p, payment), repo: repo, size: size, scale: scale);
+      return _open(t, parcel, (c, r, p) => showCorrectPaymentSheet(c, r, p, payment, clock: const _Clock()), repo: repo, size: size, scale: scale);
     }
 
     testWidgets('prefilled with the payment; a reason is required; the same amount is refused', (t) async {
@@ -140,7 +140,7 @@ void main() {
       expect(find.text('2000'), findsOneWidget);
       await t.tap(_submit);
       await t.pump();
-      expect(find.text('Enter a different amount'), findsOneWidget);
+      expect(find.text('Change the amount or the date'), findsOneWidget);
       expect(find.text('Reason for the correction is required'), findsOneWidget);
       expect(env.repo.corrections, isEmpty);
     });
@@ -163,8 +163,46 @@ void main() {
       await t.pump();
       await t.tap(_submit);
       await t.pumpAndSettle();
-      expect(env.repo.corrections.single, (parcelId: 'a', paymentId: 'pay-1', amount: 0, reason: 'Entered by mistake'));
+      expect(env.repo.corrections.single, (parcelId: 'a', paymentId: 'pay-1', amount: 0, reason: 'Entered by mistake', receivedOn: null));
       expect(env.results, [true]);
+    });
+
+    testWidgets('shows the payment\'s date; an amount-only correction keeps it (no new date is sent)', (t) async {
+      final env = await openCorrect(t);
+      expect(find.text('8 Nov 2026'), findsWidgets, reason: 'the original received date, as the field value');
+      await t.enterText(_fields.first, '3000');
+      await t.enterText(_fields.last, 'Wrong amount entered');
+      await t.pump();
+      await t.tap(_submit);
+      await t.pumpAndSettle();
+      expect(env.repo.corrections.single.receivedOn, isNull);
+      expect(env.repo.corrections.single.amount, 300000);
+    });
+
+    testWidgets('a date-only correction needs a new date and a reason; the amount stays', (t) async {
+      final env = await openCorrect(t);
+      await t.ensureVisible(find.text('8 Nov 2026').last);
+      await t.tap(find.text('8 Nov 2026').last);
+      await t.pumpAndSettle();
+      await t.tap(find.text('7'));
+      await t.tap(find.text('OK'));
+      await t.pumpAndSettle();
+      await t.tap(_submit);
+      await t.pump();
+      expect(find.text('Reason for the correction is required'), findsOneWidget, reason: 'no reason, no correction');
+      expect(env.repo.corrections, isEmpty);
+      await t.enterText(_fields.last, 'Money was received a day later');
+      await t.pump();
+      await t.tap(_submit);
+      await t.pumpAndSettle();
+      final c = env.repo.corrections.single;
+      expect((c.amount, c.receivedOn, c.reason), (200000, '2026-11-07', 'Money was received a day later'));
+      final history = await env.repo.watchPayments('a').first;
+      expect(history.map((p) => p.id), containsAll(['rev_pay-1', 'cor_pay-1']), reason: 'the original stays traceable');
+      final replacement = history.firstWhere((p) => p.id == 'cor_pay-1');
+      expect(replacement.amountPaisa, 200000);
+      expect(pakistanDate(replacement.receivedAt), '2026-11-07');
+      expect((await env.repo.watchAll().first).single.receivedPaisa, 200000, reason: 'a date-only correction does not move money');
     });
 
     for (final size in const [Size(320, 568), Size(393, 852), Size(640, 300)]) {

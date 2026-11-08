@@ -83,7 +83,12 @@ abstract class ParcelRepository {
 
   /// Corrects a payment without editing it: a negative twin cancels it and, when [correctedAmountPaisa]
   /// is above 0, a replacement payment is recorded, all in one transaction. [reason] is required.
-  Future<void> correctPayment(String parcelId, String paymentId, {required int correctedAmountPaisa, required String reason});
+  ///
+  /// The replacement keeps the original "received on" date unless [receivedOn] ("yyyy-MM-dd", not in the
+  /// future, not before the sending date) names a new one, so the amount, the date or both can be fixed.
+  /// The original payment, the reversal (with the reason and when it was made) and the replacement all
+  /// stay in the history.
+  Future<void> correctPayment(String parcelId, String paymentId, {required int correctedAmountPaisa, required String reason, String? receivedOn});
 }
 
 /// Data lives under `users/{uid}/parcels`; Firestore rules allow only that user.
@@ -546,11 +551,14 @@ class FirestoreParcelRepository implements ParcelRepository {
   }
 
   @override
-  Future<void> correctPayment(String parcelId, String paymentId, {required int correctedAmountPaisa, required String reason}) async {
+  Future<void> correctPayment(String parcelId, String paymentId, {required int correctedAmountPaisa, required String reason, String? receivedOn}) async {
     final cleanReason = collapseSpaces(reason);
     if (cleanReason.length < 5) throw const AppFailure('Give a reason (at least 5 characters).');
     if (cleanReason.length > 200) throw const AppFailure('Use at most 200 characters.');
     if (correctedAmountPaisa < 0) throw const AppFailure('Enter a valid amount.');
+    final today = pakistanDate(clock.nowUtc());
+    if (receivedOn != null && !_isDate(receivedOn)) throw const AppFailure('Enter a valid date.');
+    if (receivedOn != null && receivedOn.compareTo(today) > 0) throw const AppFailure('The received date cannot be in the future.');
 
     final parcelRef = _parcels.doc(parcelId);
     final originalRef = parcelRef.collection('payments').doc(paymentId);
@@ -569,7 +577,15 @@ class FirestoreParcelRepository implements ParcelRepository {
             final originalAmount = original['amountPaisa'] as int;
             if (originalAmount <= 0) throw const AppFailure("A correction can't be corrected.");
             if ((await tx.get(reversalRef)).exists) throw const AppFailure('This payment was already corrected.');
-            if (correctedAmountPaisa == originalAmount) throw const AppFailure('The corrected amount is the same as the payment.');
+            final originalAt = original['receivedAt'] as Timestamp;
+            final originalDate = pakistanDate(originalAt.toDate());
+            final newDate = receivedOn ?? originalDate;
+            if (correctedAmountPaisa == originalAmount && newDate == originalDate) {
+              throw const AppFailure('Change the amount or the date: the correction is the same as the payment.');
+            }
+            if (correctedAmountPaisa > 0 && newDate.compareTo(parcel['sendingDateLocal'] as String) < 0) {
+              throw AppFailure('The received date cannot be before the sending date (${formatDate(parcel['sendingDateLocal'] as String)}).');
+            }
 
             final expected = parcel['productAmountExpectedPaisa'] as int;
             final received = (parcel['receivedPaisa'] as int) - originalAmount + correctedAmountPaisa;
@@ -590,6 +606,7 @@ class FirestoreParcelRepository implements ParcelRepository {
               'reversalOfPaymentId': paymentId,
               'correctionReason': cleanReason,
               'replacementPaisa': correctedAmountPaisa,
+              'correctedBy': _auth.currentUser!.uid,
               'receivedAt': FieldValue.serverTimestamp(),
               'recordedAt': FieldValue.serverTimestamp(),
             });
@@ -598,7 +615,8 @@ class FirestoreParcelRepository implements ParcelRepository {
                 'amountPaisa': correctedAmountPaisa,
                 'paymentType': type,
                 'correctionOfPaymentId': paymentId,
-                'receivedAt': FieldValue.serverTimestamp(),
+                // the original day is kept unless a new one was chosen; today uses the server's clock
+                'receivedAt': receivedOn == null ? originalAt : (receivedOn == today ? FieldValue.serverTimestamp() : _noonPakistan(receivedOn)),
                 'recordedAt': FieldValue.serverTimestamp(),
               });
             }

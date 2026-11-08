@@ -237,14 +237,15 @@ class _PayLaterDateSheetState extends State<_PayLaterDateSheet> {
 
 /// Correct a payment: the payment is cancelled by a reversal and (if the corrected amount is above 0)
 /// replaced, so the history keeps both. A reason is required.
-Future<bool> showCorrectPaymentSheet(BuildContext context, ParcelRepository repository, Parcel parcel, Payment payment) =>
-    showFormSheet(context, (_) => _CorrectPaymentSheet(repository: repository, parcel: parcel, payment: payment));
+Future<bool> showCorrectPaymentSheet(BuildContext context, ParcelRepository repository, Parcel parcel, Payment payment, {Clock clock = const Clock()}) =>
+    showFormSheet(context, (_) => _CorrectPaymentSheet(repository: repository, parcel: parcel, payment: payment, today: pakistanDate(clock.nowUtc())));
 
 class _CorrectPaymentSheet extends StatefulWidget {
-  const _CorrectPaymentSheet({required this.repository, required this.parcel, required this.payment});
+  const _CorrectPaymentSheet({required this.repository, required this.parcel, required this.payment, required this.today});
   final ParcelRepository repository;
   final Parcel parcel;
   final Payment payment;
+  final String today;
 
   @override
   State<_CorrectPaymentSheet> createState() => _CorrectPaymentSheetState();
@@ -253,6 +254,7 @@ class _CorrectPaymentSheet extends StatefulWidget {
 class _CorrectPaymentSheetState extends State<_CorrectPaymentSheet> {
   late final _amount = TextEditingController(text: plainRupees(widget.payment.amountPaisa));
   final _reason = TextEditingController();
+  late String? _date = pakistanDate(widget.payment.receivedAt);
 
   @override
   void dispose() {
@@ -269,14 +271,21 @@ class _CorrectPaymentSheetState extends State<_CorrectPaymentSheet> {
     return AppFormSheet(
       title: 'Correct payment',
       subtitle: '${formatDate(pakistanDate(payment.receivedAt))} · ${payment.type.label} · ${formatRupees(payment.amountPaisa)}. '
-          'The original stays in the history; enter 0 to cancel it.',
+          'The original stays in the history. Change the amount, the date or both; enter 0 to cancel it.',
       submitLabel: 'Save Correction',
-      onSubmit: () => widget.repository.correctPayment(
-        widget.parcel.id,
-        payment.id,
-        correctedAmountPaisa: parseRupeesToPaisa(_amount.text)!,
-        reason: _reason.text,
-      ),
+      onSubmit: () {
+        final amount = parseRupeesToPaisa(_amount.text)!;
+        final originalDate = pakistanDate(payment.receivedAt);
+        if (amount > 0 && _date == null) throw const AppFailure('Select the received date.');
+        return widget.repository.correctPayment(
+          widget.parcel.id,
+          payment.id,
+          correctedAmountPaisa: amount,
+          reason: _reason.text,
+          // only sent when it changed, so an amount-only correction keeps the original date
+          receivedOn: _date == originalDate ? null : _date,
+        );
+      },
       fields: (busy) => [
         AppTextField.amount(
           controller: _amount,
@@ -285,9 +294,17 @@ class _CorrectPaymentSheetState extends State<_CorrectPaymentSheet> {
           validator: (value) {
             final paisa = parseRupeesToPaisa(value ?? '');
             if (paisa == null) return null;
-            if (paisa == payment.amountPaisa) return 'Enter a different amount';
+            if (paisa == payment.amountPaisa && _date == pakistanDate(payment.receivedAt)) return 'Change the amount or the date';
             return paisa > room ? 'Cannot exceed ${formatRupees(room)}' : null;
           },
+        ),
+        AppDateField(
+          label: 'Received on',
+          value: _date,
+          enabled: !busy,
+          firstDate: widget.parcel.sendingDate,
+          lastDate: widget.today,
+          onChanged: (date) => setState(() => _date = date),
         ),
         AppTextField.multiline(
           controller: _reason,

@@ -1098,6 +1098,87 @@ void main() {
         return s;
       }
 
+      group('date corrections (DT-008)', () {
+        /// A date-only / dated correction: the parcel's money may not move, the pointer follows the reversal.
+        Future<int> fix(({({String uid, String token}) user, String pid, DateTime created}) s,
+            {int replacement = 200000,
+            int receivedTo = 200000,
+            Object? replacementAt = 'server',
+            String reason = 'Money was received a day earlier',
+            String? token,
+            Map<String, Object?> reversalExtra = const {}}) {
+          final out = 500000 > receivedTo ? 500000 - receivedTo : 0;
+          return emu.commit(token ?? s.user.token, [
+            DocWrite(
+              ppath(s.user.uid, s.pid),
+              {..._parcel(seq: 1, overrides: {'receivedPaisa': receivedTo, 'outstandingPaisa': out, 'paymentStatus': receivedTo == 0 ? 'pending' : out == 0 ? 'received' : 'partial', 'lastPaymentId': 'rev_pay1'}), 'createdAt': s.created},
+              serverTimes: const ['updatedAt'],
+            ),
+            DocWrite(
+              paypath(s.user.uid, s.pid, 'rev_pay1'),
+              {'amountPaisa': -200000, 'paymentType': 'customer_payment', 'reversalOfPaymentId': 'pay1', 'correctionReason': reason, 'replacementPaisa': replacement, ...reversalExtra},
+              serverTimes: const ['receivedAt', 'recordedAt'],
+            ),
+            if (replacement > 0)
+              DocWrite(
+                paypath(s.user.uid, s.pid, 'cor_pay1'),
+                {'amountPaisa': replacement, 'paymentType': 'customer_payment', 'correctionOfPaymentId': 'pay1', if (replacementAt is DateTime) 'receivedAt': replacementAt},
+                serverTimes: replacementAt == 'server' ? const ['receivedAt', 'recordedAt'] : const ['recordedAt'],
+              ),
+          ]);
+        }
+
+        test('a date-only correction (same amount, earlier day) is accepted: no money moves, the original stays', () async {
+          final s = await withPay1();
+          final earlier = DateTime.now().toUtc().subtract(const Duration(seconds: 30));
+          expect(await fix(s, replacementAt: earlier), 200);
+          expect(await emu.get(s.user.token, paypath(s.user.uid, s.pid, 'pay1')), 200, reason: 'the original payment is still there');
+          expect(await emu.get(s.user.token, paypath(s.user.uid, s.pid, 'rev_pay1')), 200);
+          expect(await emu.get(s.user.token, paypath(s.user.uid, s.pid, 'cor_pay1')), 200);
+        }, skip: skip);
+
+        test('the corrected day cannot be in the future or before the parcel was sent', () async {
+          final s = await withPay1();
+          expect(await fix(s, replacementAt: DateTime.now().toUtc().add(const Duration(days: 1))), 403, reason: 'future');
+          expect(await fix(s, replacementAt: DateTime.utc(2000)), 403, reason: 'before the sending date');
+          expect(await fix(s, replacementAt: DateTime.now().toUtc().subtract(const Duration(seconds: 5))), 200, reason: 'a valid earlier time');
+        }, skip: skip);
+
+        test('a date-only correction still needs a reason, and the money must not move', () async {
+          final s = await withPay1();
+          final earlier = DateTime.now().toUtc().subtract(const Duration(seconds: 30));
+          expect(await fix(s, replacementAt: earlier, reason: 'oops'), 403, reason: 'reason too short');
+          expect(await fix(s, replacementAt: earlier, receivedTo: 300000), 403, reason: 'money moved on a date-only correction');
+          expect(await fix(s, replacementAt: earlier, replacement: 250000, receivedTo: 250000), 200, reason: 'a different amount is also fine, with the date');
+        }, skip: skip);
+
+        test('the person who made the correction is recorded and cannot be faked', () async {
+          final s = await withPay1();
+          final earlier = DateTime.now().toUtc().subtract(const Duration(seconds: 30));
+          expect(await fix(s, replacementAt: earlier, reversalExtra: {'correctedBy': 'someone-else'}), 403);
+          expect(await fix(s, replacementAt: earlier, reversalExtra: {'correctedBy': s.user.uid}), 200);
+        }, skip: skip);
+
+        test('another user cannot correct the date of this user\'s payment', () async {
+          final s = await withPay1();
+          final other = await emu.signUp('datother${DateTime.now().microsecondsSinceEpoch}@x.com');
+          expect(await fix(s, replacementAt: DateTime.now().toUtc().subtract(const Duration(seconds: 30)), token: other.token), 403);
+        }, skip: skip);
+
+        test('a pointer change without a new payment document is still refused', () async {
+          final s = await withPay1();
+          expect(
+            await emu.set(
+              s.user.token,
+              ppath(s.user.uid, s.pid),
+              {..._parcel(seq: 1, overrides: {'receivedPaisa': 200000, 'outstandingPaisa': 300000, 'paymentStatus': 'partial', 'lastPaymentId': 'pay9'}), 'createdAt': s.created},
+              serverTimes: const ['updatedAt'],
+            ),
+            403,
+          );
+        }, skip: skip);
+      });
+
       test('a reversal with a replacement moves the parcel by the difference and is accepted', () async {
         final s = await withPay1();
         expect(await correct(s), 200);

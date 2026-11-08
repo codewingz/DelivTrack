@@ -287,10 +287,11 @@ service cloud.firestore {
               && request.resource.data.customerSnapshot == resource.data.customerSnapshot)
             || customerMatches(uid, request.resource.data))
         // Received money moves only together with a NEW payment document (the payment rules below then
-        // check the amount); nothing else may touch `lastPaymentId`.
-        && (request.resource.data.receivedPaisa == resource.data.receivedPaisa
-            ? request.resource.data.get('lastPaymentId', '') == resource.data.get('lastPaymentId', '')
-            : (request.resource.data.get('lastPaymentId', '') != resource.data.get('lastPaymentId', '')
+        // check the amount); `lastPaymentId` changes only to such a new document (a date-only correction
+        // moves no money but still writes one).
+        && ((request.resource.data.receivedPaisa == resource.data.receivedPaisa
+              && request.resource.data.get('lastPaymentId', '') == resource.data.get('lastPaymentId', ''))
+            || (request.resource.data.get('lastPaymentId', '') != resource.data.get('lastPaymentId', '')
                 && request.resource.data.get('lastPaymentId', '') != ''
                 && existsAfter(paymentAt(uid, parcelId, request.resource.data.lastPaymentId))
                 && !exists(paymentAt(uid, parcelId, request.resource.data.lastPaymentId))))
@@ -355,11 +356,12 @@ service cloud.firestore {
               == get(parcelAt(uid, parcelId)).data.receivedPaisa + request.resource.data.amountPaisa)
         // the reversal half of a correction
         || (paymentId.matches('^rev_.+')
-          && paymentFields(request.resource.data, ['reversalOfPaymentId', 'correctionReason', 'replacementPaisa'])
+          && paymentFields(request.resource.data, ['reversalOfPaymentId', 'correctionReason', 'replacementPaisa', 'correctedBy'])
           && request.resource.data.keys().hasAll(['reversalOfPaymentId', 'correctionReason', 'replacementPaisa'])
           && request.resource.data.amountPaisa < 0
           && request.resource.data.receivedAt == request.time
           && request.resource.data.reversalOfPaymentId == paymentId[4:]
+          && (!('correctedBy' in request.resource.data) || request.resource.data.correctedBy == request.auth.uid)
           && trimmedText(request.resource.data.correctionReason, 5, 200)
           && request.resource.data.replacementPaisa is int
           && request.resource.data.replacementPaisa >= 0 && request.resource.data.replacementPaisa <= 9999999900
@@ -378,7 +380,10 @@ service cloud.firestore {
           && paymentFields(request.resource.data, ['correctionOfPaymentId'])
           && request.resource.data.keys().hasAll(['correctionOfPaymentId'])
           && request.resource.data.amountPaisa > 0
-          && request.resource.data.receivedAt == request.time
+          // the corrected "received on": now, or an earlier moment that is not before the sending date
+          && (request.resource.data.receivedAt == request.time
+              || (request.resource.data.receivedAt is timestamp && request.resource.data.receivedAt < request.time
+                  && pakistanDate(request.resource.data.receivedAt) >= get(parcelAt(uid, parcelId)).data.sendingDateLocal))
           && request.resource.data.correctionOfPaymentId == paymentId[4:]
           && existsAfter(paymentAt(uid, parcelId, 'rev_' + paymentId[4:]))
           && getAfter(paymentAt(uid, parcelId, 'rev_' + paymentId[4:])).data.replacementPaisa == request.resource.data.amountPaisa

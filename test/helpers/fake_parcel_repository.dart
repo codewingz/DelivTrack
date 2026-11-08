@@ -244,7 +244,7 @@ class FakeParcelRepository implements ParcelRepository {
   final returns = <({String id, String date, String? reason})>[];
   final notesSaved = <({String id, String notes})>[];
   final payDates = <({String id, String? date})>[];
-  final corrections = <({String parcelId, String paymentId, int amount, String reason})>[];
+  final corrections = <({String parcelId, String paymentId, int amount, String reason, String? receivedOn})>[];
 
   @override
   Future<void> markReturned(String parcelId, {required String date, String? reason}) async {
@@ -316,7 +316,7 @@ class FakeParcelRepository implements ParcelRepository {
   }
 
   @override
-  Future<void> correctPayment(String parcelId, String paymentId, {required int correctedAmountPaisa, required String reason}) async {
+  Future<void> correctPayment(String parcelId, String paymentId, {required int correctedAmountPaisa, required String reason, String? receivedOn}) async {
     await gate?.future;
     if (failure != null) throw failure!;
     final index = _index(parcelId);
@@ -327,15 +327,20 @@ class FakeParcelRepository implements ParcelRepository {
     if (list.any((p) => p.reversalOfPaymentId == paymentId)) throw const AppFailure('This payment was already corrected.');
     final clean = collapseSpaces(reason);
     if (clean.length < 5) throw const AppFailure('Give a reason (at least 5 characters).');
-    if (correctedAmountPaisa == original.amountPaisa) throw const AppFailure('The corrected amount is the same as the payment.');
+    if (receivedOn != null && receivedOn.compareTo(pakistanDate(DateTime.now().toUtc())) > 0) throw const AppFailure('The received date cannot be in the future.');
+    if (receivedOn != null && receivedOn.compareTo(old.sendingDate) < 0) throw const AppFailure('The received date cannot be before the sending date.');
+    final originalDate = pakistanDate(original.receivedAt);
+    if (correctedAmountPaisa == original.amountPaisa && (receivedOn ?? originalDate) == originalDate) {
+      throw const AppFailure('Change the amount or the date: the correction is the same as the payment.');
+    }
     final received = old.receivedPaisa - original.amountPaisa + correctedAmountPaisa;
     if (received > old.expectedPaisa) throw const AppFailure('The total received cannot exceed the order total.');
-    corrections.add((parcelId: parcelId, paymentId: paymentId, amount: correctedAmountPaisa, reason: clean));
+    corrections.add((parcelId: parcelId, paymentId: paymentId, amount: correctedAmountPaisa, reason: clean, receivedOn: receivedOn));
     _parcels[index] = _changed(old, received: received);
     final now = DateTime.now();
     list.insert(0, Payment(id: 'rev_$paymentId', amountPaisa: -original.amountPaisa, type: original.type, note: null, receivedAt: now, reversalOfPaymentId: paymentId, correctionReason: clean));
     if (correctedAmountPaisa > 0) {
-      list.insert(0, Payment(id: 'cor_$paymentId', amountPaisa: correctedAmountPaisa, type: original.type, note: null, receivedAt: now, correctionOfPaymentId: paymentId));
+      list.insert(0, Payment(id: 'cor_$paymentId', amountPaisa: correctedAmountPaisa, type: original.type, note: null, receivedAt: receivedOn == null ? original.receivedAt : DateTime.parse('${receivedOn}T07:00:00Z'), correctionOfPaymentId: paymentId));
     }
     payments[parcelId] = list;
     _changes.add(null);

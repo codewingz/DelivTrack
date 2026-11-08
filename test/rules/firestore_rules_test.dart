@@ -585,6 +585,99 @@ void main() {
       expect(await replace(s, _parcel(seq: 1, overrides: {'collectionMethod': 'credit'})), 200, reason: 'cleared');
       expect(await replace(s, _parcel(seq: 1, overrides: {'collectionMethod': 'credit', 'notes': 'x'})), 200, reason: 'other edits are not blocked');
     }, skip: skip);
+    group('completing a payment review (DT-011)', () {
+      Map<String, Object?> done({Map<String, Object?> extra = const {}, List<String> remove = const []}) {
+        final m = <String, Object?>{
+          ..._returned(review: false),
+          'paymentReviewReason': 'refund_given',
+          'paymentReviewNote': 'Refund sent by bank transfer',
+          'paymentReviewDateLocal': _today(),
+          ...extra,
+        };
+        for (final key in remove) {
+          m.remove(key);
+        }
+        return m;
+      }
+
+      Future<int> resolve(({({String uid, String token}) user, String pid, DateTime created}) s, Map<String, Object?> overrides,
+              {String? token, bool serverTime = true, Map<String, Object?> parcelExtra = const {}}) =>
+          emu.set(
+            token ?? s.user.token,
+            ppath(s.user.uid, s.pid),
+            {..._parcel(seq: 1, overrides: {...overrides, ...parcelExtra}), 'createdAt': s.created, if (!serverTime) 'paymentReviewResolvedAt': DateTime.now().toUtc()},
+            serverTimes: serverTime ? const ['updatedAt', 'paymentReviewResolvedAt'] : const ['updatedAt'],
+          );
+
+      /// A returned parcel with an open review (Rs. 5,000 still owed).
+      Future<({({String uid, String token}) user, String pid, DateTime created})> returnedParcel() async {
+        final s = await setup();
+        expect(await replace(s, _parcel(seq: 1, overrides: _returned())), 200);
+        return s;
+      }
+
+      test('a valid completion is accepted; the money and payments are untouched', () async {
+        final s = await returnedParcel();
+        expect(await resolve(s, done()), 200);
+        for (final reason in ['refund_given', 'money_kept', 'balance_waived', 'other']) {
+          final t = await returnedParcel();
+          expect(await resolve(t, done(extra: {'paymentReviewReason': reason})), 200, reason: reason);
+        }
+      }, skip: skip);
+
+      test('reason, note and date are required and checked; the time is the server\'s', () async {
+        final s = await returnedParcel();
+        expect(await resolve(s, done(remove: ['paymentReviewReason'])), 403, reason: 'no reason');
+        expect(await resolve(s, done(extra: {'paymentReviewReason': 'nonsense'})), 403, reason: 'unknown reason');
+        expect(await resolve(s, done(remove: ['paymentReviewNote'])), 403, reason: 'no note');
+        expect(await resolve(s, done(extra: {'paymentReviewNote': 'abc'})), 403, reason: 'note too short');
+        expect(await resolve(s, done(extra: {'paymentReviewNote': 'x' * 201})), 403, reason: 'note too long');
+        expect(await resolve(s, done(remove: ['paymentReviewDateLocal'])), 403, reason: 'no date');
+        expect(await resolve(s, done(extra: {'paymentReviewDateLocal': '2999-01-01'})), 403, reason: 'future date');
+        expect(await resolve(s, done(extra: {'paymentReviewDateLocal': '2000-01-01'})), 403, reason: 'before the return');
+        expect(await resolve(s, done(), serverTime: false), 403, reason: 'client time');
+        expect(await resolve(s, _returned(review: false)), 403, reason: 'just clearing the flag');
+      }, skip: skip);
+
+      test('only the review fields may change, once', () async {
+        final s = await returnedParcel();
+        expect(await resolve(s, done(extra: {'notes': 'sneaky'})), 403, reason: 'notes ride along');
+        expect(await resolve(s, done(extra: {'receivedPaisa': 0, 'outstandingPaisa': 0, 'paymentStatus': 'received'})), 403, reason: 'money changed');
+        expect(await resolve(s, done()), 200);
+        expect(await resolve(s, done(extra: {'paymentReviewNote': 'A different note'})), 403, reason: 'cannot be rewritten');
+        expect(await resolve(s, _returned()), 403, reason: 'cannot be re-opened');
+      }, skip: skip);
+
+      test('only a returned parcel with money involved and an open review can be completed', () async {
+        final sent = await setup();
+        expect(await resolve(sent, done(extra: {'parcelStatus': 'sent'}, remove: ['returnedDateLocal'])), 403, reason: 'not returned');
+        final free = await setup(overrides: {'collectionMethod': 'free_gift', 'productAmountExpectedPaisa': 0, 'outstandingPaisa': 0, 'paymentStatus': 'not_required'});
+        final freeBase = {'collectionMethod': 'free_gift', 'productAmountExpectedPaisa': 0, 'outstandingPaisa': 0, 'paymentStatus': 'not_required'};
+        expect(await replace(free, _parcel(seq: 1, overrides: {...freeBase, ..._returned(review: false)})), 200);
+        expect(await resolve(free, done(extra: freeBase)), 403, reason: 'nothing to review');
+      }, skip: skip);
+
+      test('after completion the parcel can be archived and keeps its notes editable; nobody else can complete it', () async {
+        final s = await returnedParcel();
+        final other = await emu.signUp('revother${DateTime.now().microsecondsSinceEpoch}@x.com');
+        expect(await resolve(s, done(), token: other.token), 403);
+        expect(await resolve(s, done()), 200);
+        final at = await emu.timestampOf(s.user.token, ppath(s.user.uid, s.pid), 'paymentReviewResolvedAt');
+        final kept = {...done(), 'paymentReviewResolvedAt': at};
+        expect(await replace(s, _parcel(seq: 1, overrides: {...kept, 'notes': 'Called the customer'})), 200, reason: 'notes still editable');
+        expect(await replace(s, _parcel(seq: 1, overrides: {...kept, 'notes': 'Called the customer', 'isArchived': true})), 200, reason: 'archivable now');
+      }, skip: skip);
+
+      test('an archived parcel cannot be completed', () async {
+        final s = await returnedParcel();
+        expect(await resolve(s, done()), 200);
+        final at = await emu.timestampOf(s.user.token, ppath(s.user.uid, s.pid), 'paymentReviewResolvedAt');
+        final kept = {...done(), 'paymentReviewResolvedAt': at};
+        expect(await replace(s, _parcel(seq: 1, overrides: {...kept, 'isArchived': true})), 200);
+        expect(await replace(s, _parcel(seq: 1, overrides: {...kept, 'isArchived': true, 'paymentReviewNote': 'Changed after archive'})), 403);
+      }, skip: skip);
+    });
+
     group('archiving', () {
       Map<String, Object?> archived(Map<String, Object?> overrides) => _parcel(seq: 1, overrides: {...overrides, 'isArchived': true});
 

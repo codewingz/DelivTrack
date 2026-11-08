@@ -59,9 +59,12 @@ class EmulatorClient {
   Future<int> get(String? token, String path) async =>
       (await _send('GET', 'http://$_fsHost/v1/${_docName(path)}', token: token)).status;
 
-  Future<DateTime> createdAt(String? token, String path) async {
+  Future<DateTime> createdAt(String? token, String path) => timestampOf(token, path, 'createdAt');
+
+  /// A stored timestamp field, so a test can write it back unchanged.
+  Future<DateTime> timestampOf(String? token, String path, String field) async {
     final r = await _send('GET', 'http://$_fsHost/v1/${_docName(path)}', token: token);
-    return DateTime.parse(r.json['fields']['createdAt']['timestampValue'] as String);
+    return DateTime.parse(r.json['fields'][field]['timestampValue'] as String);
   }
 
   Future<({int status, int count})> list(String? token, String parent) async {

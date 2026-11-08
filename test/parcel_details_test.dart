@@ -297,6 +297,78 @@ void main() {
     });
   });
 
+  group('payment review', () {
+    Finder button(String label) => find.widgetWithText(OutlinedButton, label);
+    final flagged = testParcel(id: 'a', status: ParcelStatus.returned, returnedDate: '2026-11-08', received: 100000, paymentReviewRequired: true);
+
+    Future<void> openSheet(WidgetTester t, FakeParcelRepository repo) async {
+      await _open(t, repo, 'a');
+      await t.ensureVisible(button('Mark Review Completed'));
+      await t.pump();
+      await t.tap(button('Mark Review Completed'));
+      await t.pumpAndSettle();
+    }
+
+    testWidgets('only a returned parcel with an open review offers Mark Review Completed', (t) async {
+      for (final (parcel, offered) in [
+        (flagged, true),
+        (testParcel(id: 'a', status: ParcelStatus.returned, returnedDate: '2026-11-08'), false),
+        (testParcel(id: 'a', received: 100000), false),
+        (testParcel(id: 'a', status: ParcelStatus.returned, returnedDate: '2026-11-08', reviewResolution: ReviewResolution.moneyKept, reviewNote: 'Kept', reviewDate: '2026-11-08'), false),
+      ]) {
+        await _open(t, FakeParcelRepository(initial: [parcel]), 'a');
+        expect(button('Mark Review Completed'), offered ? findsOneWidget : findsNothing);
+        await t.pumpWidget(const SizedBox());
+      }
+    });
+
+    testWidgets('the reason and a note are required; nothing is saved until both are given', (t) async {
+      final repo = FakeParcelRepository(initial: [flagged]);
+      await openSheet(t, repo);
+      await t.tap(find.widgetWithText(FilledButton, 'Mark Review Completed'));
+      await t.pumpAndSettle();
+      expect(find.text('Select how the review was settled'), findsOneWidget);
+      expect(find.text('Note is required'), findsOneWidget);
+      expect(repo.reviewsCompleted, isEmpty);
+      await t.tap(find.text('Money kept'));
+      await t.enterText(find.byType(TextFormField).last, 'abc');
+      await t.tap(find.widgetWithText(FilledButton, 'Mark Review Completed'));
+      await t.pumpAndSettle();
+      expect(find.text('Write at least 5 characters'), findsOneWidget, reason: 'too short');
+      expect(repo.reviewsCompleted, isEmpty);
+    });
+
+    testWidgets('completing the review records it, leaves the money alone and shows the decision', (t) async {
+      final repo = FakeParcelRepository(initial: [flagged]);
+      await openSheet(t, repo);
+      await t.tap(find.text('Refund given'));
+      await t.enterText(find.byType(TextFormField).last, 'Refund sent by bank transfer');
+      await t.tap(find.widgetWithText(FilledButton, 'Mark Review Completed'));
+      await t.pumpAndSettle();
+      expect(find.text('Payment review completed.'), findsOneWidget);
+      expect(repo.reviewsCompleted.single.resolution, ReviewResolution.refundGiven);
+      expect(repo.reviewsCompleted.single.note, 'Refund sent by bank transfer');
+      final after = (await repo.watchAll().first).single;
+      expect(after.paymentReviewRequired, isFalse);
+      expect(after.receivedPaisa, 100000, reason: 'completing a review never changes the money');
+      expect(find.textContaining('Completed on'), findsOneWidget);
+      expect(find.text('Refund sent by bank transfer'), findsOneWidget);
+      expect(button('Mark Review Completed'), findsNothing);
+      expect(button('Archive Parcel'), findsOneWidget, reason: 'archiving is possible once the review is done');
+    });
+
+    testWidgets('a refusal from the repository is shown instead of crashing', (t) async {
+      final repo = FakeParcelRepository(initial: [flagged]);
+      await openSheet(t, repo);
+      repo.failure = const AppFailure('No connection.');
+      await t.tap(find.text('Money kept'));
+      await t.enterText(find.byType(TextFormField).last, 'Advance kept as agreed');
+      await t.tap(find.widgetWithText(FilledButton, 'Mark Review Completed'));
+      await t.pumpAndSettle();
+      expect(find.text('No connection.'), findsOneWidget);
+    });
+  });
+
   group('responsive with every section', () {
     final payment = Payment(id: 'pay-1', amountPaisa: 200000, type: PaymentType.advance, note: 'First part of the money', receivedAt: DateTime.utc(2026, 11, 8, 6));
     for (final size in const [Size(320, 568), Size(393, 852), Size(700, 900), Size(1100, 800), Size(640, 300)]) {

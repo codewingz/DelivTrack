@@ -37,6 +37,24 @@ enum PostalService {
       );
 }
 
+/// How a returned parcel's payment review was settled. It only records the decision: nothing is
+/// refunded, adjusted or deleted by completing the review.
+enum ReviewResolution {
+  refundGiven('refund_given', 'Refund given'),
+  moneyKept('money_kept', 'Money kept'),
+  balanceWaived('balance_waived', 'Balance not collected'),
+  other('other', 'Other');
+
+  const ReviewResolution(this.value, this.label);
+  final String value;
+  final String label;
+
+  static ReviewResolution fromValue(String value) => values.firstWhere(
+        (r) => r.value == value,
+        orElse: () => throw StateError('Unknown review resolution "$value"'),
+      );
+}
+
 enum ParcelStatus {
   draft('draft', 'Draft'),
   sent('sent', 'Sent'),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../common_widgets/app_choice_field.dart';
 import '../../../common_widgets/app_date_field.dart';
 import '../../../common_widgets/app_form_sheet.dart';
 import '../../../common_widgets/app_text_field.dart';
@@ -8,6 +9,7 @@ import '../../../core/time/pakistan_time.dart';
 import '../../../utils/text.dart';
 import '../data/parcel_repository.dart';
 import '../domain/parcel.dart';
+import '../domain/parcel_enums.dart';
 import '../domain/payment.dart';
 
 String? _maxLength(String? value, int max) => collapseSpaces(value ?? '').length > max ? 'Use at most $max characters' : null;
@@ -68,6 +70,82 @@ class _ReturnSheetState extends State<_ReturnSheet> {
           maxLines: 4,
           enabled: !busy,
           validator: (value) => _maxLength(value, 200),
+        ),
+      ],
+    );
+  }
+}
+
+/// Mark Review Completed: how the payment review was settled, a required note and the date. It only
+/// records the decision; nothing is refunded or changed in the payment history.
+Future<bool> showReviewSheet(BuildContext context, ParcelRepository repository, Parcel parcel, {Clock clock = const Clock()}) =>
+    showFormSheet(context, (_) => _ReviewSheet(repository: repository, parcel: parcel, today: pakistanDate(clock.nowUtc())));
+
+class _ReviewSheet extends StatefulWidget {
+  const _ReviewSheet({required this.repository, required this.parcel, required this.today});
+  final ParcelRepository repository;
+  final Parcel parcel;
+  final String today;
+
+  @override
+  State<_ReviewSheet> createState() => _ReviewSheetState();
+}
+
+class _ReviewSheetState extends State<_ReviewSheet> {
+  final _note = TextEditingController();
+  ReviewResolution? _resolution;
+  late String? _date = widget.today;
+
+  @override
+  void dispose() {
+    _note.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final parcel = widget.parcel;
+    return AppFormSheet(
+      title: 'Complete payment review',
+      subtitle: '${parcel.orderNumber} · Received ${formatRupees(parcel.receivedPaisa)}, outstanding ${formatRupees(parcel.outstandingPaisa)}. '
+          'This only records your decision. Nothing is refunded or changed in the payment history.',
+      submitLabel: 'Mark Review Completed',
+      onSubmit: () {
+        if (_resolution == null) throw const AppFailure('Select how the review was settled.');
+        if (_date == null) throw const AppFailure('Select the date.');
+        return widget.repository.completePaymentReview(parcel.id, resolution: _resolution!, note: _note.text, date: _date!);
+      },
+      fields: (busy) => [
+        AppChoiceField<ReviewResolution>(
+          label: 'How was it settled?',
+          isRequired: true,
+          enabled: !busy,
+          initialValue: _resolution,
+          options: [for (final resolution in ReviewResolution.values) (value: resolution, label: resolution.label)],
+          onChanged: (resolution) => setState(() => _resolution = resolution),
+          validator: (resolution) => resolution == null ? 'Select how the review was settled' : null,
+        ),
+        AppDateField(
+          label: 'Date',
+          value: _date,
+          enabled: !busy,
+          firstDate: parcel.returnedDate ?? parcel.sendingDate,
+          lastDate: widget.today,
+          onChanged: (date) => setState(() => _date = date),
+        ),
+        AppTextField.multiline(
+          controller: _note,
+          label: 'Note',
+          hint: 'For example: refund of Rs. 1,000 sent by bank transfer',
+          isRequired: true,
+          minLines: 2,
+          maxLines: 4,
+          enabled: !busy,
+          validator: (value) {
+            final length = collapseSpaces(value ?? '').length;
+            if (length < 5) return 'Write at least 5 characters';
+            return length > 200 ? 'Use at most 200 characters' : null;
+          },
         ),
       ],
     );

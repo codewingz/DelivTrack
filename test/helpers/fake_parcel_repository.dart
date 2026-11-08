@@ -34,6 +34,9 @@ Parcel testParcel({
   String? returnedDate,
   String? returnReason,
   bool paymentReviewRequired = false,
+  ReviewResolution? reviewResolution,
+  String? reviewNote,
+  String? reviewDate,
   bool isArchived = false,
   List<ParcelItem>? items,
 }) {
@@ -66,12 +69,15 @@ Parcel testParcel({
     returnedDate: returnedDate,
     returnReason: returnReason,
     paymentReviewRequired: paymentReviewRequired,
+    reviewResolution: reviewResolution,
+    reviewNote: reviewNote,
+    reviewDate: reviewDate,
     isArchived: isArchived,
   );
 }
 
 /// [old] with a few fields replaced.
-Parcel _changed(Parcel old, {int? received, ParcelStatus? status, String? notes, String? payDate, String? returnedDate, String? returnReason, bool? review, bool? archived}) => testParcel(
+Parcel _changed(Parcel old, {int? received, ParcelStatus? status, String? notes, String? payDate, String? returnedDate, String? returnReason, bool? review, ReviewResolution? resolution, String? reviewNote, String? reviewDate, bool? archived}) => testParcel(
       id: old.id,
       sequence: old.orderSequence,
       customerName: old.customerName,
@@ -92,6 +98,9 @@ Parcel _changed(Parcel old, {int? received, ParcelStatus? status, String? notes,
       returnedDate: returnedDate ?? old.returnedDate,
       returnReason: returnReason ?? old.returnReason,
       paymentReviewRequired: review ?? old.paymentReviewRequired,
+      reviewResolution: resolution ?? old.reviewResolution,
+      reviewNote: reviewNote ?? old.reviewNote,
+      reviewDate: reviewDate ?? old.reviewDate,
       isArchived: archived ?? old.isArchived,
     );
 
@@ -249,6 +258,22 @@ class FakeParcelRepository implements ParcelRepository {
     returns.add((id: parcelId, date: date, reason: clean.isEmpty ? null : clean));
     _parcels[index] = _changed(old,
         status: ParcelStatus.returned, returnedDate: date, returnReason: clean.isEmpty ? null : clean, review: old.receivedPaisa > 0 || old.outstandingPaisa > 0);
+    _changes.add(null);
+  }
+
+  final reviewsCompleted = <({String id, ReviewResolution resolution, String note, String date})>[];
+
+  @override
+  Future<void> completePaymentReview(String parcelId, {required ReviewResolution resolution, required String note, required String date}) async {
+    await gate?.future;
+    if (failure != null) throw failure!;
+    final index = _index(parcelId);
+    final old = _parcels[index];
+    final clean = collapseSpaces(note);
+    if (clean.length < 5) throw const AppFailure('Write a note (at least 5 characters).');
+    if (!old.paymentReviewRequired) throw const AppFailure('This parcel has no payment review to complete.');
+    reviewsCompleted.add((id: parcelId, resolution: resolution, note: clean, date: date));
+    _parcels[index] = _changed(old, review: false, resolution: resolution, reviewNote: clean, reviewDate: date);
     _changes.add(null);
   }
 

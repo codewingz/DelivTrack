@@ -64,6 +64,11 @@ abstract class ParcelRepository {
   /// a parcel that received or still owes money is flagged for payment review.
   Future<void> markReturned(String parcelId, {required String date, String? reason});
 
+  /// Completes a returned parcel's payment review: records how it was settled ([resolution]), a required
+  /// [note] (5-200 characters) and the [date] of the decision. Nothing is refunded, adjusted or deleted:
+  /// the payment history is untouched, and any refund is a separate matter outside the app.
+  Future<void> completePaymentReview(String parcelId, {required ReviewResolution resolution, required String note, required String date});
+
   /// Saves the parcel's notes (at most 500 characters); empty removes them.
   Future<void> setNotes(String parcelId, String notes);
 
@@ -431,6 +436,42 @@ class FirestoreParcelRepository implements ParcelRepository {
           'updatedAt': FieldValue.serverTimestamp(),
         });
         _audit(tx, 'return', parcelId, parcel['orderNumber'] as String, ['parcelStatus', 'returnedDateLocal', 'returnReason', 'paymentReviewRequired']);
+      });
+    } on FirebaseException catch (e) {
+      throw firestoreFailure(e);
+    }
+  }
+
+  @override
+  Future<void> completePaymentReview(String parcelId, {required ReviewResolution resolution, required String note, required String date}) async {
+    final cleanNote = collapseSpaces(note);
+    final today = pakistanDate(clock.nowUtc());
+    if (cleanNote.length < 5) throw const AppFailure('Write a note (at least 5 characters).');
+    if (cleanNote.length > 200) throw const AppFailure('Use at most 200 characters.');
+    if (!_isDate(date)) throw const AppFailure('Enter a valid date.');
+    if (date.compareTo(today) > 0) throw const AppFailure('The date cannot be in the future.');
+
+    final parcelRef = _parcels.doc(parcelId);
+    try {
+      await _firestore.runTransaction((tx) async {
+        final snapshot = await tx.get(parcelRef);
+        if (!snapshot.exists) throw const AppFailure('This parcel no longer exists.');
+        final parcel = snapshot.data()!;
+        _requireNotArchived(parcel);
+        if (parcel['paymentReviewRequired'] != true) throw const AppFailure('This parcel has no payment review to complete.');
+        final returned = parcel['returnedDateLocal'] as String;
+        if (date.compareTo(returned) < 0) throw AppFailure('The date cannot be before the returned date (${formatDate(returned)}).');
+
+        tx.update(parcelRef, {
+          'paymentReviewRequired': false,
+          'paymentReviewReason': resolution.value,
+          'paymentReviewNote': cleanNote,
+          'paymentReviewDateLocal': date,
+          'paymentReviewResolvedAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        _audit(tx, 'resolve_review', parcelId, parcel['orderNumber'] as String,
+            ['paymentReviewRequired', 'paymentReviewReason', 'paymentReviewNote', 'paymentReviewDateLocal']);
       });
     } on FirebaseException catch (e) {
       throw firestoreFailure(e);

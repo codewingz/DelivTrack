@@ -95,7 +95,8 @@ service cloud.firestore {
           'postalReferenceNormalized', 'deliveryChargePaisa', 'actualPackedWeightGrams',
           'estimatedPaymentDateLocal', 'productAmountExpectedPaisa', 'receivedPaisa', 'outstandingPaisa',
           'paymentStatus', 'parcelStatus', 'sendingDateLocal', 'createdAt', 'updatedAt',
-          'notes', 'returnedDateLocal', 'returnReason', 'paymentReviewRequired', 'isArchived', 'lastPaymentId']);
+          'notes', 'returnedDateLocal', 'returnReason', 'paymentReviewRequired', 'isArchived', 'lastPaymentId',
+          'paymentReviewReason', 'paymentReviewNote', 'paymentReviewDateLocal', 'paymentReviewResolvedAt']);
     }
 
     // The status the app derives from the amounts (see paymentStatusFor).
@@ -157,9 +158,18 @@ service cloud.firestore {
         ? ('returnedDateLocal' in data && validDateString(data.returnedDateLocal)
             && data.returnedDateLocal >= data.sendingDateLocal && data.returnedDateLocal <= pakistanDate(request.time)
             && 'paymentReviewRequired' in data
-            && data.paymentReviewRequired == (data.receivedPaisa > 0 || data.outstandingPaisa > 0)
+            && (!('paymentReviewResolvedAt' in data)
+                ? (data.paymentReviewRequired == (data.receivedPaisa > 0 || data.outstandingPaisa > 0)
+                    && !('paymentReviewReason' in data) && !('paymentReviewNote' in data) && !('paymentReviewDateLocal' in data))
+                : (data.paymentReviewRequired == false && (data.receivedPaisa > 0 || data.outstandingPaisa > 0)
+                    && data.paymentReviewResolvedAt is timestamp
+                    && data.paymentReviewReason in ['refund_given', 'money_kept', 'balance_waived', 'other']
+                    && trimmedText(data.paymentReviewNote, 5, 200)
+                    && validDateString(data.paymentReviewDateLocal)
+                    && data.paymentReviewDateLocal >= data.returnedDateLocal && data.paymentReviewDateLocal <= pakistanDate(request.time)))
             && (!('returnReason' in data) || (data.returnReason is string && data.returnReason.size() >= 1 && data.returnReason.size() <= 200)))
-        : (!('returnedDateLocal' in data) && !('returnReason' in data) && !('paymentReviewRequired' in data));
+        : (!('returnedDateLocal' in data) && !('returnReason' in data) && !('paymentReviewRequired' in data)
+            && !('paymentReviewResolvedAt' in data));
     }
 
     // Order-number counter: only ever +1 (a parcel create writes it in the same commit).
@@ -244,7 +254,14 @@ service cloud.firestore {
         // A returned parcel only takes notes; Sent -> Returned changes nothing but the return fields.
         && (resource.data.parcelStatus != 'returned'
             || (request.resource.data.parcelStatus == 'returned'
-                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['notes', 'isArchived', 'updatedAt'])))
+                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['notes', 'isArchived', 'updatedAt']))
+            // completing the payment review: only the review fields change, once, and only the money flag clears
+            || (request.resource.data.parcelStatus == 'returned'
+                && resource.data.get('paymentReviewRequired', false) == true
+                && !('paymentReviewResolvedAt' in resource.data)
+                && request.resource.data.paymentReviewResolvedAt == request.time
+                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['paymentReviewRequired', 'paymentReviewReason',
+                    'paymentReviewNote', 'paymentReviewDateLocal', 'paymentReviewResolvedAt', 'updatedAt'])))
         && (request.resource.data.parcelStatus != 'returned' || resource.data.parcelStatus == 'returned'
             || (resource.data.parcelStatus == 'sent'
                 && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['parcelStatus', 'returnedDateLocal', 'returnReason', 'paymentReviewRequired', 'updatedAt'])))
@@ -335,7 +352,7 @@ service cloud.firestore {
         && request.resource.data.keys().hasAll(['entityType', 'entityId', 'action', 'changedFields', 'createdAt'])
         && request.resource.data.entityType in ['parcel']
         && request.resource.data.entityId is string && request.resource.data.entityId.size() > 0 && request.resource.data.entityId.size() <= 40
-        && request.resource.data.action in ['update', 'return', 'correct_payment', 'archive', 'restore']
+        && request.resource.data.action in ['update', 'return', 'correct_payment', 'archive', 'restore', 'resolve_review']
         && request.resource.data.changedFields is list
         && request.resource.data.changedFields.size() >= 1 && request.resource.data.changedFields.size() <= 30
         && (!('orderNumber' in request.resource.data) || request.resource.data.orderNumber.matches('^ADT-[0-9]{6,}$'))

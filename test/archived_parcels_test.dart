@@ -29,6 +29,18 @@ void main() {
     expect(await repo.watchArchived().first, isEmpty);
   });
 
+  test('completing the payment review makes a returned parcel archivable; the money is untouched', () async {
+    final repo = FakeParcelRepository(initial: [testParcel(id: 'a', status: ParcelStatus.returned, received: 100000, paymentReviewRequired: true)]);
+    await repo.completePaymentReview('a', resolution: ReviewResolution.balanceWaived, note: 'Customer refused, balance dropped', date: '2026-11-08');
+    final done = (await repo.watchAll().first).single;
+    expect(done.canArchive, isTrue);
+    expect(done.receivedPaisa, 100000);
+    expect(done.reviewResolution, ReviewResolution.balanceWaived);
+    await repo.archive('a');
+    expect(await repo.watchAll().first, isEmpty);
+    await expectLater(repo.completePaymentReview('a', resolution: ReviewResolution.other, note: 'again again', date: '2026-11-08'), throwsA(isA<AppFailure>()));
+  });
+
   test('archived parcels leave watchAll and appear in watchArchived; restoring reverses it', () async {
     final repo = FakeParcelRepository(initial: [testParcel(id: 'a', sequence: 1, received: 500000), testParcel(id: 'b', sequence: 2)]);
     expect((await repo.watchAll().first).map((p) => p.id), ['b', 'a']);

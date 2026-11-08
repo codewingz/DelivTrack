@@ -180,6 +180,10 @@ class _ParcelView extends StatelessWidget {
               _Info('Reason', parcel.returnReason ?? 'Not given'),
               if (parcel.paymentReviewRequired)
                 const _Info('Payment review', 'Requires payment review: money was received or is still owed. Nothing is refunded automatically.'),
+              if (parcel.reviewResolution != null) ...[
+                _Info('Payment review', 'Completed on ${formatDate(parcel.reviewDate!)}: ${parcel.reviewResolution!.label}'),
+                _Info('Review note', parcel.reviewNote ?? ''),
+              ],
             ]),
           _Section(title: 'Notes', children: [_Info('Notes', parcel.notes ?? 'No notes yet')]),
           if (!parcel.isArchived)
@@ -197,6 +201,11 @@ class _ParcelView extends StatelessWidget {
               OutlinedButton(
                 onPressed: () => onAction(() => showReturnSheet(context, repository, parcel), 'Parcel marked as returned.'),
                 child: const Text('Mark Returned'),
+              ),
+            if (parcel.paymentReviewRequired)
+              OutlinedButton(
+                onPressed: () => onAction(() => showReviewSheet(context, repository, parcel), 'Payment review completed.'),
+                child: const Text('Mark Review Completed'),
               ),
             if (parcel.paymentReviewRequired)
               const _Info('Archive', "This parcel can't be archived until its payment review is completed."),

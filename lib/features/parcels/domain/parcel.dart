@@ -30,6 +30,9 @@ class Parcel {
     this.returnedDate,
     this.returnReason,
     this.paymentReviewRequired = false,
+    this.reviewResolution,
+    this.reviewNote,
+    this.reviewDate,
     this.isArchived = false,
   });
 
@@ -61,6 +64,9 @@ class Parcel {
       returnedDate: data['returnedDateLocal'] as String?,
       returnReason: data['returnReason'] as String?,
       paymentReviewRequired: data['paymentReviewRequired'] as bool? ?? false,
+      reviewResolution: data['paymentReviewReason'] == null ? null : ReviewResolution.fromValue(data['paymentReviewReason'] as String),
+      reviewNote: data['paymentReviewNote'] as String?,
+      reviewDate: data['paymentReviewDateLocal'] as String?,
       isArchived: data['isArchived'] as bool? ?? false,
     );
   }
@@ -96,6 +102,14 @@ class Parcel {
 
   /// A returned parcel that received or still owes money: nothing is refunded automatically.
   final bool paymentReviewRequired;
+
+  /// Set when the review was completed (then [paymentReviewRequired] is false): how it was settled,
+  /// the required note and the "yyyy-MM-dd" date of the decision.
+  final ReviewResolution? reviewResolution;
+  final String? reviewNote;
+  final String? reviewDate;
+
+  bool get paymentReviewCompleted => reviewResolution != null;
 
   /// Hidden from every list and total; the order number stays reserved. Only restoring is possible.
   final bool isArchived;

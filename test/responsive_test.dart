@@ -1,5 +1,5 @@
 import 'package:deliv_track/common_widgets/app_text_field.dart';
-import 'package:deliv_track/screens/splash_screen.dart';
+import 'package:deliv_track/features/auth/views/splash_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

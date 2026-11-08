@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../common_widgets/app_logo.dart';
-import '../common_widgets/brand_loading_indicator.dart';
-import '../constants/app_colors.dart';
-import '../design_system/foundations/spacing/app_spacing.dart';
+import '../../../common_widgets/app_logo.dart';
+import '../../../common_widgets/brand_loading_indicator.dart';
+import '../../../constants/app_colors.dart';
+import '../../../design_system/foundations/spacing/app_spacing.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key, this.onFinished});

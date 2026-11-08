@@ -31,7 +31,7 @@ import '../features/products/data/product_repository.dart';
 import '../features/products/views/products_screen.dart';
 import '../features/more/views/more_screen.dart';
 import '../common_widgets/empty_state.dart';
-import '../screens/splash_screen.dart';
+import '../features/auth/views/splash_screen.dart';
 import 'app_shell.dart';
 import 'stream_listenable.dart';
 

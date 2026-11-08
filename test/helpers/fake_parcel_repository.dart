@@ -366,6 +366,17 @@ class FakeParcelRepository implements ParcelRepository {
     }
   }
 
+  /// Ids reported by [watchUnreadable] (stored parcels that could not be read).
+  List<String> unreadable = [];
+
+  @override
+  Stream<List<String>> watchUnreadable() async* {
+    yield unreadable;
+    await for (final _ in _changes.stream) {
+      yield unreadable;
+    }
+  }
+
   final archivedIds = <String>[];
 
   @override

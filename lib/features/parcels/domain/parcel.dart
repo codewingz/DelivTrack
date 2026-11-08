@@ -1,6 +1,7 @@
 import '../../../core/time/pakistan_time.dart';
 import 'parcel_enums.dart';
 import 'parcel_item.dart';
+import 'payment_rules.dart';
 
 /// A saved parcel as read from Firestore.
 class Parcel {
@@ -35,6 +36,39 @@ class Parcel {
     this.reviewDate,
     this.isArchived = false,
   });
+
+  /// Reads many stored documents: the parcels that can be read (in the given order) and the ids of the
+  /// documents that can not, so one damaged document never hides the others.
+  static ({List<Parcel> parcels, List<String> unreadableIds}) readAll(Iterable<MapEntry<String, Map<String, dynamic>>> documents) {
+    final parcels = <Parcel>[];
+    final unreadable = <String>[];
+    for (final document in documents) {
+      final parcel = tryFromMap(document.key, document.value);
+      if (parcel == null) {
+        unreadable.add(document.key);
+      } else {
+        parcels.add(parcel);
+      }
+    }
+    return (parcels: parcels, unreadableIds: unreadable);
+  }
+
+  /// The parcel stored in [data], or null when the document can't be read: a missing field, a value of
+  /// the wrong type or an unknown status, or money that is negative or does not add up. Nothing is
+  /// guessed or repaired, so an invalid amount never becomes a valid one.
+  static Parcel? tryFromMap(String id, Map<String, dynamic> data) {
+    try {
+      final parcel = Parcel.fromMap(id, data);
+      final moneyAddsUp = parcel.expectedPaisa >= 0 &&
+          parcel.receivedPaisa >= 0 &&
+          parcel.outstandingPaisa == outstandingFor(expectedPaisa: parcel.expectedPaisa, receivedPaisa: parcel.receivedPaisa);
+      return moneyAddsUp ? parcel : null;
+    } on TypeError {
+      return null;
+    } on StateError {
+      return null;
+    }
+  }
 
   factory Parcel.fromMap(String id, Map<String, dynamic> data) {
     final customer = data['customerSnapshot'] as Map<String, dynamic>;

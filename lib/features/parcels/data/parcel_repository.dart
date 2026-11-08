@@ -23,6 +23,10 @@ abstract class ParcelRepository {
   /// The archived parcels, newest first.
   Stream<List<Parcel>> watchArchived();
 
+  /// Ids of stored parcels that can't be read (damaged or unknown values). They are left out of every
+  /// list and total, so the app shows a notice with these ids instead of failing as a whole.
+  Stream<List<String>> watchUnreadable();
+
   /// Hides a parcel that has nothing left to chase (a draft, a returned parcel, or one that owes
   /// nothing). Its order number stays reserved; [restore] brings it back. Throws [AppFailure].
   Future<void> archive(String parcelId);
@@ -120,10 +124,17 @@ class FirestoreParcelRepository implements ParcelRepository {
       .orderBy('orderSequence', descending: true)
       .snapshots()
       .map((snapshot) => [
-            for (final doc in snapshot.docs)
-              if ((doc.data()['isArchived'] as bool? ?? false) == archived) Parcel.fromMap(doc.id, doc.data()),
+            for (final parcel in _read(snapshot).parcels)
+              if (parcel.isArchived == archived) parcel,
           ])
       .withFirestoreFailures();
+
+  @override
+  Stream<List<String>> watchUnreadable() =>
+      _parcels.snapshots().map((snapshot) => _read(snapshot).unreadableIds).withFirestoreFailures();
+
+  static ({List<Parcel> parcels, List<String> unreadableIds}) _read(QuerySnapshot<Map<String, dynamic>> snapshot) =>
+      Parcel.readAll([for (final doc in snapshot.docs) MapEntry(doc.id, doc.data())]);
 
   @override
   Stream<Parcel?> watch(String id) => _parcels
@@ -258,7 +269,7 @@ class FirestoreParcelRepository implements ParcelRepository {
       .collection('payments')
       .orderBy('receivedAt', descending: true)
       .snapshots()
-      .map((snapshot) => [for (final doc in snapshot.docs) _paymentFrom(doc)])
+      .map((snapshot) => [for (final doc in snapshot.docs) ?_paymentFrom(doc)])
       .withFirestoreFailures();
 
   @override
@@ -271,7 +282,7 @@ class FirestoreParcelRepository implements ParcelRepository {
         final batch = ids.skip(start).take(10).toList();
         final snapshots = await Future.wait([for (final id in batch) _parcels.doc(id).collection('payments').orderBy('receivedAt', descending: true).get()]);
         for (final (index, snapshot) in snapshots.indexed) {
-          if (snapshot.docs.isNotEmpty) result[batch[index]] = [for (final doc in snapshot.docs) _paymentFrom(doc)];
+          if (snapshot.docs.isNotEmpty) result[batch[index]] = [for (final doc in snapshot.docs) ?_paymentFrom(doc)];
         }
       }
     } on FirebaseException catch (e) {
@@ -295,7 +306,10 @@ class FirestoreParcelRepository implements ParcelRepository {
     return {for (final payment in payments) if (payment.amountPaisa > 0 && !reversed.contains(payment.id)) pakistanDate(payment.receivedAt)};
   }
 
-  static Payment _paymentFrom(QueryDocumentSnapshot<Map<String, dynamic>> doc) => Payment(
+  /// A stored payment, or null when its document is damaged (it then counts for nothing, never as money).
+  static Payment? _paymentFrom(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
+    try {
+      return Payment(
         id: doc.id,
         amountPaisa: doc['amountPaisa'] as int,
         type: PaymentType.fromValue(doc['paymentType'] as String),
@@ -305,6 +319,12 @@ class FirestoreParcelRepository implements ParcelRepository {
         correctionReason: doc.data()['correctionReason'] as String?,
         correctionOfPaymentId: doc.data()['correctionOfPaymentId'] as String?,
       );
+    } on TypeError {
+      return null;
+    } on StateError {
+      return null;
+    }
+  }
 
   @override
   Future<void> recordPayment(String parcelId, {required int amountPaisa, required PaymentType type, String? note, String? receivedOn}) async {

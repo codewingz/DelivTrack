@@ -244,4 +244,27 @@ void main() {
       }
     }
   });
+
+  group('unreadable parcels (DT-009)', () {
+    testWidgets('nothing unreadable: no notice', (t) async {
+      await _pump(t, FakeParcelRepository(initial: [testParcel(id: 'a')]));
+      expect(find.textContaining("couldn't be read"), findsNothing);
+    });
+
+    testWidgets('a damaged parcel is named by its document id only; the readable parcels still show', (t) async {
+      final repo = FakeParcelRepository(initial: [testParcel(id: 'a'), testParcel(id: 'b', sequence: 2)])..unreadable = ['abc123'];
+      await _pump(t, repo);
+      expect(find.textContaining("1 parcel couldn't be read"), findsOneWidget);
+      expect(find.textContaining('abc123'), findsOneWidget);
+      expect(find.bySemanticsLabel('Total parcels: 2'), findsOneWidget);
+    });
+
+    testWidgets('several damaged parcels: the first three ids and a count; stays readable at 2x text', (t) async {
+      final repo = FakeParcelRepository(initial: [testParcel(id: 'a')])..unreadable = ['d1', 'd2', 'd3', 'd4', 'd5'];
+      await _pump(t, repo, size: const Size(360, 1800), scale: 2);
+      expect(find.textContaining("5 parcels couldn't be read"), findsOneWidget);
+      expect(find.textContaining('d1, d2, d3 and 2 more'), findsOneWidget);
+      expect(t.takeException(), isNull);
+    });
+  });
 }

@@ -161,6 +161,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 );
               },
             ),
+            _UnreadableNotice(repository: widget.parcelRepository),
             const SizedBox(height: AppSpacing.lg),
             Wrap(
               spacing: AppSpacing.md,
@@ -178,6 +179,67 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const SizedBox(height: AppSpacing.xl),
               _Recent(stats: DashboardStats.from(_parcels.all, _parcels.today), widget: widget),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Shown when stored parcels can't be read: they are left out of every list and total, and this says so
+/// (with their ids only, never customer data) so they can be repaired.
+class _UnreadableNotice extends StatefulWidget {
+  const _UnreadableNotice({required this.repository});
+  final ParcelRepository repository;
+
+  @override
+  State<_UnreadableNotice> createState() => _UnreadableNoticeState();
+}
+
+class _UnreadableNoticeState extends State<_UnreadableNotice> {
+  List<String> _ids = const [];
+  StreamSubscription<List<String>>? _subscription;
+
+  @override
+  void initState() {
+    super.initState();
+    // A failure to load is already shown by the figures; this notice only adds what could not be read.
+    _subscription = widget.repository.watchUnreadable().listen((ids) => setState(() => _ids = ids), onError: (Object _) {});
+  }
+
+  @override
+  void dispose() {
+    _subscription?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ids = _ids;
+    if (ids.isEmpty) return const SizedBox.shrink();
+    final shown = ids.take(3).join(', ');
+    final more = ids.length > 3 ? ' and ${ids.length - 3} more' : '';
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(top: AppSpacing.md),
+      child: Container(
+        padding: const EdgeInsetsDirectional.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          border: Border.all(color: AppColors.error),
+          borderRadius: BorderRadius.circular(AppRadius.control),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: AppColors.error),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Text(
+                ids.length == 1
+                    ? "1 parcel couldn't be read, so it is left out of the lists and totals (document $shown). Please contact support."
+                    : "${ids.length} parcels couldn't be read, so they are left out of the lists and totals (documents $shown$more). Please contact support.",
+              ),
+            ),
           ],
         ),
       ),

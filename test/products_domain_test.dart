@@ -33,8 +33,14 @@ void main() {
 
   group('AppValidators.name', () {
     test('required, length 2-60 after normalizing', () {
-      expect(AppValidators.name(null, fieldName: 'Product name'), 'Product name is required');
-      expect(AppValidators.name('   ', fieldName: 'Product name'), 'Product name is required');
+      expect(
+        AppValidators.name(null, fieldName: 'Product name'),
+        'Product name is required',
+      );
+      expect(
+        AppValidators.name('   ', fieldName: 'Product name'),
+        'Product name is required',
+      );
       expect(AppValidators.name('A'), 'Use 2–60 characters');
       expect(AppValidators.name('  A  '), 'Use 2–60 characters');
       expect(AppValidators.name('Ab'), isNull);

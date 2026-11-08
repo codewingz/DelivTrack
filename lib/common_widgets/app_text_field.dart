@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import '../constants/app_colors.dart';
 import '../core/money/money.dart';
 import 'app_field_label.dart';
@@ -100,8 +101,15 @@ class AppTextField extends StatefulWidget {
       enabled: enabled,
       keyboardType: TextInputType.number,
       textInputAction: textInputAction,
-      prefixIcon: const Icon(Icons.numbers_rounded, size: 20, color: AppColors.label),
-      inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(5)],
+      prefixIcon: const Icon(
+        Icons.numbers_rounded,
+        size: 20,
+        color: AppColors.label,
+      ),
+      inputFormatters: [
+        FilteringTextInputFormatter.digitsOnly,
+        LengthLimitingTextInputFormatter(5),
+      ],
       validator: AppValidators.quantity,
       onChanged: onChanged,
     );
@@ -127,12 +135,17 @@ class AppTextField extends StatefulWidget {
       enabled: enabled,
       textCapitalization: TextCapitalization.characters,
       textInputAction: textInputAction,
-      prefixIcon: const Icon(Icons.local_post_office_outlined, size: 20, color: AppColors.label),
+      prefixIcon: const Icon(
+        Icons.local_post_office_outlined,
+        size: 20,
+        color: AppColors.label,
+      ),
       inputFormatters: [
         FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9 /-]')),
         LengthLimitingTextInputFormatter(40),
       ],
-      validator: (value) => AppValidators.postalReference(value, isRequired: isRequired),
+      validator: (value) =>
+          AppValidators.postalReference(value, isRequired: isRequired),
       onChanged: onChanged,
     );
   }
@@ -151,7 +164,11 @@ class AppTextField extends StatefulWidget {
       clearable: true,
       textCapitalization: TextCapitalization.none,
       textInputAction: TextInputAction.search,
-      prefixIcon: const Icon(Icons.search_rounded, size: 20, color: AppColors.label),
+      prefixIcon: const Icon(
+        Icons.search_rounded,
+        size: 20,
+        color: AppColors.label,
+      ),
       inputFormatters: [LengthLimitingTextInputFormatter(60)],
       onChanged: onChanged,
     );
@@ -181,7 +198,9 @@ class AppTextField extends StatefulWidget {
       textInputAction: textInputAction,
       prefixIcon: Icon(icon, size: 20, color: AppColors.label),
       inputFormatters: [LengthLimitingTextInputFormatter(60)],
-      validator: isRequired ? (value) => AppValidators.name(value, fieldName: label) : null,
+      validator: isRequired
+          ? (value) => AppValidators.name(value, fieldName: label)
+          : null,
       onFieldSubmitted: onFieldSubmitted,
       focusNode: focusNode,
     );
@@ -213,7 +232,11 @@ class AppTextField extends StatefulWidget {
       keyboardType: TextInputType.emailAddress,
       textInputAction: textInputAction,
       textCapitalization: TextCapitalization.none,
-      prefixIcon: const Icon(Icons.email_outlined, size: 20, color: AppColors.label),
+      prefixIcon: const Icon(
+        Icons.email_outlined,
+        size: 20,
+        color: AppColors.label,
+      ),
       validator: (value) {
         final err = AppValidators.email(value, isRequired: isRequired);
         if (err != null) return err;
@@ -255,9 +278,19 @@ class AppTextField extends StatefulWidget {
       textCapitalization: TextCapitalization.none,
       keyboardType: TextInputType.visiblePassword,
       textInputAction: textInputAction,
-      prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20, color: AppColors.label),
+      prefixIcon: const Icon(
+        Icons.lock_outline_rounded,
+        size: 20,
+        color: AppColors.label,
+      ),
       validator: (value) {
-        final err = isNew ? AppValidators.newPassword(value, isRequired: isRequired) : AppValidators.password(value, isRequired: isRequired, minLength: minLength);
+        final err = isNew
+            ? AppValidators.newPassword(value, isRequired: isRequired)
+            : AppValidators.password(
+                value,
+                isRequired: isRequired,
+                minLength: minLength,
+              );
         if (err != null) return err;
         return validator?.call(value);
       },
@@ -290,8 +323,13 @@ class AppTextField extends StatefulWidget {
       textCapitalization: TextCapitalization.none,
       keyboardType: TextInputType.visiblePassword,
       textInputAction: textInputAction,
-      prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20, color: AppColors.label),
-      validator: (value) => AppValidators.confirmPassword(value, passwordController.text),
+      prefixIcon: const Icon(
+        Icons.lock_outline_rounded,
+        size: 20,
+        color: AppColors.label,
+      ),
+      validator: (value) =>
+          AppValidators.confirmPassword(value, passwordController.text),
       onFieldSubmitted: onFieldSubmitted,
       focusNode: focusNode,
     );
@@ -325,12 +363,22 @@ class AppTextField extends StatefulWidget {
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       textInputAction: textInputAction,
       prefixText: 'Rs. ',
-      prefixIcon: const Icon(Icons.payments_outlined, size: 20, color: AppColors.label),
+      prefixIcon: const Icon(
+        Icons.payments_outlined,
+        size: 20,
+        color: AppColors.label,
+      ),
       inputFormatters: [
         FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
       ],
       validator: (value) {
-        final err = AppValidators.amount(value, isRequired: isRequired, fieldName: label.replaceAll(' (Rs.)', ''), minPaisa: minPaisa, maxPaisa: maxPaisa);
+        final err = AppValidators.amount(
+          value,
+          isRequired: isRequired,
+          fieldName: label.replaceAll(' (Rs.)', ''),
+          minPaisa: minPaisa,
+          maxPaisa: maxPaisa,
+        );
         if (err != null) return err;
         return validator?.call(value);
       },
@@ -366,7 +414,11 @@ class AppTextField extends StatefulWidget {
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       textInputAction: textInputAction,
       suffixText: 'kg',
-      prefixIcon: const Icon(Icons.scale_outlined, size: 20, color: AppColors.label),
+      prefixIcon: const Icon(
+        Icons.scale_outlined,
+        size: 20,
+        color: AppColors.label,
+      ),
       inputFormatters: [
         FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,3}')),
       ],
@@ -406,7 +458,11 @@ class AppTextField extends StatefulWidget {
       enabled: enabled,
       keyboardType: TextInputType.phone,
       textInputAction: textInputAction,
-      prefixIcon: const Icon(Icons.phone_outlined, size: 20, color: AppColors.label),
+      prefixIcon: const Icon(
+        Icons.phone_outlined,
+        size: 20,
+        color: AppColors.label,
+      ),
       inputFormatters: [
         FilteringTextInputFormatter.allow(RegExp(r'[0-9+\s-]')),
         LengthLimitingTextInputFormatter(20),
@@ -450,11 +506,16 @@ class AppTextField extends StatefulWidget {
       maxLines: maxLines,
       keyboardType: TextInputType.multiline,
       textInputAction: TextInputAction.newline,
-      inputFormatters: maxLength == null ? null : [LengthLimitingTextInputFormatter(maxLength)],
+      inputFormatters: maxLength == null
+          ? null
+          : [LengthLimitingTextInputFormatter(maxLength)],
       textCapitalization: TextCapitalization.sentences,
       validator: (value) {
         if (isRequired) {
-          final err = AppValidators.required(value, fieldName: label ?? 'This field');
+          final err = AppValidators.required(
+            value,
+            fieldName: label ?? 'This field',
+          );
           if (err != null) return err;
         }
         return validator?.call(value);
@@ -483,7 +544,9 @@ class _AppTextFieldState extends State<AppTextField> {
   @override
   void didUpdateWidget(AppTextField oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.clearable) oldWidget.controller!.removeListener(_onTextChanged);
+    if (oldWidget.clearable) {
+      oldWidget.controller!.removeListener(_onTextChanged);
+    }
     if (widget.clearable) {
       widget.controller!.addListener(_onTextChanged);
       _hasText = widget.controller!.text.isNotEmpty;
@@ -528,7 +591,8 @@ class _AppTextFieldState extends State<AppTextField> {
           onFieldSubmitted: widget.onFieldSubmitted,
           onTap: widget.onTap,
           focusNode: widget.focusNode,
-          autovalidateMode: widget.autovalidateMode ?? AutovalidateMode.onUserInteraction,
+          autovalidateMode:
+              widget.autovalidateMode ?? AutovalidateMode.onUserInteraction,
           style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
@@ -575,7 +639,9 @@ class _AppTextFieldState extends State<AppTextField> {
             suffixIcon: widget.isPassword
                 ? IconButton(
                     icon: Icon(
-                      _obscureText ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                      _obscureText
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
                       size: 20,
                       color: AppColors.label,
                     ),
@@ -586,15 +652,19 @@ class _AppTextFieldState extends State<AppTextField> {
                     },
                   )
                 : widget.clearable && _hasText
-                    ? IconButton(
-                        tooltip: 'Clear',
-                        icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.label),
-                        onPressed: () {
-                          widget.controller!.clear();
-                          widget.onChanged?.call('');
-                        },
-                      )
-                    : widget.suffixIcon,
+                ? IconButton(
+                    tooltip: 'Clear',
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      size: 20,
+                      color: AppColors.label,
+                    ),
+                    onPressed: () {
+                      widget.controller!.clear();
+                      widget.onChanged?.call('');
+                    },
+                  )
+                : widget.suffixIcon,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.control),
               borderSide: const BorderSide(color: AppColors.border),
@@ -605,7 +675,10 @@ class _AppTextFieldState extends State<AppTextField> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.control),
-              borderSide: const BorderSide(color: AppColors.primary, width: 1.8),
+              borderSide: const BorderSide(
+                color: AppColors.primary,
+                width: 1.8,
+              ),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.control),

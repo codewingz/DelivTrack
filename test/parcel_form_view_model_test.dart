@@ -4,9 +4,24 @@ import 'package:deliv_track/features/parcels/viewmodel/parcel_form_view_model.da
 import 'package:deliv_track/features/products/domain/product.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-const _ali = Customer(id: 'c1', name: 'Ali Raza', phone: '03001111111', address: 'House 5, Sahiwal');
-const _mango = Product(id: 'p1', name: 'Mango Box', saleUnit: SaleUnit.perPiece, isActive: true);
-const _fruits = Product(id: 'p2', name: 'Dry Fruits', saleUnit: SaleUnit.perKg, isActive: true);
+const _ali = Customer(
+  id: 'c1',
+  name: 'Ali Raza',
+  phone: '03001111111',
+  address: 'House 5, Sahiwal',
+);
+const _mango = Product(
+  id: 'p1',
+  name: 'Mango Box',
+  saleUnit: SaleUnit.perPiece,
+  isActive: true,
+);
+const _fruits = Product(
+  id: 'p2',
+  name: 'Dry Fruits',
+  saleUnit: SaleUnit.perKg,
+  isActive: true,
+);
 
 void main() {
   test('starts with one empty row, nothing chosen, clean and a draft', () {
@@ -58,7 +73,11 @@ void main() {
       vm.setCharge(0);
       expect(vm.status, ParcelStatus.sent);
       vm.setReference('AB');
-      expect(vm.status, ParcelStatus.draft, reason: 'an invalid reference does not count');
+      expect(
+        vm.status,
+        ParcelStatus.draft,
+        reason: 'an invalid reference does not count',
+      );
       vm.setReference('VPP 12345');
       vm.setCharge(null);
       expect(vm.status, ParcelStatus.draft);
@@ -67,7 +86,8 @@ void main() {
 
   group('rows and totals', () {
     ParcelFormViewModel withTwoRows() {
-      final vm = ParcelFormViewModel()..setMethod(CollectionMethod.postalCollection);
+      final vm = ParcelFormViewModel()
+        ..setMethod(CollectionMethod.postalCollection);
       vm.setProduct(vm.items[0], _mango);
       vm.setQuantity(vm.items[0], 3);
       vm.setPrice(vm.items[0], 250000);
@@ -78,33 +98,39 @@ void main() {
       return vm;
     }
 
-    test('lines add up, incomplete lines are ignored, free parcels total zero', () {
-      final vm = withTwoRows();
-      expect(vm.lineTotalPaisa(vm.items[0]), 750000);
-      expect(vm.lineTotalPaisa(vm.items[1]), 100000);
-      expect(vm.totalPaisa, 850000);
-      vm.setPrice(vm.items[1], null);
-      expect(vm.totalPaisa, 750000);
-      vm.setMethod(CollectionMethod.giftFree);
-      expect(vm.totalPaisa, 0);
-      expect(vm.lineTotalPaisa(vm.items[0]), isNull);
-    });
+    test(
+      'lines add up, incomplete lines are ignored, free parcels total zero',
+      () {
+        final vm = withTwoRows();
+        expect(vm.lineTotalPaisa(vm.items[0]), 750000);
+        expect(vm.lineTotalPaisa(vm.items[1]), 100000);
+        expect(vm.totalPaisa, 850000);
+        vm.setPrice(vm.items[1], null);
+        expect(vm.totalPaisa, 750000);
+        vm.setMethod(CollectionMethod.giftFree);
+        expect(vm.totalPaisa, 0);
+        expect(vm.lineTotalPaisa(vm.items[0]), isNull);
+      },
+    );
 
-    test('rows have stable keys, the last row cannot be removed, at most 20 rows', () {
-      final vm = ParcelFormViewModel();
-      final first = vm.items.first;
-      vm.removeItem(first);
-      expect(vm.items, hasLength(1));
-      for (var i = 0; i < 25; i++) {
-        vm.addItem();
-      }
-      expect(vm.items, hasLength(20));
-      expect(vm.canAddItem, isFalse);
-      expect(vm.items.map((i) => i.key).toSet(), hasLength(20));
-      vm.removeItem(vm.items[5]);
-      expect(vm.canAddItem, isTrue);
-      expect(vm.items.first, same(first));
-    });
+    test(
+      'rows have stable keys, the last row cannot be removed, at most 20 rows',
+      () {
+        final vm = ParcelFormViewModel();
+        final first = vm.items.first;
+        vm.removeItem(first);
+        expect(vm.items, hasLength(1));
+        for (var i = 0; i < 25; i++) {
+          vm.addItem();
+        }
+        expect(vm.items, hasLength(20));
+        expect(vm.canAddItem, isFalse);
+        expect(vm.items.map((i) => i.key).toSet(), hasLength(20));
+        vm.removeItem(vm.items[5]);
+        expect(vm.canAddItem, isTrue);
+        expect(vm.items.first, same(first));
+      },
+    );
 
     test('only the repeat of a product is flagged as duplicate', () {
       final vm = ParcelFormViewModel();
@@ -122,7 +148,15 @@ void main() {
       final vm = ParcelFormViewModel();
       vm.setProduct(vm.items[0], _mango);
       vm.setQuantity(vm.items[0], 4);
-      vm.setProduct(vm.items[0], const Product(id: 'p9', name: 'Honey', saleUnit: SaleUnit.perPiece, isActive: true));
+      vm.setProduct(
+        vm.items[0],
+        const Product(
+          id: 'p9',
+          name: 'Honey',
+          saleUnit: SaleUnit.perPiece,
+          isActive: true,
+        ),
+      );
       expect(vm.items[0].quantity, 4);
       vm.setProduct(vm.items[0], _fruits);
       expect(vm.items[0].quantity, isNull);

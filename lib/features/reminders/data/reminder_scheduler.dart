@@ -1,6 +1,8 @@
 import 'dart:async';
+
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
+
 import '../domain/reminder_schedule.dart';
 
 /// Puts the planned reminders on the phone's notification bar.
@@ -54,7 +56,8 @@ class NoReminderScheduler implements ReminderScheduler {
 /// Android notifications through flutter_local_notifications. Reminders use inexact timing (they may
 /// arrive a few minutes late) so no special "alarms" permission is needed.
 class LocalNotificationScheduler implements ReminderScheduler {
-  LocalNotificationScheduler({FlutterLocalNotificationsPlugin? plugin}) : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
+  LocalNotificationScheduler({FlutterLocalNotificationsPlugin? plugin})
+    : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
 
   final FlutterLocalNotificationsPlugin _plugin;
   final _taps = StreamController<String>.broadcast();
@@ -87,7 +90,9 @@ class LocalNotificationScheduler implements ReminderScheduler {
 
   Future<void> _initialize() async {
     await _plugin.initialize(
-      settings: const InitializationSettings(android: AndroidInitializationSettings('@mipmap/ic_launcher')),
+      settings: const InitializationSettings(
+        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      ),
       onDidReceiveNotificationResponse: (response) {
         final payload = response.payload;
         if (payload != null) _taps.add(parcelIdFromPayload(payload));
@@ -95,7 +100,9 @@ class LocalNotificationScheduler implements ReminderScheduler {
     );
     final launch = await _plugin.getNotificationAppLaunchDetails();
     final payload = launch?.notificationResponse?.payload;
-    if ((launch?.didNotificationLaunchApp ?? false) && payload != null) _launchParcelId = parcelIdFromPayload(payload);
+    if ((launch?.didNotificationLaunchApp ?? false) && payload != null) {
+      _launchParcelId = parcelIdFromPayload(payload);
+    }
   }
 
   @override
@@ -106,7 +113,10 @@ class LocalNotificationScheduler implements ReminderScheduler {
 
   Future<void> _sync(List<PlannedReminder> planned) async {
     try {
-      final pending = {for (final request in await _plugin.pendingNotificationRequests()) request.id: request};
+      final pending = {
+        for (final request in await _plugin.pendingNotificationRequests())
+          request.id: request,
+      };
       final wanted = {for (final reminder in planned) reminder.id: reminder};
       for (final id in pending.keys) {
         if (!wanted.containsKey(id)) await _plugin.cancel(id: id);
@@ -132,13 +142,18 @@ class LocalNotificationScheduler implements ReminderScheduler {
   @override
   Future<void> cancelAll() => _queue = _queue.then((_) => _plugin.cancelAll());
 
-  AndroidFlutterLocalNotificationsPlugin? get _android => _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+  AndroidFlutterLocalNotificationsPlugin? get _android => _plugin
+      .resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin
+      >();
 
   @override
-  Future<bool> areNotificationsEnabled() async => await _android?.areNotificationsEnabled() ?? false;
+  Future<bool> areNotificationsEnabled() async =>
+      await _android?.areNotificationsEnabled() ?? false;
 
   @override
-  Future<bool> requestPermission() async => await _android?.requestNotificationsPermission() ?? false;
+  Future<bool> requestPermission() async =>
+      await _android?.requestNotificationsPermission() ?? false;
 
   @override
   Future<void> openSettings() async => _android?.openAppNotificationSettings();

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../common_widgets/empty_state.dart';
 import '../../../common_widgets/list_skeleton.dart';
 import '../../../constants/app_colors.dart';
@@ -16,7 +17,12 @@ import '../viewmodel/payments_view_model.dart';
 
 /// Where the money stands: totals on top, then one list per payment state.
 class PaymentsScreen extends StatefulWidget {
-  const PaymentsScreen({super.key, required this.repository, required this.onOpen, this.clock = const Clock()});
+  const PaymentsScreen({
+    super.key,
+    required this.repository,
+    required this.onOpen,
+    this.clock = const Clock(),
+  });
   final ParcelRepository repository;
   final void Function(Parcel parcel) onOpen;
   final Clock clock;
@@ -26,7 +32,10 @@ class PaymentsScreen extends StatefulWidget {
 }
 
 class _PaymentsScreenState extends State<PaymentsScreen> {
-  late final _viewModel = PaymentsViewModel(widget.repository, clock: widget.clock);
+  late final _viewModel = PaymentsViewModel(
+    widget.repository,
+    clock: widget.clock,
+  );
 
   @override
   void dispose() {
@@ -37,7 +46,9 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
   Future<void> _receive(Parcel parcel) async {
     final messenger = ScaffoldMessenger.of(context);
     if (await showPaymentSheet(context, widget.repository, parcel)) {
-      messenger.showSnackBar(const SnackBar(content: Text('Payment recorded.')));
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Payment recorded.')),
+      );
     }
   }
 
@@ -50,7 +61,10 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
           alignment: Alignment.topCenter,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 640),
-            child: ListenableBuilder(listenable: _viewModel, builder: (context, _) => _body()),
+            child: ListenableBuilder(
+              listenable: _viewModel,
+              builder: (context, _) => _body(),
+            ),
           ),
         ),
       ),
@@ -67,7 +81,9 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
         onAction: _viewModel.retry,
       );
     }
-    if (_viewModel.isLoading) return const SingleChildScrollView(child: ListSkeleton());
+    if (_viewModel.isLoading) {
+      return const SingleChildScrollView(child: ListSkeleton());
+    }
     final rows = _viewModel.visible;
     return RefreshIndicator(
       onRefresh: () async => _viewModel.retry(),
@@ -75,11 +91,20 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           SliverToBoxAdapter(child: _Totals(totals: _viewModel.totals)),
-          SliverToBoxAdapter(child: _TabBar(selected: _viewModel.tab, onSelected: _viewModel.select)),
+          SliverToBoxAdapter(
+            child: _TabBar(
+              selected: _viewModel.tab,
+              onSelected: _viewModel.select,
+            ),
+          ),
           if (rows.isEmpty)
             SliverFillRemaining(
               hasScrollBody: false,
-              child: EmptyState(icon: Icons.payments_outlined, title: 'Nothing in ${_viewModel.tab.label}', message: _emptyMessage(_viewModel.tab)),
+              child: EmptyState(
+                icon: Icons.payments_outlined,
+                title: 'Nothing in ${_viewModel.tab.label}',
+                message: _emptyMessage(_viewModel.tab),
+              ),
             )
           else
             SliverList.builder(
@@ -92,23 +117,36 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
               ),
             ),
           if (_viewModel.hasMore)
-            SliverToBoxAdapter(child: Center(child: TextButton(onPressed: _viewModel.showMore, child: const Text('Show more')))),
-          const SliverPadding(padding: EdgeInsetsDirectional.only(bottom: AppSpacing.xxl)),
+            SliverToBoxAdapter(
+              child: Center(
+                child: TextButton(
+                  onPressed: _viewModel.showMore,
+                  child: const Text('Show more'),
+                ),
+              ),
+            ),
+          const SliverPadding(
+            padding: EdgeInsetsDirectional.only(bottom: AppSpacing.xxl),
+          ),
         ],
       ),
     );
   }
 
   static String _emptyMessage(PaymentTab tab) => switch (tab) {
-        PaymentTab.pending => 'Parcels that have not received anything yet appear here.',
-        PaymentTab.partial => 'Parcels with part of the money received appear here.',
-        PaymentTab.received => 'Parcels paid in full appear here.',
-        PaymentTab.postOffice => 'Post office collection parcels appear here.',
-        PaymentTab.advance => 'Advance parcels appear here.',
-        PaymentTab.payLater => 'Pay Later parcels that still owe money appear here.',
-        PaymentTab.overdue => 'Pay Later payments past their date appear here.',
-        PaymentTab.review => 'Returned parcels that received or owe money appear here for review.',
-      };
+    PaymentTab.pending =>
+      'Parcels that have not received anything yet appear here.',
+    PaymentTab.partial =>
+      'Parcels with part of the money received appear here.',
+    PaymentTab.received => 'Parcels paid in full appear here.',
+    PaymentTab.postOffice => 'Post office collection parcels appear here.',
+    PaymentTab.advance => 'Advance parcels appear here.',
+    PaymentTab.payLater =>
+      'Pay Later parcels that still owe money appear here.',
+    PaymentTab.overdue => 'Pay Later payments past their date appear here.',
+    PaymentTab.review =>
+      'Returned parcels that received or owe money appear here for review.',
+  };
 }
 
 class _Totals extends StatelessWidget {
@@ -123,9 +161,18 @@ class _Totals extends StatelessWidget {
         spacing: AppSpacing.md,
         runSpacing: AppSpacing.md,
         children: [
-          _Stat(label: 'Outstanding', value: formatRupees(totals.outstandingPaisa)),
-          _Stat(label: 'Pay Later balance', value: formatRupees(totals.payLaterPaisa)),
-          _Stat(label: 'Advance received', value: formatRupees(totals.advancePaisa)),
+          _Stat(
+            label: 'Outstanding',
+            value: formatRupees(totals.outstandingPaisa),
+          ),
+          _Stat(
+            label: 'Pay Later balance',
+            value: formatRupees(totals.payLaterPaisa),
+          ),
+          _Stat(
+            label: 'Advance received',
+            value: formatRupees(totals.advancePaisa),
+          ),
         ],
       ),
     );
@@ -153,8 +200,22 @@ class _Stat extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textSecondary)),
-              Text(value, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primaryDark,
+                ),
+              ),
             ],
           ),
         ),
@@ -178,7 +239,11 @@ class _TabBar extends StatelessWidget {
           for (final tab in PaymentTab.values)
             Padding(
               padding: const EdgeInsetsDirectional.only(end: AppSpacing.sm),
-              child: ChoiceChip(label: Text(tab.label), selected: tab == selected, onSelected: (_) => onSelected(tab)),
+              child: ChoiceChip(
+                label: Text(tab.label),
+                selected: tab == selected,
+                onSelected: (_) => onSelected(tab),
+              ),
             ),
         ],
       ),
@@ -187,7 +252,12 @@ class _TabBar extends StatelessWidget {
 }
 
 class _PaymentTile extends StatelessWidget {
-  const _PaymentTile({required this.parcel, required this.tab, required this.onOpen, required this.onReceive});
+  const _PaymentTile({
+    required this.parcel,
+    required this.tab,
+    required this.onOpen,
+    required this.onReceive,
+  });
   final Parcel parcel;
   final PaymentTab tab;
   final VoidCallback onOpen;
@@ -195,7 +265,8 @@ class _PaymentTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final canReceive = parcel.status != ParcelStatus.returned && parcel.outstandingPaisa > 0;
+    final canReceive =
+        parcel.status != ParcelStatus.returned && parcel.outstandingPaisa > 0;
     final date = parcel.estimatedPaymentDate;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -203,24 +274,63 @@ class _PaymentTile extends StatelessWidget {
         InkWell(
           onTap: onOpen,
           child: Padding(
-            padding: const EdgeInsetsDirectional.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+            padding: const EdgeInsetsDirectional.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.md,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(parcel.orderNumber, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+                Text(
+                  parcel.orderNumber,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primaryDark,
+                  ),
+                ),
                 const SizedBox(height: AppSpacing.xs),
-                ParcelStatusChips(status: parcel.status, payment: parcel.paymentStatus, reviewRequired: parcel.paymentReviewRequired),
+                ParcelStatusChips(
+                  status: parcel.status,
+                  payment: parcel.paymentStatus,
+                  reviewRequired: parcel.paymentReviewRequired,
+                ),
                 const SizedBox(height: AppSpacing.sm),
-                Text(parcel.customerName, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                Text(
+                  parcel.customerName,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 Text(
                   'Expected ${formatRupees(parcel.expectedPaisa)} · Received ${formatRupees(parcel.receivedPaisa)}',
-                  style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
-                Text('Balance ${formatRupees(parcel.outstandingPaisa)}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                Text(
+                  'Balance ${formatRupees(parcel.outstandingPaisa)}',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
                 if (parcel.method == CollectionMethod.payLater)
                   Text(
-                    date == null ? 'No date set' : 'Pay Later date ${formatDate(date)}',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: tab == PaymentTab.overdue ? AppColors.error : AppColors.textSecondary),
+                    date == null
+                        ? 'No date set'
+                        : 'Pay Later date ${formatDate(date)}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: tab == PaymentTab.overdue
+                          ? AppColors.error
+                          : AppColors.textSecondary,
+                    ),
                   ),
               ],
             ),
@@ -228,8 +338,13 @@ class _PaymentTile extends StatelessWidget {
         ),
         if (canReceive)
           Padding(
-            padding: const EdgeInsetsDirectional.symmetric(horizontal: AppSpacing.sm),
-            child: TextButton(onPressed: onReceive, child: const Text('Receive')),
+            padding: const EdgeInsetsDirectional.symmetric(
+              horizontal: AppSpacing.sm,
+            ),
+            child: TextButton(
+              onPressed: onReceive,
+              child: const Text('Receive'),
+            ),
           ),
         const Divider(height: 1),
       ],

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../common_widgets/empty_state.dart';
 import '../../../common_widgets/list_skeleton.dart';
 import '../../../constants/app_colors.dart';
@@ -40,19 +41,28 @@ class CustomerDetailsScreen extends StatefulWidget {
 }
 
 class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
-  late final Stream<List<Customer>> _customers = widget.customerRepository.watchAll();
-  late final Stream<List<Parcel>> _parcels = widget.parcelRepository.watchAll(includeArchived: true);
+  late final Stream<List<Customer>> _customers = widget.customerRepository
+      .watchAll();
+  late final Stream<List<Parcel>> _parcels = widget.parcelRepository.watchAll(
+    includeArchived: true,
+  );
 
   Future<void> _call(Customer customer) async {
     final messenger = ScaffoldMessenger.of(context);
     if (!await widget.dialer.dial(customer.phone)) {
-      messenger.showSnackBar(const SnackBar(content: Text("Couldn't open the phone app.")));
+      messenger.showSnackBar(
+        const SnackBar(content: Text("Couldn't open the phone app.")),
+      );
     }
   }
 
   Future<void> _edit(Customer customer) async {
     final messenger = ScaffoldMessenger.of(context);
-    if (await widget.onEdit(customer) != null) messenger.showSnackBar(const SnackBar(content: Text('Customer updated.')));
+    if (await widget.onEdit(customer) != null) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Customer updated.')),
+      );
+    }
   }
 
   @override
@@ -60,12 +70,22 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
     return StreamBuilder<List<Customer>>(
       stream: _customers,
       builder: (context, customerSnapshot) {
-        final customer = customerSnapshot.data?.where((c) => c.id == widget.customerId).firstOrNull;
+        final customer = customerSnapshot.data
+            ?.where((c) => c.id == widget.customerId)
+            .firstOrNull;
         return Scaffold(
           appBar: AppBar(
-            title: Text(customer?.name ?? 'Customer', overflow: TextOverflow.ellipsis),
+            title: Text(
+              customer?.name ?? 'Customer',
+              overflow: TextOverflow.ellipsis,
+            ),
             actions: [
-              if (customer != null) IconButton(tooltip: 'Edit customer', icon: const Icon(Icons.edit_outlined), onPressed: () => _edit(customer)),
+              if (customer != null)
+                IconButton(
+                  tooltip: 'Edit customer',
+                  icon: const Icon(Icons.edit_outlined),
+                  onPressed: () => _edit(customer),
+                ),
             ],
           ),
           body: SafeArea(
@@ -84,46 +104,101 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
 
   Widget _body(AsyncSnapshot<List<Customer>> snapshot, Customer? customer) {
     if (snapshot.hasError) {
-      return const EmptyState(icon: Icons.error_outline_rounded, title: "Couldn't load this customer", message: 'Please go back and try again.');
+      return const EmptyState(
+        icon: Icons.error_outline_rounded,
+        title: "Couldn't load this customer",
+        message: 'Please go back and try again.',
+      );
     }
-    if (snapshot.connectionState == ConnectionState.waiting) return const SingleChildScrollView(child: ListSkeleton());
-    if (customer == null) return const EmptyState(icon: Icons.search_off_rounded, title: 'This customer was not found');
+    if (snapshot.connectionState == ConnectionState.waiting) {
+      return const SingleChildScrollView(child: ListSkeleton());
+    }
+    if (customer == null) {
+      return const EmptyState(
+        icon: Icons.search_off_rounded,
+        title: 'This customer was not found',
+      );
+    }
     return StreamBuilder<List<Parcel>>(
       stream: _parcels,
       builder: (context, parcelSnapshot) {
         // Archived parcels stay in the money figures (lifetime), but not in the history list or the count.
-        final parcels = [for (final parcel in parcelSnapshot.data ?? const <Parcel>[]) if (parcel.customerId == customer.id) parcel];
-        final active = [for (final parcel in parcels) if (!parcel.isArchived) parcel];
+        final parcels = [
+          for (final parcel in parcelSnapshot.data ?? const <Parcel>[])
+            if (parcel.customerId == customer.id) parcel,
+        ];
+        final active = [
+          for (final parcel in parcels)
+            if (!parcel.isArchived) parcel,
+        ];
         return CustomScrollView(
           slivers: [
-            SliverToBoxAdapter(child: _Contact(customer: customer, onCall: () => _call(customer))),
+            SliverToBoxAdapter(
+              child: _Contact(
+                customer: customer,
+                onCall: () => _call(customer),
+              ),
+            ),
             if (parcelSnapshot.hasError)
-              const SliverToBoxAdapter(child: Padding(padding: EdgeInsetsDirectional.all(AppSpacing.lg), child: Text("Couldn't load this customer's parcels.")))
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsetsDirectional.all(AppSpacing.lg),
+                  child: Text("Couldn't load this customer's parcels."),
+                ),
+              )
             else if (parcelSnapshot.connectionState == ConnectionState.waiting)
               const SliverToBoxAdapter(child: ListSkeleton())
             else ...[
-              SliverToBoxAdapter(child: _Totals(parcels: parcels, parcelCount: active.length)),
-              SliverToBoxAdapter(child: _PayLaterReminders(parcels: active, today: pakistanDate(widget.clock.nowUtc()), onOpen: widget.onOpenParcel)),
+              SliverToBoxAdapter(
+                child: _Totals(parcels: parcels, parcelCount: active.length),
+              ),
+              SliverToBoxAdapter(
+                child: _PayLaterReminders(
+                  parcels: active,
+                  today: pakistanDate(widget.clock.nowUtc()),
+                  onOpen: widget.onOpenParcel,
+                ),
+              ),
               const SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsetsDirectional.fromSTEB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.sm),
-                  child: Text('Parcel history', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+                  padding: EdgeInsetsDirectional.fromSTEB(
+                    AppSpacing.lg,
+                    AppSpacing.lg,
+                    AppSpacing.lg,
+                    AppSpacing.sm,
+                  ),
+                  child: Text(
+                    'Parcel history',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primaryDark,
+                    ),
+                  ),
                 ),
               ),
               if (active.isEmpty)
                 const SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsetsDirectional.all(AppSpacing.lg),
-                    child: Text('No parcels for this customer yet.', style: TextStyle(color: AppColors.textSecondary)),
+                    child: Text(
+                      'No parcels for this customer yet.',
+                      style: TextStyle(color: AppColors.textSecondary),
+                    ),
                   ),
                 )
               else
                 SliverList.separated(
                   itemCount: active.length,
                   separatorBuilder: (_, _) => const Divider(height: 1),
-                  itemBuilder: (context, index) => ParcelTile(parcel: active[index], onTap: () => widget.onOpenParcel(active[index])),
+                  itemBuilder: (context, index) => ParcelTile(
+                    parcel: active[index],
+                    onTap: () => widget.onOpenParcel(active[index]),
+                  ),
                 ),
-              const SliverPadding(padding: EdgeInsetsDirectional.only(bottom: AppSpacing.xxl)),
+              const SliverPadding(
+                padding: EdgeInsetsDirectional.only(bottom: AppSpacing.xxl),
+              ),
             ],
           ],
         );
@@ -142,13 +217,24 @@ class _Contact extends StatelessWidget {
     return Padding(
       padding: const EdgeInsetsDirectional.all(AppSpacing.lg),
       child: DecoratedBox(
-        decoration: BoxDecoration(color: AppColors.surface, border: Border.all(color: AppColors.border), borderRadius: BorderRadius.circular(AppRadius.control)),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          border: Border.all(color: AppColors.border),
+          borderRadius: BorderRadius.circular(AppRadius.control),
+        ),
         child: Padding(
           padding: const EdgeInsetsDirectional.all(AppSpacing.lg),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(customer.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+              Text(
+                customer.name,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primaryDark,
+                ),
+              ),
               const SizedBox(height: AppSpacing.md),
               InkWell(
                 onTap: onCall,
@@ -158,13 +244,28 @@ class _Contact extends StatelessWidget {
                     children: [
                       const Icon(Icons.call_outlined, color: AppColors.primary),
                       const SizedBox(width: AppSpacing.md),
-                      Expanded(child: Text(customer.phone, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.primary))),
+                      Expanded(
+                        child: Text(
+                          customer.phone,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
               ),
               const SizedBox(height: AppSpacing.sm),
-              Text(customer.address, style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+              Text(
+                customer.address,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
+                ),
+              ),
             ],
           ),
         ),
@@ -192,9 +293,18 @@ class _Totals extends StatelessWidget {
         runSpacing: AppSpacing.md,
         children: [
           _Stat(label: 'Parcels', value: '$parcelCount'),
-          _Stat(label: 'Outstanding', value: formatRupees(totals.outstandingPaisa)),
-          _Stat(label: 'Pay Later balance', value: formatRupees(totals.payLaterPaisa)),
-          _Stat(label: 'Advance received', value: formatRupees(totals.advancePaisa)),
+          _Stat(
+            label: 'Outstanding',
+            value: formatRupees(totals.outstandingPaisa),
+          ),
+          _Stat(
+            label: 'Pay Later balance',
+            value: formatRupees(totals.payLaterPaisa),
+          ),
+          _Stat(
+            label: 'Advance received',
+            value: formatRupees(totals.advancePaisa),
+          ),
         ],
       ),
     );
@@ -214,15 +324,33 @@ class _Stat extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(minWidth: 150),
         child: DecoratedBox(
-          decoration: BoxDecoration(color: AppColors.surface, border: Border.all(color: AppColors.border), borderRadius: BorderRadius.circular(AppRadius.control)),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            border: Border.all(color: AppColors.border),
+            borderRadius: BorderRadius.circular(AppRadius.control),
+          ),
           child: Padding(
             padding: const EdgeInsetsDirectional.all(AppSpacing.md),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textSecondary)),
-                Text(value, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primaryDark,
+                  ),
+                ),
               ],
             ),
           ),
@@ -234,7 +362,11 @@ class _Stat extends StatelessWidget {
 
 /// This customer's Pay Later payments still to collect, each with its own (optional) date.
 class _PayLaterReminders extends StatelessWidget {
-  const _PayLaterReminders({required this.parcels, required this.today, required this.onOpen});
+  const _PayLaterReminders({
+    required this.parcels,
+    required this.today,
+    required this.onOpen,
+  });
   final List<Parcel> parcels;
   final String today;
   final void Function(Parcel parcel) onOpen;
@@ -248,11 +380,22 @@ class _PayLaterReminders extends StatelessWidget {
     ];
     if (rows.isEmpty) return const SizedBox.shrink();
     return Padding(
-      padding: const EdgeInsetsDirectional.only(start: AppSpacing.lg, top: AppSpacing.lg, end: AppSpacing.lg),
+      padding: const EdgeInsetsDirectional.only(
+        start: AppSpacing.lg,
+        top: AppSpacing.lg,
+        end: AppSpacing.lg,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Pay Later reminders', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+          const Text(
+            'Pay Later reminders',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: AppColors.primaryDark,
+            ),
+          ),
           const SizedBox(height: AppSpacing.sm),
           for (final (:parcel, :group) in rows)
             InkWell(
@@ -260,14 +403,27 @@ class _PayLaterReminders extends StatelessWidget {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(minHeight: 48),
                 child: Padding(
-                  padding: const EdgeInsetsDirectional.symmetric(vertical: AppSpacing.xs),
+                  padding: const EdgeInsetsDirectional.symmetric(
+                    vertical: AppSpacing.xs,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('${parcel.orderNumber} · ${formatRupees(parcel.outstandingPaisa)} to collect', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                      Text(
+                        '${parcel.orderNumber} · ${formatRupees(parcel.outstandingPaisa)} to collect',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                       Text(
                         reminderDateText(parcel, group, today),
-                        style: TextStyle(fontSize: 13, color: group == ReminderGroup.overdue ? AppColors.error : AppColors.textSecondary),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: group == ReminderGroup.overdue
+                              ? AppColors.error
+                              : AppColors.textSecondary,
+                        ),
                       ),
                     ],
                   ),

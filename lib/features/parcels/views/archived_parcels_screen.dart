@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../common_widgets/empty_state.dart';
 import '../../../common_widgets/searchable_list_page.dart';
 import '../../../core/view_models/live_list_view_model.dart';
@@ -8,7 +9,11 @@ import 'parcels_screen.dart';
 
 /// Parcels that were archived, newest first. A row opens the parcel, where it can be restored.
 class ArchivedParcelsScreen extends StatefulWidget {
-  const ArchivedParcelsScreen({super.key, required this.repository, required this.onOpen});
+  const ArchivedParcelsScreen({
+    super.key,
+    required this.repository,
+    required this.onOpen,
+  });
   final ParcelRepository repository;
   final void Function(Parcel parcel) onOpen;
 
@@ -17,7 +22,8 @@ class ArchivedParcelsScreen extends StatefulWidget {
 }
 
 class _ArchivedParcelsViewModel extends LiveListViewModel<Parcel> {
-  _ArchivedParcelsViewModel(ParcelRepository repository) : super(repository.watchArchived);
+  _ArchivedParcelsViewModel(ParcelRepository repository)
+    : super(repository.watchArchived);
 }
 
 class _ArchivedParcelsScreenState extends State<ArchivedParcelsScreen> {
@@ -42,7 +48,8 @@ class _ArchivedParcelsScreenState extends State<ArchivedParcelsScreen> {
           title: 'No archived parcels',
           message: 'A parcel with nothing left to chase can be archived from its details.',
         ),
-        itemBuilder: (context, parcel) => ParcelTile(parcel: parcel, onTap: () => widget.onOpen(parcel)),
+        itemBuilder: (context, parcel) =>
+            ParcelTile(parcel: parcel, onTap: () => widget.onOpen(parcel)),
       ),
     );
   }

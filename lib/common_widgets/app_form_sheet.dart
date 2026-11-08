@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../constants/app_colors.dart';
 import '../core/view_models/action_view_model.dart';
 import '../design_system/foundations/spacing/app_spacing.dart';
@@ -79,26 +80,53 @@ class _AppFormSheetState extends State<AppFormSheet> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(widget.title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+                Text(
+                  widget.title,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primaryDark,
+                  ),
+                ),
                 if (widget.subtitle != null) ...[
                   const SizedBox(height: AppSpacing.sm),
-                  Text(widget.subtitle!, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+                  Text(
+                    widget.subtitle!,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
                 ],
                 const SizedBox(height: AppSpacing.xl),
-                for (final field in widget.fields(busy)) ...[field, const SizedBox(height: AppSpacing.lg)],
+                for (final field in widget.fields(busy)) ...[
+                  field,
+                  const SizedBox(height: AppSpacing.lg),
+                ],
                 if (_viewModel.errorMessage != null)
                   Semantics(
                     liveRegion: true,
                     child: Padding(
-                      padding: const EdgeInsetsDirectional.only(bottom: AppSpacing.lg),
+                      padding: const EdgeInsetsDirectional.only(
+                        bottom: AppSpacing.lg,
+                      ),
                       child: Text(
                         _viewModel.errorMessage!,
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.error),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.error,
+                        ),
                       ),
                     ),
                   ),
                 const SizedBox(height: AppSpacing.sm),
-                PrimaryButton(label: widget.submitLabel, isLoading: busy, onPressed: _submit),
+                PrimaryButton(
+                  label: widget.submitLabel,
+                  isLoading: busy,
+                  onPressed: _submit,
+                ),
               ],
             ),
           ),

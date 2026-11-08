@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
 import '../../../common_widgets/confirm_dialog.dart';
 import '../../../common_widgets/count_badge.dart';
 import '../../../common_widgets/empty_state.dart';
@@ -50,7 +51,10 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   // Every parcel, live. The figures, the bell and the phone's reminders all come from this one list.
-  late final _parcels = ReminderListViewModel(widget.parcelRepository, includeArchived: true);
+  late final _parcels = ReminderListViewModel(
+    widget.parcelRepository,
+    includeArchived: true,
+  );
   Set<int>? _plannedIds;
   bool _askedForPermission = false;
 
@@ -60,7 +64,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _parcels.addListener(_keepPhoneInStep);
     // A notification that started the app opens its parcel once Home is up.
     final launchParcelId = widget.reminderScheduler.takeLaunchParcelId();
-    if (launchParcelId != null) WidgetsBinding.instance.addPostFrameCallback((_) => widget.onOpenParcel(launchParcelId));
+    if (launchParcelId != null) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => widget.onOpenParcel(launchParcelId),
+      );
+    }
   }
 
   @override
@@ -80,11 +88,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final before = _plannedIds;
     _plannedIds = ids;
     // Ask for permission when a reminder is added while using the app, never at launch.
-    if (before != null && ids.difference(before).isNotEmpty) unawaited(_offerNotifications());
+    if (before != null && ids.difference(before).isNotEmpty) {
+      unawaited(_offerNotifications());
+    }
   }
 
   Future<void> _offerNotifications() async {
-    if (_askedForPermission || await widget.reminderScheduler.areNotificationsEnabled() || !mounted) return;
+    if (_askedForPermission ||
+        await widget.reminderScheduler.areNotificationsEnabled() ||
+        !mounted) {
+      return;
+    }
     _askedForPermission = true;
     final allow = await showConfirmDialog(
       context,
@@ -108,7 +122,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               final due = _parcels.reminders.dueCount;
               return IconButton(
                 tooltip: due == 0 ? 'Reminders' : 'Reminders, $due due',
-                icon: CountBadge(count: due, child: const Icon(Icons.notifications_none_rounded)),
+                icon: CountBadge(
+                  count: due,
+                  child: const Icon(Icons.notifications_none_rounded),
+                ),
                 onPressed: widget.onOpenReminders,
               );
             },
@@ -125,7 +142,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           alignment: Alignment.topCenter,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 960),
-            child: ListenableBuilder(listenable: _parcels, builder: (context, _) => _body()),
+            child: ListenableBuilder(
+              listenable: _parcels,
+              builder: (context, _) => _body(),
+            ),
           ),
         ),
       ),
@@ -157,7 +177,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 final name = snapshot.data?.trim() ?? '';
                 return Text(
                   name.isEmpty ? 'Welcome' : 'Welcome, $name',
-                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primaryDark,
+                  ),
                 );
               },
             ),
@@ -167,22 +191,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
               spacing: AppSpacing.md,
               runSpacing: AppSpacing.md,
               children: [
-                FilledButton.icon(onPressed: widget.onAddParcel, icon: const Icon(Icons.add), label: const Text('Add Parcel')),
-                OutlinedButton.icon(onPressed: () => widget.onOpenParcels(ParcelFilters.none), icon: const Icon(Icons.search_rounded), label: const Text('Search')),
+                FilledButton.icon(
+                  onPressed: widget.onAddParcel,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add Parcel'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => widget.onOpenParcels(ParcelFilters.none),
+                  icon: const Icon(Icons.search_rounded),
+                  label: const Text('Search'),
+                ),
               ],
             ),
             const SizedBox(height: AppSpacing.xl),
             if (_parcels.isLoading)
               const ListSkeleton()
             else ...[
-              _Figures(stats: DashboardStats.from(_parcels.all, _parcels.today), widget: widget),
+              _Figures(
+                stats: DashboardStats.from(_parcels.all, _parcels.today),
+                widget: widget,
+              ),
               const SizedBox(height: AppSpacing.sm),
               const Text(
                 'Parcel counts and balances cover active parcels. Total received and Advance amount also include archived parcels.',
                 style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
               ),
               const SizedBox(height: AppSpacing.xl),
-              _Recent(stats: DashboardStats.from(_parcels.all, _parcels.today), widget: widget),
+              _Recent(
+                stats: DashboardStats.from(_parcels.all, _parcels.today),
+                widget: widget,
+              ),
             ],
           ],
         ),
@@ -209,7 +247,10 @@ class _UnreadableNoticeState extends State<_UnreadableNotice> {
   void initState() {
     super.initState();
     // A failure to load is already shown by the figures; this notice only adds what could not be read.
-    _subscription = widget.repository.watchUnreadable().listen((ids) => setState(() => _ids = ids), onError: (Object _) {});
+    _subscription = widget.repository.watchUnreadable().listen(
+      (ids) => setState(() => _ids = ids),
+      onError: (Object _) {},
+    );
   }
 
   @override
@@ -260,28 +301,86 @@ class _Figures extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cards = <_Card>[
-      _Card('Total parcels', '${stats.totalParcels}', () => widget.onOpenParcels(DashboardLists.all)),
-      _Card('Sent', '${stats.sent}', () => widget.onOpenParcels(DashboardLists.sent)),
-      _Card('Returned', '${stats.returned}', () => widget.onOpenParcels(DashboardLists.returned)),
-      _Card('Gift / Free', '${stats.freeGift}', () => widget.onOpenParcels(DashboardLists.freeGift)),
-      _Card('Parcels with payment received', '${stats.paymentReceived}', () => widget.onOpenParcels(DashboardLists.paymentReceived)),
-      _Card('Parcels pending payment', '${stats.pendingPayment}', () => widget.onOpenParcels(DashboardLists.pendingPayment)),
-      _Card('Total received', formatRupees(stats.totalReceivedPaisa), widget.onOpenPayments),
-      _Card('Total outstanding', formatRupees(stats.totalOutstandingPaisa), widget.onOpenPayments),
-      _Card('Pay Later balance', formatRupees(stats.payLaterBalancePaisa), widget.onOpenPayments),
-      _Card('Advance amount', formatRupees(stats.advancePaisa), widget.onOpenPayments),
+      _Card(
+        'Total parcels',
+        '${stats.totalParcels}',
+        () => widget.onOpenParcels(DashboardLists.all),
+      ),
+      _Card(
+        'Sent',
+        '${stats.sent}',
+        () => widget.onOpenParcels(DashboardLists.sent),
+      ),
+      _Card(
+        'Returned',
+        '${stats.returned}',
+        () => widget.onOpenParcels(DashboardLists.returned),
+      ),
+      _Card(
+        'Gift / Free',
+        '${stats.freeGift}',
+        () => widget.onOpenParcels(DashboardLists.freeGift),
+      ),
+      _Card(
+        'Parcels with payment received',
+        '${stats.paymentReceived}',
+        () => widget.onOpenParcels(DashboardLists.paymentReceived),
+      ),
+      _Card(
+        'Parcels pending payment',
+        '${stats.pendingPayment}',
+        () => widget.onOpenParcels(DashboardLists.pendingPayment),
+      ),
+      _Card(
+        'Total received',
+        formatRupees(stats.totalReceivedPaisa),
+        widget.onOpenPayments,
+      ),
+      _Card(
+        'Total outstanding',
+        formatRupees(stats.totalOutstandingPaisa),
+        widget.onOpenPayments,
+      ),
+      _Card(
+        'Pay Later balance',
+        formatRupees(stats.payLaterBalancePaisa),
+        widget.onOpenPayments,
+      ),
+      _Card(
+        'Advance amount',
+        formatRupees(stats.advancePaisa),
+        widget.onOpenPayments,
+      ),
       _Card('Reminders due today', '${stats.dueToday}', widget.onOpenReminders),
-      _Card('Overdue', '${stats.overdue}', widget.onOpenReminders, urgent: stats.overdue > 0),
-      if (stats.needsReview > 0) _Card('Need payment review', '${stats.needsReview}', widget.onOpenPayments, urgent: true),
+      _Card(
+        'Overdue',
+        '${stats.overdue}',
+        widget.onOpenReminders,
+        urgent: stats.overdue > 0,
+      ),
+      if (stats.needsReview > 0)
+        _Card(
+          'Need payment review',
+          '${stats.needsReview}',
+          widget.onOpenPayments,
+          urgent: true,
+        ),
     ];
     return LayoutBuilder(
       builder: (context, constraints) {
         final columns = (constraints.maxWidth / 170).floor().clamp(1, 4);
-        final width = (constraints.maxWidth - AppSpacing.md * (columns - 1)) / columns;
+        final width =
+            (constraints.maxWidth - AppSpacing.md * (columns - 1)) / columns;
         return Wrap(
           spacing: AppSpacing.md,
           runSpacing: AppSpacing.md,
-          children: [for (final card in cards) SizedBox(width: width, child: _MetricCard(card: card))],
+          children: [
+            for (final card in cards)
+              SizedBox(
+                width: width,
+                child: _MetricCard(card: card),
+              ),
+          ],
         );
       },
     );
@@ -310,7 +409,9 @@ class _MetricCard extends StatelessWidget {
         color: AppColors.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.control),
-          side: BorderSide(color: card.urgent ? AppColors.error : AppColors.border),
+          side: BorderSide(
+            color: card.urgent ? AppColors.error : AppColors.border,
+          ),
         ),
         child: InkWell(
           borderRadius: BorderRadius.circular(AppRadius.control),
@@ -323,9 +424,25 @@ class _MetricCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(card.value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: card.urgent ? AppColors.error : AppColors.primaryDark)),
+                  Text(
+                    card.value,
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: card.urgent
+                          ? AppColors.error
+                          : AppColors.primaryDark,
+                    ),
+                  ),
                   const SizedBox(height: AppSpacing.xs),
-                  Text(card.label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textSecondary)),
+                  Text(
+                    card.label,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -346,16 +463,29 @@ class _Recent extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Recent parcels', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+        const Text(
+          'Recent parcels',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            color: AppColors.primaryDark,
+          ),
+        ),
         const SizedBox(height: AppSpacing.sm),
         if (stats.recent.isEmpty)
           const Padding(
             padding: EdgeInsetsDirectional.symmetric(vertical: AppSpacing.lg),
-            child: Text('No parcels yet. Add your first parcel.', style: TextStyle(color: AppColors.textSecondary)),
+            child: Text(
+              'No parcels yet. Add your first parcel.',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
           )
         else
           for (final parcel in stats.recent) ...[
-            ParcelTile(parcel: parcel, onTap: () => widget.onOpenParcel(parcel.id)),
+            ParcelTile(
+              parcel: parcel,
+              onTap: () => widget.onOpenParcel(parcel.id),
+            ),
             const Divider(height: 1),
           ],
       ],

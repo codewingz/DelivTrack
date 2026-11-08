@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../constants/app_colors.dart';
 import '../core/time/pakistan_time.dart';
 import 'app_text_field.dart';
@@ -38,7 +39,9 @@ class AppDateField extends StatelessWidget {
       lastDate: last,
     );
     if (picked == null) return;
-    onChanged('${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}');
+    onChanged(
+      '${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}',
+    );
   }
 
   @override
@@ -51,12 +54,20 @@ class AppDateField extends StatelessWidget {
       enabled: enabled,
       readOnly: true,
       onTap: enabled ? () => _pick(context) : null,
-      prefixIcon: const Icon(Icons.event_rounded, size: 20, color: AppColors.label),
+      prefixIcon: const Icon(
+        Icons.event_rounded,
+        size: 20,
+        color: AppColors.label,
+      ),
       suffixIcon: value == null
           ? null
           : IconButton(
               tooltip: 'Clear date',
-              icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.label),
+              icon: const Icon(
+                Icons.close_rounded,
+                size: 20,
+                color: AppColors.label,
+              ),
               onPressed: enabled ? () => onChanged(null) : null,
             ),
     );

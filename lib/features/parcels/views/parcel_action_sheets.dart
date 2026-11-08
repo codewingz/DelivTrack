@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../common_widgets/app_choice_field.dart';
 import '../../../common_widgets/app_date_field.dart';
 import '../../../common_widgets/app_form_sheet.dart';
@@ -12,14 +13,32 @@ import '../domain/parcel.dart';
 import '../domain/parcel_enums.dart';
 import '../domain/payment.dart';
 
-String? _maxLength(String? value, int max) => collapseSpaces(value ?? '').length > max ? 'Use at most $max characters' : null;
+String? _maxLength(String? value, int max) =>
+    collapseSpaces(value ?? '').length > max
+    ? 'Use at most $max characters'
+    : null;
 
 /// Mark Returned: the returned date (today unless corrected) and an optional reason.
-Future<bool> showReturnSheet(BuildContext context, ParcelRepository repository, Parcel parcel, {Clock clock = const Clock()}) =>
-    showFormSheet(context, (_) => _ReturnSheet(repository: repository, parcel: parcel, today: pakistanDate(clock.nowUtc())));
+Future<bool> showReturnSheet(
+  BuildContext context,
+  ParcelRepository repository,
+  Parcel parcel, {
+  Clock clock = const Clock(),
+}) => showFormSheet(
+  context,
+  (_) => _ReturnSheet(
+    repository: repository,
+    parcel: parcel,
+    today: pakistanDate(clock.nowUtc()),
+  ),
+);
 
 class _ReturnSheet extends StatefulWidget {
-  const _ReturnSheet({required this.repository, required this.parcel, required this.today});
+  const _ReturnSheet({
+    required this.repository,
+    required this.parcel,
+    required this.today,
+  });
   final ParcelRepository repository;
   final Parcel parcel;
   final String today;
@@ -46,12 +65,16 @@ class _ReturnSheetState extends State<_ReturnSheet> {
       title: 'Mark as returned',
       subtitle: hasMoney
           ? '${parcel.orderNumber} · Received ${formatRupees(parcel.receivedPaisa)}, outstanding ${formatRupees(parcel.outstandingPaisa)}. '
-              'Nothing is refunded automatically; the parcel is flagged for payment review.'
+                'Nothing is refunded automatically; the parcel is flagged for payment review.'
           : parcel.orderNumber,
       submitLabel: 'Mark Returned',
       onSubmit: () {
         if (_date == null) throw const AppFailure('Select the returned date.');
-        return widget.repository.markReturned(parcel.id, date: _date!, reason: _reason.text);
+        return widget.repository.markReturned(
+          parcel.id,
+          date: _date!,
+          reason: _reason.text,
+        );
       },
       fields: (busy) => [
         AppDateField(
@@ -78,11 +101,26 @@ class _ReturnSheetState extends State<_ReturnSheet> {
 
 /// Mark Review Completed: how the payment review was settled, a required note and the date. It only
 /// records the decision; nothing is refunded or changed in the payment history.
-Future<bool> showReviewSheet(BuildContext context, ParcelRepository repository, Parcel parcel, {Clock clock = const Clock()}) =>
-    showFormSheet(context, (_) => _ReviewSheet(repository: repository, parcel: parcel, today: pakistanDate(clock.nowUtc())));
+Future<bool> showReviewSheet(
+  BuildContext context,
+  ParcelRepository repository,
+  Parcel parcel, {
+  Clock clock = const Clock(),
+}) => showFormSheet(
+  context,
+  (_) => _ReviewSheet(
+    repository: repository,
+    parcel: parcel,
+    today: pakistanDate(clock.nowUtc()),
+  ),
+);
 
 class _ReviewSheet extends StatefulWidget {
-  const _ReviewSheet({required this.repository, required this.parcel, required this.today});
+  const _ReviewSheet({
+    required this.repository,
+    required this.parcel,
+    required this.today,
+  });
   final ParcelRepository repository;
   final Parcel parcel;
   final String today;
@@ -107,13 +145,21 @@ class _ReviewSheetState extends State<_ReviewSheet> {
     final parcel = widget.parcel;
     return AppFormSheet(
       title: 'Complete payment review',
-      subtitle: '${parcel.orderNumber} · Received ${formatRupees(parcel.receivedPaisa)}, outstanding ${formatRupees(parcel.outstandingPaisa)}. '
+      subtitle:
+          '${parcel.orderNumber} · Received ${formatRupees(parcel.receivedPaisa)}, outstanding ${formatRupees(parcel.outstandingPaisa)}. '
           'This only records your decision. Nothing is refunded or changed in the payment history.',
       submitLabel: 'Mark Review Completed',
       onSubmit: () {
-        if (_resolution == null) throw const AppFailure('Select how the review was settled.');
+        if (_resolution == null) {
+          throw const AppFailure('Select how the review was settled.');
+        }
         if (_date == null) throw const AppFailure('Select the date.');
-        return widget.repository.completePaymentReview(parcel.id, resolution: _resolution!, note: _note.text, date: _date!);
+        return widget.repository.completePaymentReview(
+          parcel.id,
+          resolution: _resolution!,
+          note: _note.text,
+          date: _date!,
+        );
       },
       fields: (busy) => [
         AppChoiceField<ReviewResolution>(
@@ -121,9 +167,13 @@ class _ReviewSheetState extends State<_ReviewSheet> {
           isRequired: true,
           enabled: !busy,
           initialValue: _resolution,
-          options: [for (final resolution in ReviewResolution.values) (value: resolution, label: resolution.label)],
+          options: [
+            for (final resolution in ReviewResolution.values)
+              (value: resolution, label: resolution.label),
+          ],
           onChanged: (resolution) => setState(() => _resolution = resolution),
-          validator: (resolution) => resolution == null ? 'Select how the review was settled' : null,
+          validator: (resolution) =>
+              resolution == null ? 'Select how the review was settled' : null,
         ),
         AppDateField(
           label: 'Date',
@@ -153,8 +203,14 @@ class _ReviewSheetState extends State<_ReviewSheet> {
 }
 
 /// Edit Notes: up to 500 characters; saving an empty note removes it.
-Future<bool> showNotesSheet(BuildContext context, ParcelRepository repository, Parcel parcel) =>
-    showFormSheet(context, (_) => _NotesSheet(repository: repository, parcel: parcel));
+Future<bool> showNotesSheet(
+  BuildContext context,
+  ParcelRepository repository,
+  Parcel parcel,
+) => showFormSheet(
+  context,
+  (_) => _NotesSheet(repository: repository, parcel: parcel),
+);
 
 class _NotesSheet extends StatefulWidget {
   const _NotesSheet({required this.repository, required this.parcel});
@@ -189,7 +245,9 @@ class _NotesSheetState extends State<_NotesSheet> {
           minLines: 3,
           maxLines: 6,
           enabled: !busy,
-          validator: (value) => (value?.trim().length ?? 0) > 500 ? 'Use at most 500 characters' : null,
+          validator: (value) => (value?.trim().length ?? 0) > 500
+              ? 'Use at most 500 characters'
+              : null,
         ),
       ],
     );
@@ -197,11 +255,26 @@ class _NotesSheetState extends State<_NotesSheet> {
 }
 
 /// Change or clear a Pay Later parcel's estimated payment date.
-Future<bool> showPayLaterDateSheet(BuildContext context, ParcelRepository repository, Parcel parcel, {Clock clock = const Clock()}) =>
-    showFormSheet(context, (_) => _PayLaterDateSheet(repository: repository, parcel: parcel, today: pakistanDate(clock.nowUtc())));
+Future<bool> showPayLaterDateSheet(
+  BuildContext context,
+  ParcelRepository repository,
+  Parcel parcel, {
+  Clock clock = const Clock(),
+}) => showFormSheet(
+  context,
+  (_) => _PayLaterDateSheet(
+    repository: repository,
+    parcel: parcel,
+    today: pakistanDate(clock.nowUtc()),
+  ),
+);
 
 class _PayLaterDateSheet extends StatefulWidget {
-  const _PayLaterDateSheet({required this.repository, required this.parcel, required this.today});
+  const _PayLaterDateSheet({
+    required this.repository,
+    required this.parcel,
+    required this.today,
+  });
   final ParcelRepository repository;
   final Parcel parcel;
   final String today;
@@ -217,9 +290,11 @@ class _PayLaterDateSheetState extends State<_PayLaterDateSheet> {
   Widget build(BuildContext context) {
     return AppFormSheet(
       title: 'Pay Later date',
-      subtitle: '${widget.parcel.orderNumber} · Outstanding ${formatRupees(widget.parcel.outstandingPaisa)}',
+      subtitle:
+          '${widget.parcel.orderNumber} · Outstanding ${formatRupees(widget.parcel.outstandingPaisa)}',
       submitLabel: _date == null ? 'Clear Date' : 'Save Date',
-      onSubmit: () => widget.repository.setPayLaterDate(widget.parcel.id, _date),
+      onSubmit: () =>
+          widget.repository.setPayLaterDate(widget.parcel.id, _date),
       fields: (busy) => [
         AppDateField(
           label: 'Estimated payment date',
@@ -227,7 +302,8 @@ class _PayLaterDateSheetState extends State<_PayLaterDateSheet> {
           value: _date,
           enabled: !busy,
           firstDate: widget.today,
-          lastDate: '${int.parse(widget.today.substring(0, 4)) + 5}${widget.today.substring(4)}',
+          lastDate:
+              '${int.parse(widget.today.substring(0, 4)) + 5}${widget.today.substring(4)}',
           onChanged: (date) => setState(() => _date = date),
         ),
       ],
@@ -237,11 +313,29 @@ class _PayLaterDateSheetState extends State<_PayLaterDateSheet> {
 
 /// Correct a payment: the payment is cancelled by a reversal and (if the corrected amount is above 0)
 /// replaced, so the history keeps both. A reason is required.
-Future<bool> showCorrectPaymentSheet(BuildContext context, ParcelRepository repository, Parcel parcel, Payment payment, {Clock clock = const Clock()}) =>
-    showFormSheet(context, (_) => _CorrectPaymentSheet(repository: repository, parcel: parcel, payment: payment, today: pakistanDate(clock.nowUtc())));
+Future<bool> showCorrectPaymentSheet(
+  BuildContext context,
+  ParcelRepository repository,
+  Parcel parcel,
+  Payment payment, {
+  Clock clock = const Clock(),
+}) => showFormSheet(
+  context,
+  (_) => _CorrectPaymentSheet(
+    repository: repository,
+    parcel: parcel,
+    payment: payment,
+    today: pakistanDate(clock.nowUtc()),
+  ),
+);
 
 class _CorrectPaymentSheet extends StatefulWidget {
-  const _CorrectPaymentSheet({required this.repository, required this.parcel, required this.payment, required this.today});
+  const _CorrectPaymentSheet({
+    required this.repository,
+    required this.parcel,
+    required this.payment,
+    required this.today,
+  });
   final ParcelRepository repository;
   final Parcel parcel;
   final Payment payment;
@@ -252,7 +346,9 @@ class _CorrectPaymentSheet extends StatefulWidget {
 }
 
 class _CorrectPaymentSheetState extends State<_CorrectPaymentSheet> {
-  late final _amount = TextEditingController(text: plainRupees(widget.payment.amountPaisa));
+  late final _amount = TextEditingController(
+    text: plainRupees(widget.payment.amountPaisa),
+  );
   final _reason = TextEditingController();
   late String? _date = pakistanDate(widget.payment.receivedAt);
 
@@ -267,16 +363,21 @@ class _CorrectPaymentSheetState extends State<_CorrectPaymentSheet> {
   Widget build(BuildContext context) {
     final payment = widget.payment;
     // What the parcel could receive in place of this payment.
-    final room = widget.parcel.expectedPaisa - (widget.parcel.receivedPaisa - payment.amountPaisa);
+    final room =
+        widget.parcel.expectedPaisa -
+        (widget.parcel.receivedPaisa - payment.amountPaisa);
     return AppFormSheet(
       title: 'Correct payment',
-      subtitle: '${formatDate(pakistanDate(payment.receivedAt))} · ${payment.type.label} · ${formatRupees(payment.amountPaisa)}. '
+      subtitle:
+          '${formatDate(pakistanDate(payment.receivedAt))} · ${payment.type.label} · ${formatRupees(payment.amountPaisa)}. '
           'The original stays in the history. Change the amount, the date or both; enter 0 to cancel it.',
       submitLabel: 'Save Correction',
       onSubmit: () {
         final amount = parseRupeesToPaisa(_amount.text)!;
         final originalDate = pakistanDate(payment.receivedAt);
-        if (amount > 0 && _date == null) throw const AppFailure('Select the received date.');
+        if (amount > 0 && _date == null) {
+          throw const AppFailure('Select the received date.');
+        }
         return widget.repository.correctPayment(
           widget.parcel.id,
           payment.id,
@@ -294,7 +395,10 @@ class _CorrectPaymentSheetState extends State<_CorrectPaymentSheet> {
           validator: (value) {
             final paisa = parseRupeesToPaisa(value ?? '');
             if (paisa == null) return null;
-            if (paisa == payment.amountPaisa && _date == pakistanDate(payment.receivedAt)) return 'Change the amount or the date';
+            if (paisa == payment.amountPaisa &&
+                _date == pakistanDate(payment.receivedAt)) {
+              return 'Change the amount or the date';
+            }
             return paisa > room ? 'Cannot exceed ${formatRupees(room)}' : null;
           },
         ),

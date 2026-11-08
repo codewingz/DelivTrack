@@ -1,5 +1,7 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+
 import '../errors/app_failure.dart';
 
 /// Live list from a stream: loading, error + retry, and disposal. Subclasses add filtering.
@@ -37,7 +39,9 @@ abstract class LiveListViewModel<T> extends ChangeNotifier {
         notifyListeners();
       },
       onError: (Object error) {
-        _errorMessage = error is AppFailure ? error.message : 'Could not load data. Please try again.';
+        _errorMessage = error is AppFailure
+            ? error.message
+            : 'Could not load data. Please try again.';
         notifyListeners();
       },
     );

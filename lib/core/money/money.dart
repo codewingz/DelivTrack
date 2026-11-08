@@ -13,7 +13,9 @@ final _kgPattern = RegExp(r'^\d*(\.\d{0,3})?$');
 /// negative) or above [maxMoneyPaisa].
 int? parseRupeesToPaisa(String text) {
   final trimmed = text.trim();
-  if (trimmed.isEmpty || trimmed == '.' || !_rupeesPattern.hasMatch(trimmed)) return null;
+  if (trimmed.isEmpty || trimmed == '.' || !_rupeesPattern.hasMatch(trimmed)) {
+    return null;
+  }
   final parts = trimmed.replaceAll(',', '').split('.');
   final whole = int.parse(parts[0].isEmpty ? '0' : parts[0]);
   final fraction = parts.length > 1 ? parts[1].padRight(2, '0') : '00';
@@ -25,7 +27,10 @@ int? parseRupeesToPaisa(String text) {
 String formatRupees(int paisa) {
   final sign = paisa < 0 ? '-' : '';
   final absolute = paisa.abs();
-  final whole = (absolute ~/ 100).toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => ',');
+  final whole = (absolute ~/ 100).toString().replaceAllMapped(
+    RegExp(r'\B(?=(\d{3})+(?!\d))'),
+    (_) => ',',
+  );
   final fraction = absolute % 100;
   return '${sign}Rs. $whole${fraction == 0 ? '' : '.${fraction.toString().padLeft(2, '0')}'}';
 }
@@ -34,7 +39,9 @@ String formatRupees(int paisa) {
 /// or above [maxWeightGrams].
 int? parseKgToGrams(String text) {
   final trimmed = text.trim();
-  if (trimmed.isEmpty || trimmed == '.' || !_kgPattern.hasMatch(trimmed)) return null;
+  if (trimmed.isEmpty || trimmed == '.' || !_kgPattern.hasMatch(trimmed)) {
+    return null;
+  }
   final parts = trimmed.split('.');
   final whole = int.parse(parts[0].isEmpty ? '0' : parts[0]);
   final fraction = parts.length > 1 ? parts[1].padRight(3, '0') : '000';
@@ -51,7 +58,8 @@ String formatKg(int grams) {
 }
 
 /// Price of [quantity] pieces at [unitPricePaisa] each.
-int pieceLineTotalPaisa({required int quantity, required int unitPricePaisa}) => quantity * unitPricePaisa;
+int pieceLineTotalPaisa({required int quantity, required int unitPricePaisa}) =>
+    quantity * unitPricePaisa;
 
 /// Price of [grams] at [pricePerKgPaisa] per kg, rounded half up to a whole paisa.
 int weightLineTotalPaisa({required int grams, required int pricePerKgPaisa}) =>
@@ -61,7 +69,9 @@ int weightLineTotalPaisa({required int grams, required int pricePerKgPaisa}) =>
 String plainRupees(int paisa) {
   final whole = paisa ~/ 100;
   final fraction = paisa % 100;
-  return fraction == 0 ? '$whole' : '$whole.${fraction.toString().padLeft(2, '0')}';
+  return fraction == 0
+      ? '$whole'
+      : '$whole.${fraction.toString().padLeft(2, '0')}';
 }
 
 /// Grams as text for an input field: 1250 -> "1.25", 2000 -> "2", 5 -> "0.005".

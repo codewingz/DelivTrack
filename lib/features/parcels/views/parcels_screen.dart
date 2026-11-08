@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
 import '../../../common_widgets/count_badge.dart';
 import '../../../common_widgets/empty_state.dart';
 import '../../../common_widgets/searchable_list_page.dart';
@@ -19,7 +20,14 @@ import 'parcel_status_chips.dart';
 /// All parcels, newest first, with search and filters. Add opens the full-screen form; the callbacks
 /// return the new parcel's id (or null when the user left without saving).
 class ParcelsScreen extends StatefulWidget {
-  const ParcelsScreen({super.key, required this.repository, required this.onAdd, required this.onOpen, this.initialFilters, this.clock = const Clock()});
+  const ParcelsScreen({
+    super.key,
+    required this.repository,
+    required this.onAdd,
+    required this.onOpen,
+    this.initialFilters,
+    this.clock = const Clock(),
+  });
   final ParcelRepository repository;
   final Future<void> Function() onAdd;
   final void Function(Parcel parcel) onOpen;
@@ -33,14 +41,19 @@ class ParcelsScreen extends StatefulWidget {
 }
 
 class _ParcelsScreenState extends State<ParcelsScreen> {
-  late final _viewModel = ParcelListViewModel(widget.repository, clock: widget.clock);
+  late final _viewModel = ParcelListViewModel(
+    widget.repository,
+    clock: widget.clock,
+  );
   final _search = TextEditingController();
   Timer? _debounce;
 
   @override
   void initState() {
     super.initState();
-    if (widget.initialFilters != null) _viewModel.setFilters(widget.initialFilters!);
+    if (widget.initialFilters != null) {
+      _viewModel.setFilters(widget.initialFilters!);
+    }
   }
 
   @override
@@ -66,7 +79,10 @@ class _ParcelsScreenState extends State<ParcelsScreen> {
   /// Runs the search 300 ms after the last keystroke, not on every one.
   void _onQueryChanged(String text) {
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 300), () => _viewModel.setQuery(text));
+    _debounce = Timer(
+      const Duration(milliseconds: 300),
+      () => _viewModel.setQuery(text),
+    );
   }
 
   void _clearAll() {
@@ -76,7 +92,12 @@ class _ParcelsScreenState extends State<ParcelsScreen> {
   }
 
   Future<void> _openFilters() async {
-    final filters = await showParcelFilterSheet(context, current: _viewModel.filters, products: _viewModel.products, today: _viewModel.today);
+    final filters = await showParcelFilterSheet(
+      context,
+      current: _viewModel.filters,
+      products: _viewModel.products,
+      today: _viewModel.today,
+    );
     if (filters != null) _viewModel.setFilters(filters);
   }
 
@@ -93,36 +114,48 @@ class _ParcelsScreenState extends State<ParcelsScreen> {
           searchController: _search,
           searchHint: 'Order, VPP number, customer, product',
           onQueryChanged: _onQueryChanged,
-          header: _FilterBar(viewModel: _viewModel, onOpenFilters: _openFilters),
-          footer: _viewModel.hasMore ? TextButton(onPressed: _viewModel.loadMore, child: const Text('Load more')) : null,
+          header: _FilterBar(
+            viewModel: _viewModel,
+            onOpenFilters: _openFilters,
+          ),
+          footer: _viewModel.hasMore
+              ? TextButton(
+                  onPressed: _viewModel.loadMore,
+                  child: const Text('Load more'),
+                )
+              : null,
           addLabel: 'Add Parcel',
           onAdd: widget.onAdd,
           emptyBuilder: () => _viewModel.isLoadingPaymentDates
-              ? const EmptyState(icon: Icons.hourglass_empty_rounded, title: 'Checking payment dates...')
+              ? const EmptyState(
+                  icon: Icons.hourglass_empty_rounded,
+                  title: 'Checking payment dates...',
+                )
               : _viewModel.paymentDatesError != null
-                  ? EmptyState(
-                      icon: Icons.error_outline_rounded,
-                      title: "Couldn't check payment dates",
-                      message: _viewModel.paymentDatesError,
-                      actionLabel: 'Retry',
-                      onAction: _viewModel.retryPaymentDates,
-                    )
-                  : _viewModel.isNarrowed
-                      ? EmptyState(
-                          icon: Icons.search_off_rounded,
-                          title: 'No parcels match',
-                          message: 'Try a different search or clear the filters.',
-                          actionLabel: 'Clear search and filters',
-                          onAction: _clearAll,
-                        )
-                      : EmptyState(
-                          icon: Icons.local_shipping_outlined,
-                          title: 'No parcels yet',
-                          message: 'Add your first parcel.',
-                          actionLabel: 'Add Parcel',
-                          onAction: widget.onAdd,
-                        ),
-          itemBuilder: (context, parcel) => ParcelTile(parcel: parcel, onTap: () => widget.onOpen(parcel)),
+              ? EmptyState(
+                  icon: Icons.error_outline_rounded,
+                  title: "Couldn't check payment dates",
+                  message: _viewModel.paymentDatesError,
+                  actionLabel: 'Retry',
+                  onAction: _viewModel.retryPaymentDates,
+                )
+              : _viewModel.isNarrowed
+              ? EmptyState(
+                  icon: Icons.search_off_rounded,
+                  title: 'No parcels match',
+                  message: 'Try a different search or clear the filters.',
+                  actionLabel: 'Clear search and filters',
+                  onAction: _clearAll,
+                )
+              : EmptyState(
+                  icon: Icons.local_shipping_outlined,
+                  title: 'No parcels yet',
+                  message: 'Add your first parcel.',
+                  actionLabel: 'Add Parcel',
+                  onAction: widget.onAdd,
+                ),
+          itemBuilder: (context, parcel) =>
+              ParcelTile(parcel: parcel, onTap: () => widget.onOpen(parcel)),
         );
       },
     );
@@ -137,22 +170,46 @@ class _FilterBar extends StatelessWidget {
   final VoidCallback onOpenFilters;
 
   static String _range(String? from, String? to) => switch ((from, to)) {
-        (final f?, final t?) => '${formatDate(f)} – ${formatDate(t)}',
-        (final f?, null) => 'from ${formatDate(f)}',
-        (null, final t?) => 'until ${formatDate(t)}',
-        _ => '',
-      };
+    (final f?, final t?) => '${formatDate(f)} – ${formatDate(t)}',
+    (final f?, null) => 'from ${formatDate(f)}',
+    (null, final t?) => 'until ${formatDate(t)}',
+    _ => '',
+  };
 
   @override
   Widget build(BuildContext context) {
     final filters = viewModel.filters;
     final chips = <({String label, ParcelFilters without})>[
-      if (filters.hasSendingDates) (label: 'Sent ${_range(filters.sendingFrom, filters.sendingTo)}', without: filters.copyWith(sendingFrom: null, sendingTo: null)),
-      if (filters.hasReceivedDates) (label: 'Paid ${_range(filters.receivedFrom, filters.receivedTo)}', without: filters.copyWith(receivedFrom: null, receivedTo: null)),
-      if (filters.productId != null) (label: 'Product: ${filters.productName}', without: filters.copyWith(productId: null, productName: null)),
-      if (filters.methods.isNotEmpty) (label: 'Type: ${filters.methods.map((m) => m.label).join(', ')}', without: filters.copyWith(methods: {})),
-      if (filters.payments.isNotEmpty) (label: 'Payment: ${filters.payments.map((p) => p.label).join(', ')}', without: filters.copyWith(payments: {})),
-      if (filters.statuses.isNotEmpty) (label: 'Status: ${filters.statuses.map((s) => s.label).join(', ')}', without: filters.copyWith(statuses: {})),
+      if (filters.hasSendingDates)
+        (
+          label: 'Sent ${_range(filters.sendingFrom, filters.sendingTo)}',
+          without: filters.copyWith(sendingFrom: null, sendingTo: null),
+        ),
+      if (filters.hasReceivedDates)
+        (
+          label: 'Paid ${_range(filters.receivedFrom, filters.receivedTo)}',
+          without: filters.copyWith(receivedFrom: null, receivedTo: null),
+        ),
+      if (filters.productId != null)
+        (
+          label: 'Product: ${filters.productName}',
+          without: filters.copyWith(productId: null, productName: null),
+        ),
+      if (filters.methods.isNotEmpty)
+        (
+          label: 'Type: ${filters.methods.map((m) => m.label).join(', ')}',
+          without: filters.copyWith(methods: {}),
+        ),
+      if (filters.payments.isNotEmpty)
+        (
+          label: 'Payment: ${filters.payments.map((p) => p.label).join(', ')}',
+          without: filters.copyWith(payments: {}),
+        ),
+      if (filters.statuses.isNotEmpty)
+        (
+          label: 'Status: ${filters.statuses.map((s) => s.label).join(', ')}',
+          without: filters.copyWith(statuses: {}),
+        ),
     ];
     final count = viewModel.matching.length;
     return Column(
@@ -162,15 +219,26 @@ class _FilterBar extends StatelessWidget {
           children: [
             OutlinedButton.icon(
               onPressed: onOpenFilters,
-              icon: CountBadge(count: filters.activeCount, child: const Icon(Icons.filter_list_rounded)),
+              icon: CountBadge(
+                count: filters.activeCount,
+                child: const Icon(Icons.filter_list_rounded),
+              ),
               label: const Text('Filters'),
             ),
             const SizedBox(width: AppSpacing.md),
-            if (!viewModel.isLoading && viewModel.errorMessage == null && !viewModel.isLoadingPaymentDates)
+            if (!viewModel.isLoading &&
+                viewModel.errorMessage == null &&
+                !viewModel.isLoadingPaymentDates)
               Flexible(
                 child: Text(
-                  viewModel.isNarrowed ? '$count ${count == 1 ? 'match' : 'matches'}' : '$count ${count == 1 ? 'parcel' : 'parcels'}',
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+                  viewModel.isNarrowed
+                      ? '$count ${count == 1 ? 'match' : 'matches'}'
+                      : '$count ${count == 1 ? 'parcel' : 'parcels'}',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ),
           ],
@@ -180,7 +248,14 @@ class _FilterBar extends StatelessWidget {
             spacing: AppSpacing.sm,
             children: [
               for (final chip in chips)
-                InputChip(label: Text(chip.label, maxLines: 1, overflow: TextOverflow.ellipsis), onDeleted: () => viewModel.setFilters(chip.without)),
+                InputChip(
+                  label: Text(
+                    chip.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  onDeleted: () => viewModel.setFilters(chip.without),
+                ),
             ],
           ),
       ],
@@ -195,26 +270,63 @@ class ParcelTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final reference = parcel.postalReference.isEmpty ? 'No postal reference yet' : '${parcel.serviceLabel} · ${parcel.postalReference}';
+    final reference = parcel.postalReference.isEmpty
+        ? 'No postal reference yet'
+        : '${parcel.serviceLabel} · ${parcel.postalReference}';
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsetsDirectional.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+        padding: const EdgeInsetsDirectional.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.md,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(parcel.orderNumber, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+            Text(
+              parcel.orderNumber,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: AppColors.primaryDark,
+              ),
+            ),
             const SizedBox(height: AppSpacing.xs),
-            ParcelStatusChips(status: parcel.status, payment: parcel.paymentStatus),
+            ParcelStatusChips(
+              status: parcel.status,
+              payment: parcel.paymentStatus,
+            ),
             const SizedBox(height: AppSpacing.sm),
-            Text(parcel.customerName, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-            Text(reference, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+            Text(
+              parcel.customerName,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            ),
+            Text(
+              reference,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
+            ),
             Text(
               '${parcel.sendingDateLabel} · ${parcel.method == CollectionMethod.giftFree ? 'Gift / Free' : formatRupees(parcel.expectedPaisa)}',
-              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
             ),
             if (parcel.method != CollectionMethod.giftFree)
-              Text('Balance ${formatRupees(parcel.outstandingPaisa)}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+              Text(
+                'Balance ${formatRupees(parcel.outstandingPaisa)}',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
           ],
         ),
       ),

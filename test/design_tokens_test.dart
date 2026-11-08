@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import 'package:deliv_track/design_system/foundations/spacing/app_spacing.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -26,14 +27,26 @@ void main() {
       r'SizedBox\((height|width): \d|EdgeInsets\w*(\.\w+)?\([^)]*\b\d|BorderRadius\.circular\(\d',
     );
     final offenders = <String>[];
-    for (final file in Directory('lib').listSync(recursive: true).whereType<File>()) {
+    for (final file in Directory(
+      'lib',
+    ).listSync(recursive: true).whereType<File>()) {
       final path = file.path;
-      if (!path.endsWith('.dart') || path.contains('design_system') || path.endsWith('firebase_options.dart')) continue;
+      if (!path.endsWith('.dart') ||
+          path.contains('design_system') ||
+          path.endsWith('firebase_options.dart')) {
+        continue;
+      }
       final lines = file.readAsLinesSync();
       for (var i = 0; i < lines.length; i++) {
-        if (raw.hasMatch(lines[i])) offenders.add('$path:${i + 1}: ${lines[i].trim()}');
+        if (raw.hasMatch(lines[i])) {
+          offenders.add('$path:${i + 1}: ${lines[i].trim()}');
+        }
       }
     }
-    expect(offenders, isEmpty, reason: 'Use AppSpacing / AppRadius tokens:\n${offenders.join('\n')}');
+    expect(
+      offenders,
+      isEmpty,
+      reason: 'Use AppSpacing / AppRadius tokens:\n${offenders.join('\n')}',
+    );
   });
 }

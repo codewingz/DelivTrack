@@ -1,9 +1,15 @@
 import 'dart:async';
+
 import 'package:deliv_track/core/errors/app_failure.dart';
 import 'package:deliv_track/features/auth/data/auth_repository.dart';
 
 class FakeAuthRepository implements AuthRepository {
-  FakeAuthRepository({this.failure, this.signedIn = false, this.name, this.accountEmail = 'owner@codewingz.com'});
+  FakeAuthRepository({
+    this.failure,
+    this.signedIn = false,
+    this.name,
+    this.accountEmail = 'owner@codewingz.com',
+  });
 
   final String? accountEmail;
 
@@ -54,7 +60,11 @@ class FakeAuthRepository implements AuthRepository {
   Stream<String?> get displayNameChanges => _nameController.stream;
 
   @override
-  Future<void> signUp({required String name, required String email, required String password}) async {
+  Future<void> signUp({
+    required String name,
+    required String email,
+    required String password,
+  }) async {
     signUps.add((name: name, email: email, password: password));
     await _finish();
     emitSignedIn(true, name: name);

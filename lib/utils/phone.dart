@@ -3,7 +3,9 @@
 String normalizePhone(String raw) {
   final digits = raw.replaceAll(RegExp(r'\D'), '');
   if (digits.startsWith('0092')) return '0${digits.substring(4)}';
-  if (digits.startsWith('92') && digits.length == 12) return '0${digits.substring(2)}';
+  if (digits.startsWith('92') && digits.length == 12) {
+    return '0${digits.substring(2)}';
+  }
   return digits;
 }
 

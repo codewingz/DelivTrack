@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../common_widgets/app_choice_field.dart';
 import '../../../common_widgets/app_date_field.dart';
 import '../../../common_widgets/app_form_sheet.dart';
@@ -13,11 +14,22 @@ import '../domain/payment.dart';
 import '../domain/payment_rules.dart';
 
 /// Opens the "Mark Payment Received" sheet. Returns true when a payment was recorded.
-Future<bool> showPaymentSheet(BuildContext context, ParcelRepository repository, Parcel parcel) =>
-    showFormSheet(context, (_) => PaymentSheet(repository: repository, parcel: parcel));
+Future<bool> showPaymentSheet(
+  BuildContext context,
+  ParcelRepository repository,
+  Parcel parcel,
+) => showFormSheet(
+  context,
+  (_) => PaymentSheet(repository: repository, parcel: parcel),
+);
 
 class PaymentSheet extends StatefulWidget {
-  const PaymentSheet({super.key, required this.repository, required this.parcel, this.clock = const Clock()});
+  const PaymentSheet({
+    super.key,
+    required this.repository,
+    required this.parcel,
+    this.clock = const Clock(),
+  });
   final ParcelRepository repository;
   final Parcel parcel;
   final Clock clock;
@@ -27,7 +39,9 @@ class PaymentSheet extends StatefulWidget {
 }
 
 class _PaymentSheetState extends State<PaymentSheet> {
-  late final _amount = TextEditingController(text: plainRupees(widget.parcel.outstandingPaisa));
+  late final _amount = TextEditingController(
+    text: plainRupees(widget.parcel.outstandingPaisa),
+  );
   final _note = TextEditingController();
   PaymentType? _type;
   bool _enteredLate = false;
@@ -46,10 +60,13 @@ class _PaymentSheetState extends State<PaymentSheet> {
     final today = pakistanDate(widget.clock.nowUtc());
     return AppFormSheet(
       title: 'Mark payment received',
-      subtitle: '${widget.parcel.orderNumber} · Outstanding ${formatRupees(outstanding)}',
+      subtitle:
+          '${widget.parcel.orderNumber} · Outstanding ${formatRupees(outstanding)}',
       submitLabel: 'Confirm Payment',
       onSubmit: () {
-        if (_enteredLate && _receivedOn == null) throw const AppFailure('Select the day it was received.');
+        if (_enteredLate && _receivedOn == null) {
+          throw const AppFailure('Select the day it was received.');
+        }
         return widget.repository.recordPayment(
           widget.parcel.id,
           amountPaisa: parseRupeesToPaisa(_amount.text)!,
@@ -66,7 +83,9 @@ class _PaymentSheetState extends State<PaymentSheet> {
           enabled: !busy,
           validator: (value) {
             final paisa = parseRupeesToPaisa(value ?? '');
-            return paisa != null && paisa > outstanding ? 'Cannot exceed outstanding ${formatRupees(outstanding)}' : null;
+            return paisa != null && paisa > outstanding
+                ? 'Cannot exceed outstanding ${formatRupees(outstanding)}'
+                : null;
           },
         ),
         AppChoiceField<PaymentType>(
@@ -74,7 +93,10 @@ class _PaymentSheetState extends State<PaymentSheet> {
           isRequired: true,
           enabled: !busy,
           initialValue: _type,
-          options: [for (final type in PaymentType.values) (value: type, label: type.label)],
+          options: [
+            for (final type in PaymentType.values)
+              (value: type, label: type.label),
+          ],
           onChanged: (type) => setState(() => _type = type),
           validator: (type) => type == null ? 'Select a payment type' : null,
         ),
@@ -83,7 +105,9 @@ class _PaymentSheetState extends State<PaymentSheet> {
           title: const Text('Entered late?'),
           subtitle: const Text('The payment was received on an earlier day'),
           value: _enteredLate,
-          onChanged: busy ? null : (value) => setState(() => _enteredLate = value),
+          onChanged: busy
+              ? null
+              : (value) => setState(() => _enteredLate = value),
         ),
         if (_enteredLate)
           AppDateField(
@@ -102,7 +126,10 @@ class _PaymentSheetState extends State<PaymentSheet> {
           minLines: 2,
           maxLines: 4,
           enabled: !busy,
-          validator: (value) => collapseSpaces(value ?? '').length > maxPaymentNoteLength ? 'Use at most $maxPaymentNoteLength characters' : null,
+          validator: (value) =>
+              collapseSpaces(value ?? '').length > maxPaymentNoteLength
+              ? 'Use at most $maxPaymentNoteLength characters'
+              : null,
         ),
       ],
     );

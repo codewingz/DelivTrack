@@ -21,7 +21,8 @@ class ProductListViewModel extends LiveListViewModel<Product> {
     final needle = _query.trim().toLowerCase();
     return [
       for (final p in all)
-        if (p.isActive == (_segment == ProductSegment.active) && (needle.isEmpty || p.name.toLowerCase().contains(needle)))
+        if (p.isActive == (_segment == ProductSegment.active) &&
+            (needle.isEmpty || p.name.toLowerCase().contains(needle)))
           p,
     ];
   }

@@ -16,7 +16,11 @@ enum ReminderGroup {
 /// only a Pay Later parcel that is not returned and still has an outstanding balance counts. A parcel
 /// without a date is listed as unpaid and is never overdue. [today] is a Pakistan date "yyyy-MM-dd".
 ReminderGroup? reminderGroupFor(Parcel parcel, String today) {
-  if (parcel.method != CollectionMethod.payLater || parcel.status == ParcelStatus.returned || parcel.outstandingPaisa <= 0) return null;
+  if (parcel.method != CollectionMethod.payLater ||
+      parcel.status == ParcelStatus.returned ||
+      parcel.outstandingPaisa <= 0) {
+    return null;
+  }
   final date = parcel.estimatedPaymentDate;
   if (date == null) return ReminderGroup.noDate;
   final order = date.compareTo(today);
@@ -32,15 +36,16 @@ String reminderDateText(Parcel parcel, ReminderGroup group, String today) {
     ReminderGroup.noDate => 'No date set',
     ReminderGroup.dueToday => 'Due today',
     ReminderGroup.overdue => () {
-        final days = daysBetween(date!, today);
-        return 'Overdue by $days ${days == 1 ? 'day' : 'days'} · ${formatDate(date)}';
-      }(),
+      final days = daysBetween(date!, today);
+      return 'Overdue by $days ${days == 1 ? 'day' : 'days'} · ${formatDate(date)}';
+    }(),
     ReminderGroup.upcoming => 'Due ${formatDate(date!)}',
   };
 }
 
 /// Whole days between two "yyyy-MM-dd" dates ([later] minus [earlier]).
-int daysBetween(String earlier, String later) => DateTime.parse(later).difference(DateTime.parse(earlier)).inDays;
+int daysBetween(String earlier, String later) =>
+    DateTime.parse(later).difference(DateTime.parse(earlier)).inDays;
 
 /// The Pay Later parcels to follow up, grouped. Overdue: longest overdue first; upcoming: soonest
 /// first; no date: newest parcel first.
@@ -48,15 +53,20 @@ class Reminders {
   Reminders._(this._groups);
 
   factory Reminders.from(Iterable<Parcel> parcels, String today) {
-    final groups = {for (final group in ReminderGroup.values) group: <Parcel>[]};
+    final groups = {
+      for (final group in ReminderGroup.values) group: <Parcel>[],
+    };
     for (final parcel in parcels) {
       final group = reminderGroupFor(parcel, today);
       if (group != null) groups[group]!.add(parcel);
     }
-    int byDate(Parcel a, Parcel b) => a.estimatedPaymentDate!.compareTo(b.estimatedPaymentDate!);
+    int byDate(Parcel a, Parcel b) =>
+        a.estimatedPaymentDate!.compareTo(b.estimatedPaymentDate!);
     groups[ReminderGroup.overdue]!.sort(byDate);
     groups[ReminderGroup.upcoming]!.sort(byDate);
-    groups[ReminderGroup.noDate]!.sort((a, b) => b.orderSequence.compareTo(a.orderSequence));
+    groups[ReminderGroup.noDate]!.sort(
+      (a, b) => b.orderSequence.compareTo(a.orderSequence),
+    );
     return Reminders._(groups);
   }
 
@@ -65,7 +75,8 @@ class Reminders {
   List<Parcel> operator [](ReminderGroup group) => _groups[group]!;
 
   /// Due today plus overdue: what the bell badge counts.
-  int get dueCount => this[ReminderGroup.overdue].length + this[ReminderGroup.dueToday].length;
+  int get dueCount =>
+      this[ReminderGroup.overdue].length + this[ReminderGroup.dueToday].length;
 
   bool get isEmpty => _groups.values.every((list) => list.isEmpty);
 }

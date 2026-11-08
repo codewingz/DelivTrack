@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../common_widgets/empty_state.dart';
 import '../../../common_widgets/list_skeleton.dart';
 import '../../../constants/app_colors.dart';
@@ -17,7 +18,13 @@ import '../viewmodel/reminder_list_view_model.dart';
 /// Pay Later follow-ups: due today, overdue, upcoming and without a date. Works without notification
 /// permission: this list is always available inside the app.
 class RemindersScreen extends StatefulWidget {
-  const RemindersScreen({super.key, required this.repository, required this.onOpen, this.scheduler = const NoReminderScheduler(), this.clock = const Clock()});
+  const RemindersScreen({
+    super.key,
+    required this.repository,
+    required this.onOpen,
+    this.scheduler = const NoReminderScheduler(),
+    this.clock = const Clock(),
+  });
   final ParcelRepository repository;
   final ReminderScheduler scheduler;
   final void Function(Parcel parcel) onOpen;
@@ -28,7 +35,10 @@ class RemindersScreen extends StatefulWidget {
 }
 
 class _RemindersScreenState extends State<RemindersScreen> {
-  late final _viewModel = ReminderListViewModel(widget.repository, clock: widget.clock);
+  late final _viewModel = ReminderListViewModel(
+    widget.repository,
+    clock: widget.clock,
+  );
 
   bool _notificationsOn = true;
 
@@ -44,7 +54,9 @@ class _RemindersScreenState extends State<RemindersScreen> {
   }
 
   Future<void> _turnOnNotifications() async {
-    if (!await widget.scheduler.requestPermission()) await widget.scheduler.openSettings();
+    if (!await widget.scheduler.requestPermission()) {
+      await widget.scheduler.openSettings();
+    }
     await _refreshNotificationState();
   }
 
@@ -68,7 +80,10 @@ class _RemindersScreenState extends State<RemindersScreen> {
           alignment: Alignment.topCenter,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 640),
-            child: ListenableBuilder(listenable: _viewModel, builder: (context, _) => _body(context)),
+            child: ListenableBuilder(
+              listenable: _viewModel,
+              builder: (context, _) => _body(context),
+            ),
           ),
         ),
       ),
@@ -85,7 +100,9 @@ class _RemindersScreenState extends State<RemindersScreen> {
         onAction: _viewModel.retry,
       );
     }
-    if (_viewModel.isLoading) return const SingleChildScrollView(child: ListSkeleton());
+    if (_viewModel.isLoading) {
+      return const SingleChildScrollView(child: ListSkeleton());
+    }
     final reminders = _viewModel.reminders;
     if (reminders.isEmpty) {
       return const EmptyState(
@@ -95,13 +112,20 @@ class _RemindersScreenState extends State<RemindersScreen> {
       );
     }
     final today = _viewModel.today;
-    final hasDated = reminders[ReminderGroup.dueToday].isNotEmpty || reminders[ReminderGroup.upcoming].isNotEmpty;
+    final hasDated =
+        reminders[ReminderGroup.dueToday].isNotEmpty ||
+        reminders[ReminderGroup.upcoming].isNotEmpty;
     return CustomScrollView(
       slivers: [
-        if (!_notificationsOn && hasDated) SliverToBoxAdapter(child: _NotificationsOffBanner(onTurnOn: _turnOnNotifications)),
+        if (!_notificationsOn && hasDated)
+          SliverToBoxAdapter(
+            child: _NotificationsOffBanner(onTurnOn: _turnOnNotifications),
+          ),
         for (final group in ReminderGroup.values)
           if (reminders[group].isNotEmpty) ...[
-            SliverToBoxAdapter(child: _GroupHeader(group: group, count: reminders[group].length)),
+            SliverToBoxAdapter(
+              child: _GroupHeader(group: group, count: reminders[group].length),
+            ),
             SliverList.builder(
               itemCount: reminders[group].length,
               itemBuilder: (context, index) {
@@ -111,13 +135,26 @@ class _RemindersScreenState extends State<RemindersScreen> {
                   group: group,
                   today: today,
                   onOpen: () => widget.onOpen(parcel),
-                  onReceive: () => _act(() => showPaymentSheet(context, widget.repository, parcel), 'Payment recorded.'),
-                  onChangeDate: () => _act(() => showPayLaterDateSheet(context, widget.repository, parcel, clock: widget.clock), 'Pay Later date saved.'),
+                  onReceive: () => _act(
+                    () => showPaymentSheet(context, widget.repository, parcel),
+                    'Payment recorded.',
+                  ),
+                  onChangeDate: () => _act(
+                    () => showPayLaterDateSheet(
+                      context,
+                      widget.repository,
+                      parcel,
+                      clock: widget.clock,
+                    ),
+                    'Pay Later date saved.',
+                  ),
                 );
               },
             ),
           ],
-        const SliverPadding(padding: EdgeInsetsDirectional.only(bottom: AppSpacing.xxl)),
+        const SliverPadding(
+          padding: EdgeInsetsDirectional.only(bottom: AppSpacing.xxl),
+        ),
       ],
     );
   }
@@ -130,14 +167,24 @@ class _GroupHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final urgent = group == ReminderGroup.overdue || group == ReminderGroup.dueToday;
+    final urgent =
+        group == ReminderGroup.overdue || group == ReminderGroup.dueToday;
     return Padding(
-      padding: const EdgeInsetsDirectional.fromSTEB(AppSpacing.lg, AppSpacing.xl, AppSpacing.lg, AppSpacing.sm),
+      padding: const EdgeInsetsDirectional.fromSTEB(
+        AppSpacing.lg,
+        AppSpacing.xl,
+        AppSpacing.lg,
+        AppSpacing.sm,
+      ),
       child: Semantics(
         header: true,
         child: Text(
           '${group.label} ($count)',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: urgent ? AppColors.error : AppColors.primaryDark),
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            color: urgent ? AppColors.error : AppColors.primaryDark,
+          ),
         ),
       ),
     );
@@ -168,28 +215,69 @@ class _ReminderTile extends StatelessWidget {
         InkWell(
           onTap: onOpen,
           child: Padding(
-            padding: const EdgeInsetsDirectional.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+            padding: const EdgeInsetsDirectional.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.md,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(parcel.orderNumber, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+                Text(
+                  parcel.orderNumber,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primaryDark,
+                  ),
+                ),
                 const SizedBox(height: AppSpacing.xs),
-                Text(parcel.customerName, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                Text(
+                  parcel.customerName,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 Text(
                   'Outstanding ${formatRupees(parcel.outstandingPaisa)}',
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
-                Text(reminderDateText(parcel, group, today), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: group == ReminderGroup.overdue ? AppColors.error : AppColors.textSecondary)),
+                Text(
+                  reminderDateText(parcel, group, today),
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: group == ReminderGroup.overdue
+                        ? AppColors.error
+                        : AppColors.textSecondary,
+                  ),
+                ),
               ],
             ),
           ),
         ),
         Padding(
-          padding: const EdgeInsetsDirectional.symmetric(horizontal: AppSpacing.sm),
+          padding: const EdgeInsetsDirectional.symmetric(
+            horizontal: AppSpacing.sm,
+          ),
           child: Wrap(
             children: [
-              TextButton(onPressed: onReceive, child: const Text('Mark Received')),
-              TextButton(onPressed: onChangeDate, child: Text(group == ReminderGroup.noDate ? 'Set Date' : 'Change Date')),
+              TextButton(
+                onPressed: onReceive,
+                child: const Text('Mark Received'),
+              ),
+              TextButton(
+                onPressed: onChangeDate,
+                child: Text(
+                  group == ReminderGroup.noDate ? 'Set Date' : 'Change Date',
+                ),
+              ),
             ],
           ),
         ),
@@ -206,7 +294,11 @@ class _NotificationsOffBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsetsDirectional.only(start: AppSpacing.lg, top: AppSpacing.lg, end: AppSpacing.lg),
+      padding: const EdgeInsetsDirectional.only(
+        start: AppSpacing.lg,
+        top: AppSpacing.lg,
+        end: AppSpacing.lg,
+      ),
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: AppColors.surface,
@@ -218,13 +310,23 @@ class _NotificationsOffBanner extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Phone notifications are off', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+              const Text(
+                'Phone notifications are off',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primaryDark,
+                ),
+              ),
               const SizedBox(height: AppSpacing.xs),
               const Text(
                 'Turn them on to get a reminder at 9:00 AM on the day a payment is due. This list always works without them.',
                 style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
               ),
-              TextButton(onPressed: onTurnOn, child: const Text('Turn On Notifications')),
+              TextButton(
+                onPressed: onTurnOn,
+                child: const Text('Turn On Notifications'),
+              ),
             ],
           ),
         ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../common_widgets/empty_state.dart';
 import '../../../common_widgets/searchable_list_page.dart';
 import '../data/product_repository.dart';
@@ -37,7 +38,10 @@ class _ProductPickerScreenState extends State<ProductPickerScreen> {
         searchHint: 'Search products',
         onQueryChanged: _viewModel.setQuery,
         emptyBuilder: () => _viewModel.query.trim().isNotEmpty
-            ? EmptyState(icon: Icons.search_off_rounded, title: 'No products match "${_viewModel.query.trim()}"')
+            ? EmptyState(
+                icon: Icons.search_off_rounded,
+                title: 'No products match "${_viewModel.query.trim()}"',
+              )
             : const EmptyState(
                 icon: Icons.inventory_2_outlined,
                 title: 'No products to choose from',
@@ -45,7 +49,11 @@ class _ProductPickerScreenState extends State<ProductPickerScreen> {
               ),
         itemBuilder: (context, product) => ListTile(
           minTileHeight: 56,
-          title: Text(product.name, maxLines: 2, overflow: TextOverflow.ellipsis),
+          title: Text(
+            product.name,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
           subtitle: Text(product.saleUnit.label),
           onTap: () => Navigator.of(context).pop(product),
         ),

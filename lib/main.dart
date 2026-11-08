@@ -95,7 +95,9 @@ class _DelivTrackAppState extends State<DelivTrackApp>
       if (!signedIn) widget.reminderScheduler.cancelAll();
     });
     _notificationTaps = widget.reminderScheduler.taps.listen((parcelId) {
-      if (widget.repository.isSignedIn) _router.push(AppRoutes.parcelPath(parcelId));
+      if (widget.repository.isSignedIn) {
+        _router.push(AppRoutes.parcelPath(parcelId));
+      }
     });
   }
 

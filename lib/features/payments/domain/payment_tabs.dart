@@ -19,19 +19,24 @@ enum PaymentTab {
   /// Whether [parcel] belongs in this list. [today] is a Pakistan date "yyyy-MM-dd".
   bool includes(Parcel parcel, String today) {
     if (parcel.method == CollectionMethod.giftFree) return false;
-    if (parcel.status == ParcelStatus.returned) return this == review && parcel.paymentReviewRequired;
+    if (parcel.status == ParcelStatus.returned) {
+      return this == review && parcel.paymentReviewRequired;
+    }
     return switch (this) {
       pending => parcel.paymentStatus == PaymentStatus.pending,
       partial => parcel.paymentStatus == PaymentStatus.partial,
       received => parcel.paymentStatus == PaymentStatus.received,
       postOffice => parcel.method == CollectionMethod.postalCollection,
       advance => parcel.method == CollectionMethod.advance,
-      payLater => parcel.method == CollectionMethod.payLater && parcel.outstandingPaisa > 0,
+      payLater =>
+        parcel.method == CollectionMethod.payLater &&
+            parcel.outstandingPaisa > 0,
       // No date: unpaid, but never overdue.
-      overdue => parcel.method == CollectionMethod.payLater &&
-          parcel.outstandingPaisa > 0 &&
-          parcel.estimatedPaymentDate != null &&
-          parcel.estimatedPaymentDate!.compareTo(today) < 0,
+      overdue =>
+        parcel.method == CollectionMethod.payLater &&
+            parcel.outstandingPaisa > 0 &&
+            parcel.estimatedPaymentDate != null &&
+            parcel.estimatedPaymentDate!.compareTo(today) < 0,
       review => false,
     };
   }
@@ -39,19 +44,34 @@ enum PaymentTab {
 
 /// The three header figures (Gift / Free and returned parcels are left out).
 class PaymentTotals {
-  const PaymentTotals({required this.outstandingPaisa, required this.payLaterPaisa, required this.advancePaisa});
+  const PaymentTotals({
+    required this.outstandingPaisa,
+    required this.payLaterPaisa,
+    required this.advancePaisa,
+  });
 
   factory PaymentTotals.from(Iterable<Parcel> parcels) {
     var outstanding = 0;
     var payLater = 0;
     var advance = 0;
     for (final parcel in parcels) {
-      if (parcel.method == CollectionMethod.giftFree || parcel.status == ParcelStatus.returned) continue;
+      if (parcel.method == CollectionMethod.giftFree ||
+          parcel.status == ParcelStatus.returned) {
+        continue;
+      }
       outstanding += parcel.outstandingPaisa;
-      if (parcel.method == CollectionMethod.payLater) payLater += parcel.outstandingPaisa;
-      if (parcel.method == CollectionMethod.advance) advance += parcel.receivedPaisa;
+      if (parcel.method == CollectionMethod.payLater) {
+        payLater += parcel.outstandingPaisa;
+      }
+      if (parcel.method == CollectionMethod.advance) {
+        advance += parcel.receivedPaisa;
+      }
     }
-    return PaymentTotals(outstandingPaisa: outstanding, payLaterPaisa: payLater, advancePaisa: advance);
+    return PaymentTotals(
+      outstandingPaisa: outstanding,
+      payLaterPaisa: payLater,
+      advancePaisa: advance,
+    );
   }
 
   /// Still to be collected on every paid-type parcel.

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../constants/app_colors.dart';
 
 class BrandLoadingIndicator extends StatelessWidget {
@@ -20,11 +21,8 @@ class BrandLoadingIndicator extends StatelessWidget {
       height: size,
       child: CircularProgressIndicator(
         strokeWidth: strokeWidth,
-        valueColor: AlwaysStoppedAnimation<Color>(
-          color ?? AppColors.primary,
-        ),
+        valueColor: AlwaysStoppedAnimation<Color>(color ?? AppColors.primary),
       ),
     );
   }
 }
-

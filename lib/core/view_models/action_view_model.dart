@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+
 import '../errors/app_failure.dart';
 
 /// Loading / error state for one submit action (sign up, save product, ...).

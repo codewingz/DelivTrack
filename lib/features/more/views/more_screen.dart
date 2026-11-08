@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../common_widgets/confirm_dialog.dart';
 import '../../../constants/app_colors.dart';
 import '../../auth/data/auth_repository.dart';
@@ -28,7 +29,10 @@ class MoreScreen extends StatelessWidget {
           children: [
             ListTile(
               minTileHeight: 56,
-              leading: const Icon(Icons.inventory_2_outlined, color: AppColors.label),
+              leading: const Icon(
+                Icons.inventory_2_outlined,
+                color: AppColors.label,
+              ),
               title: const Text('Products'),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: onOpenProducts,
@@ -36,7 +40,10 @@ class MoreScreen extends StatelessWidget {
             const Divider(height: 1),
             ListTile(
               minTileHeight: 56,
-              leading: const Icon(Icons.assessment_outlined, color: AppColors.label),
+              leading: const Icon(
+                Icons.assessment_outlined,
+                color: AppColors.label,
+              ),
               title: const Text('Reports'),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: onOpenReports,
@@ -44,7 +51,10 @@ class MoreScreen extends StatelessWidget {
             const Divider(height: 1),
             ListTile(
               minTileHeight: 56,
-              leading: const Icon(Icons.archive_outlined, color: AppColors.label),
+              leading: const Icon(
+                Icons.archive_outlined,
+                color: AppColors.label,
+              ),
               title: const Text('Archived parcels'),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: onOpenArchived,
@@ -52,7 +62,10 @@ class MoreScreen extends StatelessWidget {
             const Divider(height: 1),
             ListTile(
               minTileHeight: 56,
-              leading: const Icon(Icons.settings_outlined, color: AppColors.label),
+              leading: const Icon(
+                Icons.settings_outlined,
+                color: AppColors.label,
+              ),
               title: const Text('Settings'),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: onOpenSettings,
@@ -72,7 +85,10 @@ class MoreScreen extends StatelessWidget {
 }
 
 /// Confirms, then signs out. The router sends the user to the login screen.
-Future<void> confirmLogout(BuildContext context, AuthRepository repository) async {
+Future<void> confirmLogout(
+  BuildContext context,
+  AuthRepository repository,
+) async {
   final confirmed = await showConfirmDialog(
     context,
     title: 'Log out?',

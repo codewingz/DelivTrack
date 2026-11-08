@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../common_widgets/app_logo.dart';
 import '../../../constants/app_colors.dart';
 import '../../../design_system/foundations/spacing/app_spacing.dart';
@@ -57,11 +58,17 @@ class AuthScaffold extends StatelessWidget {
                       const SizedBox(height: AppSpacing.xs),
                       Text(
                         subtitle!,
-                        style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ],
                     const SizedBox(height: AppSpacing.xxl),
-                    for (final field in fields) ...[field, const SizedBox(height: AppSpacing.lg)],
+                    for (final field in fields) ...[
+                      field,
+                      const SizedBox(height: AppSpacing.lg),
+                    ],
                     if (errorMessage != null) ...[
                       Semantics(
                         liveRegion: true,
@@ -107,7 +114,12 @@ class AuthScaffold extends StatelessWidget {
 
 /// "Already have an account? Log in" style row that wraps instead of overflowing.
 class AuthFooterLink extends StatelessWidget {
-  const AuthFooterLink({super.key, required this.prompt, required this.action, required this.onPressed});
+  const AuthFooterLink({
+    super.key,
+    required this.prompt,
+    required this.action,
+    required this.onPressed,
+  });
 
   final String prompt;
   final String action;
@@ -119,7 +131,10 @@ class AuthFooterLink extends StatelessWidget {
       alignment: WrapAlignment.center,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        Text(prompt, style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+        Text(
+          prompt,
+          style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+        ),
         TextButton(
           onPressed: onPressed,
           style: TextButton.styleFrom(minimumSize: const Size(48, 48)),

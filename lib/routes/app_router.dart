@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
 import '../features/auth/data/auth_repository.dart';
 import '../features/auth/views/forgot_password_screen.dart';
 import '../features/auth/views/login_screen.dart';
@@ -93,7 +94,8 @@ GoRouter createRouter(
       GoRoute(
         path: AppRoutes.splash,
         name: 'splash',
-        builder: (context, state) => SplashScreen(onFinished: () => context.go(AppRoutes.home)),
+        builder: (context, state) =>
+            SplashScreen(onFinished: () => context.go(AppRoutes.home)),
       ),
       GoRoute(
         path: AppRoutes.login,
@@ -123,12 +125,16 @@ GoRouter createRouter(
       GoRoute(
         path: AppRoutes.products,
         name: 'products',
-        builder: (context, state) => ProductsScreen(repository: productRepository),
+        builder: (context, state) =>
+            ProductsScreen(repository: productRepository),
       ),
       GoRoute(
         path: AppRoutes.settings,
         name: 'settings',
-        builder: (context, state) => SettingsScreen(repository: repository, scheduler: reminderScheduler),
+        builder: (context, state) => SettingsScreen(
+          repository: repository,
+          scheduler: reminderScheduler,
+        ),
       ),
       GoRoute(
         path: AppRoutes.archived,
@@ -141,13 +147,18 @@ GoRouter createRouter(
       GoRoute(
         path: AppRoutes.reports,
         name: 'reports',
-        builder: (context, state) => ReportsScreen(onOpen: (type) => context.push(AppRoutes.reportPath(type.name))),
+        builder: (context, state) => ReportsScreen(
+          onOpen: (type) => context.push(AppRoutes.reportPath(type.name)),
+        ),
       ),
       GoRoute(
         path: AppRoutes.reportDetails,
         name: 'reportDetails',
         // An unknown report name leads back to the list instead of a broken screen.
-        redirect: (context, state) => ReportType.byName(state.pathParameters['type']!) == null ? AppRoutes.reports : null,
+        redirect: (context, state) =>
+            ReportType.byName(state.pathParameters['type']!) == null
+            ? AppRoutes.reports
+            : null,
         builder: (context, state) => ReportScreen(
           repository: parcelRepository,
           type: ReportType.byName(state.pathParameters['type']!)!,
@@ -178,7 +189,8 @@ GoRouter createRouter(
         path: AppRoutes.parcelEdit,
         name: 'parcelEdit',
         // The parcel to edit travels as `extra`; without it there is nothing to edit.
-        redirect: (context, state) => state.extra is Parcel ? null : AppRoutes.parcels,
+        redirect: (context, state) =>
+            state.extra is Parcel ? null : AppRoutes.parcels,
         builder: (context, state) => ParcelFormScreen(
           parcelRepository: parcelRepository,
           customerRepository: customerRepository,
@@ -193,21 +205,26 @@ GoRouter createRouter(
         builder: (context, state) => ParcelDetailsScreen(
           repository: parcelRepository,
           parcelId: state.pathParameters['id']!,
-          onEdit: (parcel) => context.push<String>(AppRoutes.parcelEdit, extra: parcel),
+          onEdit: (parcel) =>
+              context.push<String>(AppRoutes.parcelEdit, extra: parcel),
         ),
       ),
       GoRoute(
         path: AppRoutes.customerNew,
         name: 'customerNew',
-        builder: (context, state) => CustomerFormScreen(repository: customerRepository),
+        builder: (context, state) =>
+            CustomerFormScreen(repository: customerRepository),
       ),
       GoRoute(
         path: AppRoutes.customerEdit,
         name: 'customerEdit',
         // The customer to edit travels as `extra`; without it there is nothing to edit.
-        redirect: (context, state) => state.extra is Customer ? null : AppRoutes.customers,
-        builder: (context, state) =>
-            CustomerFormScreen(repository: customerRepository, customer: state.extra! as Customer),
+        redirect: (context, state) =>
+            state.extra is Customer ? null : AppRoutes.customers,
+        builder: (context, state) => CustomerFormScreen(
+          repository: customerRepository,
+          customer: state.extra! as Customer,
+        ),
       ),
       // After /customers/new and /customers/edit, so those words are not read as a customer id.
       GoRoute(
@@ -218,94 +235,124 @@ GoRouter createRouter(
           parcelRepository: parcelRepository,
           customerId: state.pathParameters['id']!,
           dialer: dialer,
-          onEdit: (customer) => context.push<String>(AppRoutes.customerEdit, extra: customer),
-          onOpenParcel: (parcel) => context.push(AppRoutes.parcelPath(parcel.id)),
+          onEdit: (customer) =>
+              context.push<String>(AppRoutes.customerEdit, extra: customer),
+          onOpenParcel: (parcel) =>
+              context.push(AppRoutes.parcelPath(parcel.id)),
         ),
       ),
       StatefulShellRoute.indexedStack(
-        builder: (context, state, navigationShell) => AppShell(navigationShell: navigationShell),
+        builder: (context, state, navigationShell) =>
+            AppShell(navigationShell: navigationShell),
         branches: [
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: AppRoutes.home,
-              name: 'home',
-              builder: (context, state) => _tabPage(
-                DashboardScreen(
-                  repository: repository,
-                  parcelRepository: parcelRepository,
-                  reminderScheduler: reminderScheduler,
-                  onOpenReminders: () => context.push(AppRoutes.reminders),
-                  onOpenParcel: (id) => context.push(AppRoutes.parcelPath(id)),
-                  onOpenParcels: (filters) => context.go(AppRoutes.parcels, extra: filters.copyWith()),
-                  onOpenPayments: () => context.go(AppRoutes.payments),
-                  onAddParcel: () async {
-                    final id = await context.push<String>(AppRoutes.parcelNew);
-                    if (id != null && context.mounted) unawaited(context.push(AppRoutes.parcelPath(id)));
-                  },
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.home,
+                name: 'home',
+                builder: (context, state) => _tabPage(
+                  DashboardScreen(
+                    repository: repository,
+                    parcelRepository: parcelRepository,
+                    reminderScheduler: reminderScheduler,
+                    onOpenReminders: () => context.push(AppRoutes.reminders),
+                    onOpenParcel: (id) =>
+                        context.push(AppRoutes.parcelPath(id)),
+                    onOpenParcels: (filters) => context.go(
+                      AppRoutes.parcels,
+                      extra: filters.copyWith(),
+                    ),
+                    onOpenPayments: () => context.go(AppRoutes.payments),
+                    onAddParcel: () async {
+                      final id = await context.push<String>(
+                        AppRoutes.parcelNew,
+                      );
+                      if (id != null && context.mounted) {
+                        unawaited(context.push(AppRoutes.parcelPath(id)));
+                      }
+                    },
+                  ),
                 ),
               ),
-            ),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: AppRoutes.parcels,
-              name: 'parcels',
-              builder: (context, state) => _tabPage(
-                ParcelsScreen(
-                  repository: parcelRepository,
-                  // Home's figures open this list already narrowed (extra carries the filters).
-                  initialFilters: state.extra is ParcelFilters ? state.extra! as ParcelFilters : null,
-                  // After saving, open the new parcel's details (the list stays underneath).
-                  onAdd: () async {
-                    final id = await context.push<String>(AppRoutes.parcelNew);
-                    if (id != null && context.mounted) unawaited(context.push(AppRoutes.parcelPath(id)));
-                  },
-                  onOpen: (parcel) => context.push(AppRoutes.parcelPath(parcel.id)),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.parcels,
+                name: 'parcels',
+                builder: (context, state) => _tabPage(
+                  ParcelsScreen(
+                    repository: parcelRepository,
+                    // Home's figures open this list already narrowed (extra carries the filters).
+                    initialFilters: state.extra is ParcelFilters
+                        ? state.extra! as ParcelFilters
+                        : null,
+                    // After saving, open the new parcel's details (the list stays underneath).
+                    onAdd: () async {
+                      final id = await context.push<String>(
+                        AppRoutes.parcelNew,
+                      );
+                      if (id != null && context.mounted) {
+                        unawaited(context.push(AppRoutes.parcelPath(id)));
+                      }
+                    },
+                    onOpen: (parcel) =>
+                        context.push(AppRoutes.parcelPath(parcel.id)),
+                  ),
                 ),
               ),
-            ),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: AppRoutes.payments,
-              name: 'payments',
-              builder: (context, state) => _tabPage(
-                PaymentsScreen(
-                  repository: parcelRepository,
-                  onOpen: (parcel) => context.push(AppRoutes.parcelPath(parcel.id)),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.payments,
+                name: 'payments',
+                builder: (context, state) => _tabPage(
+                  PaymentsScreen(
+                    repository: parcelRepository,
+                    onOpen: (parcel) =>
+                        context.push(AppRoutes.parcelPath(parcel.id)),
+                  ),
                 ),
               ),
-            ),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: AppRoutes.customers,
-              name: 'customers',
-              builder: (context, state) => _tabPage(
-                CustomersScreen(
-                  repository: customerRepository,
-                  parcelRepository: parcelRepository,
-                  onAdd: () => context.push<String>(AppRoutes.customerNew),
-                  onOpen: (customer) => context.push(AppRoutes.customerPath(customer.id)),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.customers,
+                name: 'customers',
+                builder: (context, state) => _tabPage(
+                  CustomersScreen(
+                    repository: customerRepository,
+                    parcelRepository: parcelRepository,
+                    onAdd: () => context.push<String>(AppRoutes.customerNew),
+                    onOpen: (customer) =>
+                        context.push(AppRoutes.customerPath(customer.id)),
+                  ),
                 ),
               ),
-            ),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: AppRoutes.more,
-              name: 'more',
-              builder: (context, state) => _tabPage(
-                MoreScreen(
-                  repository: repository,
-                  onOpenProducts: () => context.push(AppRoutes.products),
-                  onOpenReports: () => context.push(AppRoutes.reports),
-                  onOpenArchived: () => context.push(AppRoutes.archived),
-                  onOpenSettings: () => context.push(AppRoutes.settings),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.more,
+                name: 'more',
+                builder: (context, state) => _tabPage(
+                  MoreScreen(
+                    repository: repository,
+                    onOpenProducts: () => context.push(AppRoutes.products),
+                    onOpenReports: () => context.push(AppRoutes.reports),
+                    onOpenArchived: () => context.push(AppRoutes.archived),
+                    onOpenSettings: () => context.push(AppRoutes.settings),
+                  ),
                 ),
               ),
-            ),
-          ]),
+            ],
+          ),
         ],
       ),
     ],

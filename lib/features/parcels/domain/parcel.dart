@@ -40,7 +40,9 @@ class Parcel {
 
   /// Reads many stored documents: the parcels that can be read (in the given order) and the ids of the
   /// documents that can not, so one damaged document never hides the others.
-  static ({List<Parcel> parcels, List<String> unreadableIds}) readAll(Iterable<MapEntry<String, Map<String, dynamic>>> documents) {
+  static ({List<Parcel> parcels, List<String> unreadableIds}) readAll(
+    Iterable<MapEntry<String, Map<String, dynamic>>> documents,
+  ) {
     final parcels = <Parcel>[];
     final unreadable = <String>[];
     for (final document in documents) {
@@ -60,9 +62,14 @@ class Parcel {
   static Parcel? tryFromMap(String id, Map<String, dynamic> data) {
     try {
       final parcel = Parcel.fromMap(id, data);
-      final moneyAddsUp = parcel.expectedPaisa >= 0 &&
+      final moneyAddsUp =
+          parcel.expectedPaisa >= 0 &&
           parcel.receivedPaisa >= 0 &&
-          parcel.outstandingPaisa == outstandingFor(expectedPaisa: parcel.expectedPaisa, receivedPaisa: parcel.receivedPaisa);
+          parcel.outstandingPaisa ==
+              outstandingFor(
+                expectedPaisa: parcel.expectedPaisa,
+                receivedPaisa: parcel.receivedPaisa,
+              );
       return moneyAddsUp ? parcel : null;
     } on TypeError {
       return null;
@@ -81,7 +88,10 @@ class Parcel {
       customerName: customer['name'] as String,
       customerPhone: customer['phone'] as String,
       customerAddress: customer['address'] as String,
-      items: [for (final item in data['items'] as List<dynamic>) ParcelItem.fromMap(Map<String, dynamic>.from(item as Map))],
+      items: [
+        for (final item in data['items'] as List<dynamic>)
+          ParcelItem.fromMap(Map<String, dynamic>.from(item as Map)),
+      ],
       method: CollectionMethod.fromValue(data['collectionMethod'] as String),
       service: PostalService.fromValue(data['postalServiceType'] as String),
       otherServiceName: data['otherPostalServiceName'] as String?,
@@ -99,7 +109,9 @@ class Parcel {
       returnedDate: data['returnedDateLocal'] as String?,
       returnReason: data['returnReason'] as String?,
       paymentReviewRequired: data['paymentReviewRequired'] as bool? ?? false,
-      reviewResolution: data['paymentReviewReason'] == null ? null : ReviewResolution.fromValue(data['paymentReviewReason'] as String),
+      reviewResolution: data['paymentReviewReason'] == null
+          ? null
+          : ReviewResolution.fromValue(data['paymentReviewReason'] as String),
       reviewNote: data['paymentReviewNote'] as String?,
       reviewDate: data['paymentReviewDateLocal'] as String?,
       lastPaymentId: data['lastPaymentId'] as String?,
@@ -160,10 +172,15 @@ class Parcel {
   /// A parcel can be archived once nothing is left to chase: a draft, a returned parcel, or one that
   /// owes nothing (paid in full, or Gift / Free). A returned parcel whose payment review is still open
   /// stays on the lists until the review is completed.
-  bool get canArchive => !isArchived && !paymentReviewRequired && (status != ParcelStatus.sent || outstandingPaisa == 0);
+  bool get canArchive =>
+      !isArchived &&
+      !paymentReviewRequired &&
+      (status != ParcelStatus.sent || outstandingPaisa == 0);
 
   /// The service as shown: the typed name for "Other", otherwise VPP / VPL / VPR.
-  String get serviceLabel => service == PostalService.other ? (otherServiceName ?? 'Other') : service.value;
+  String get serviceLabel => service == PostalService.other
+      ? (otherServiceName ?? 'Other')
+      : service.value;
 
   String get sendingDateLabel => formatDate(sendingDate);
 }

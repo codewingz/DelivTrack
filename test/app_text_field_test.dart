@@ -6,16 +6,15 @@ void main() {
   Widget buildTestableWidget(Widget child) {
     return MaterialApp(
       home: Scaffold(
-        body: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: child,
-        ),
+        body: Padding(padding: const EdgeInsets.all(16.0), child: child),
       ),
     );
   }
 
   group('AppTextField tests', () {
-    testWidgets('Email field validates invalid email and passes valid email', (tester) async {
+    testWidgets('Email field validates invalid email and passes valid email', (
+      tester,
+    ) async {
       final formKey = GlobalKey<FormState>();
       final controller = TextEditingController();
 
@@ -23,9 +22,7 @@ void main() {
         buildTestableWidget(
           Form(
             key: formKey,
-            child: AppTextField.email(
-              controller: controller,
-            ),
+            child: AppTextField.email(controller: controller),
           ),
         ),
       );
@@ -51,44 +48,53 @@ void main() {
       expect(find.text('Enter a valid email address'), findsNothing);
     });
 
-    testWidgets('Password field obscures text, toggles visibility, and validates length', (tester) async {
-      final formKey = GlobalKey<FormState>();
-      final controller = TextEditingController();
+    testWidgets(
+      'Password field obscures text, toggles visibility, and validates length',
+      (tester) async {
+        final formKey = GlobalKey<FormState>();
+        final controller = TextEditingController();
 
-      await tester.pumpWidget(
-        buildTestableWidget(
-          Form(
-            key: formKey,
-            child: AppTextField.password(
-              controller: controller,
+        await tester.pumpWidget(
+          buildTestableWidget(
+            Form(
+              key: formKey,
+              child: AppTextField.password(controller: controller),
             ),
           ),
-        ),
-      );
+        );
 
-      // Check eye icon toggle
-      final toggleButton = find.byType(IconButton);
-      expect(toggleButton, findsOneWidget);
+        // Check eye icon toggle
+        final toggleButton = find.byType(IconButton);
+        expect(toggleButton, findsOneWidget);
 
-      // Short password validation
-      controller.text = '123';
-      formKey.currentState!.validate();
-      await tester.pumpAndSettle();
-      expect(find.text('Password must be at least 6 characters'), findsOneWidget);
+        // Short password validation
+        controller.text = '123';
+        formKey.currentState!.validate();
+        await tester.pumpAndSettle();
+        expect(
+          find.text('Password must be at least 6 characters'),
+          findsOneWidget,
+        );
 
-      // Valid password
-      controller.text = 'secret123';
-      formKey.currentState!.validate();
-      await tester.pumpAndSettle();
-      expect(find.text('Password must be at least 6 characters'), findsNothing);
+        // Valid password
+        controller.text = 'secret123';
+        formKey.currentState!.validate();
+        await tester.pumpAndSettle();
+        expect(
+          find.text('Password must be at least 6 characters'),
+          findsNothing,
+        );
 
-      // Tap toggle to unmask password
-      await tester.tap(toggleButton);
-      await tester.pumpAndSettle();
-      expect(find.byIcon(Icons.visibility_off_outlined), findsOneWidget);
-    });
+        // Tap toggle to unmask password
+        await tester.tap(toggleButton);
+        await tester.pumpAndSettle();
+        expect(find.byIcon(Icons.visibility_off_outlined), findsOneWidget);
+      },
+    );
 
-    testWidgets('Amount field enforces number format and Rs. prefix', (tester) async {
+    testWidgets('Amount field enforces number format and Rs. prefix', (
+      tester,
+    ) async {
       final formKey = GlobalKey<FormState>();
       final controller = TextEditingController();
 
@@ -96,10 +102,7 @@ void main() {
         buildTestableWidget(
           Form(
             key: formKey,
-            child: AppTextField.amount(
-              controller: controller,
-              minPaisa: 10000,
-            ),
+            child: AppTextField.amount(controller: controller, minPaisa: 10000),
           ),
         ),
       );
@@ -117,34 +120,36 @@ void main() {
       expect(find.text('Minimum amount is Rs. 100'), findsNothing);
     });
 
-    testWidgets('Weight field displays kg suffix and validates positive weight', (tester) async {
-      final formKey = GlobalKey<FormState>();
-      final controller = TextEditingController();
+    testWidgets(
+      'Weight field displays kg suffix and validates positive weight',
+      (tester) async {
+        final formKey = GlobalKey<FormState>();
+        final controller = TextEditingController();
 
-      await tester.pumpWidget(
-        buildTestableWidget(
-          Form(
-            key: formKey,
-            child: AppTextField.weight(
-              controller: controller,
-              isRequired: true,
+        await tester.pumpWidget(
+          buildTestableWidget(
+            Form(
+              key: formKey,
+              child: AppTextField.weight(
+                controller: controller,
+                isRequired: true,
+              ),
             ),
           ),
-        ),
-      );
+        );
 
-      expect(find.text('kg'), findsOneWidget);
+        expect(find.text('kg'), findsOneWidget);
 
-      controller.text = '0';
-      formKey.currentState!.validate();
-      await tester.pumpAndSettle();
-      expect(find.text('Enter a valid weight in kg'), findsOneWidget);
+        controller.text = '0';
+        formKey.currentState!.validate();
+        await tester.pumpAndSettle();
+        expect(find.text('Enter a valid weight in kg'), findsOneWidget);
 
-      controller.text = '2.5';
-      formKey.currentState!.validate();
-      await tester.pumpAndSettle();
-      expect(find.text('Enter a valid weight in kg'), findsNothing);
-    });
+        controller.text = '2.5';
+        formKey.currentState!.validate();
+        await tester.pumpAndSettle();
+        expect(find.text('Enter a valid weight in kg'), findsNothing);
+      },
+    );
   });
 }
-

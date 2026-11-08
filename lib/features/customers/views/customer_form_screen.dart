@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../common_widgets/app_text_field.dart';
 import '../../../common_widgets/confirm_dialog.dart';
 import '../../../common_widgets/primary_button.dart';
@@ -12,7 +13,11 @@ import '../domain/customer.dart';
 /// Add or edit a customer on a full screen. Pops with the saved customer's id,
 /// so a caller (e.g. Add Parcel) can select the new customer.
 class CustomerFormScreen extends StatefulWidget {
-  const CustomerFormScreen({super.key, required this.repository, this.customer});
+  const CustomerFormScreen({
+    super.key,
+    required this.repository,
+    this.customer,
+  });
   final CustomerRepository repository;
 
   /// Null when adding.
@@ -51,7 +56,10 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
 
     Customer? duplicate;
     final looked = await _viewModel.run(() async {
-      duplicate = await widget.repository.findByPhone(_phone.text, excludeId: widget.customer?.id);
+      duplicate = await widget.repository.findByPhone(
+        _phone.text,
+        excludeId: widget.customer?.id,
+      );
     });
     if (!mounted || !looked) return;
 
@@ -60,7 +68,8 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
       final saveAnyway = await showConfirmDialog(
         context,
         title: 'Number already used',
-        message: 'A customer with this number already exists: ${existing.name}. Save anyway?',
+        message:
+            'A customer with this number already exists: ${existing.name}. Save anyway?',
         confirmLabel: 'Save anyway',
       );
       if (!mounted || !saveAnyway) return;
@@ -70,9 +79,18 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
     final saved = await _viewModel.run(() async {
       final existingCustomer = widget.customer;
       if (existingCustomer == null) {
-        savedId = await widget.repository.add(name: _name.text, phone: _phone.text, address: _address.text);
+        savedId = await widget.repository.add(
+          name: _name.text,
+          phone: _phone.text,
+          address: _address.text,
+        );
       } else {
-        await widget.repository.update(existingCustomer.id, name: _name.text, phone: _phone.text, address: _address.text);
+        await widget.repository.update(
+          existingCustomer.id,
+          name: _name.text,
+          phone: _phone.text,
+          address: _address.text,
+        );
         savedId = existingCustomer.id;
       }
     });
@@ -105,14 +123,17 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
             if (!didPop) _confirmDiscard();
           },
           child: Scaffold(
-            appBar: AppBar(title: Text(_isEditing ? 'Edit customer' : 'Add customer')),
+            appBar: AppBar(
+              title: Text(_isEditing ? 'Edit customer' : 'Add customer'),
+            ),
             body: SafeArea(
               child: Align(
                 alignment: Alignment.topCenter,
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 560),
                   child: SingleChildScrollView(
-                    keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
                     padding: const EdgeInsetsDirectional.all(AppSpacing.xxl),
                     child: Form(
                       key: _formKey,
@@ -126,7 +147,11 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
                             enabled: !busy,
                           ),
                           const SizedBox(height: AppSpacing.lg),
-                          AppTextField.phone(controller: _phone, label: 'Phone number', enabled: !busy),
+                          AppTextField.phone(
+                            controller: _phone,
+                            label: 'Phone number',
+                            enabled: !busy,
+                          ),
                           const SizedBox(height: AppSpacing.lg),
                           AppTextField.multiline(
                             controller: _address,
@@ -135,7 +160,10 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
                             isRequired: true,
                             maxLength: 200,
                             enabled: !busy,
-                            validator: (value) => AppValidators.address(value, fieldName: 'Full address'),
+                            validator: (value) => AppValidators.address(
+                              value,
+                              fieldName: 'Full address',
+                            ),
                           ),
                           if (_viewModel.errorMessage != null) ...[
                             const SizedBox(height: AppSpacing.lg),
@@ -143,13 +171,19 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
                               liveRegion: true,
                               child: Text(
                                 _viewModel.errorMessage!,
-                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.error),
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.error,
+                                ),
                               ),
                             ),
                           ],
                           const SizedBox(height: AppSpacing.xxl),
                           PrimaryButton(
-                            label: _isEditing ? 'Save Changes' : 'Save Customer',
+                            label: _isEditing
+                                ? 'Save Changes'
+                                : 'Save Customer',
                             isLoading: busy,
                             onPressed: _save,
                           ),

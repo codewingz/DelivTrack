@@ -2,7 +2,20 @@
 // fixed UTC+5 offset; no time-zone database is needed.
 const _pakistanOffset = Duration(hours: 5);
 
-const _monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const _monthNames = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
 
 /// Source of "now" so date logic can be tested.
 class Clock {

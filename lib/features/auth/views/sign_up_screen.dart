@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../common_widgets/app_text_field.dart';
 import '../../../common_widgets/primary_button.dart';
 import '../data/auth_repository.dart';
@@ -6,7 +7,11 @@ import '../../../core/view_models/action_view_model.dart';
 import 'auth_scaffold.dart';
 
 class SignUpScreen extends StatefulWidget {
-  const SignUpScreen({super.key, required this.repository, required this.onLogIn});
+  const SignUpScreen({
+    super.key,
+    required this.repository,
+    required this.onLogIn,
+  });
   final AuthRepository repository;
   final VoidCallback onLogIn;
 
@@ -71,7 +76,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
               onFieldSubmitted: (_) => _submit(),
             ),
           ],
-          button: PrimaryButton(label: 'Sign Up', isLoading: busy, onPressed: _submit),
+          button: PrimaryButton(
+            label: 'Sign Up',
+            isLoading: busy,
+            onPressed: _submit,
+          ),
           footer: AuthFooterLink(
             prompt: 'Already have an account?',
             action: 'Log in',

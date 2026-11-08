@@ -21,7 +21,9 @@ class AppValidators {
   static String? name(String? value, {String fieldName = 'Name'}) {
     final normalized = collapseSpaces(value ?? '');
     if (normalized.isEmpty) return '$fieldName is required';
-    if (normalized.length < 2 || normalized.length > 60) return 'Use 2–60 characters';
+    if (normalized.length < 2 || normalized.length > 60) {
+      return 'Use 2–60 characters';
+    }
     return null;
   }
 
@@ -42,7 +44,11 @@ class AppValidators {
   }
 
   /// Validates password with minimum length (default 6 for Firebase Auth).
-  static String? password(String? value, {bool isRequired = true, int minLength = 6}) {
+  static String? password(
+    String? value, {
+    bool isRequired = true,
+    int minLength = 6,
+  }) {
     final val = value ?? '';
     if (val.isEmpty) {
       return isRequired ? 'Password is required' : null;
@@ -59,7 +65,9 @@ class AppValidators {
     final val = value ?? '';
     if (val.isEmpty) return isRequired ? 'Password is required' : null;
     if (val.length < 8) return 'Password must be at least 8 characters';
-    if (!RegExp('[A-Za-z]').hasMatch(val) || !RegExp('[0-9]').hasMatch(val)) return 'Use a mix of letters and numbers';
+    if (!RegExp('[A-Za-z]').hasMatch(val) || !RegExp('[0-9]').hasMatch(val)) {
+      return 'Use a mix of letters and numbers';
+    }
     return null;
   }
 
@@ -84,13 +92,21 @@ class AppValidators {
     }
     final paisa = parseRupeesToPaisa(trimmed);
     if (paisa == null) return 'Enter a valid amount';
-    if (paisa < minPaisa) return minPaisa <= 1 ? 'Enter an amount above zero' : 'Minimum amount is ${formatRupees(minPaisa)}';
+    if (paisa < minPaisa) {
+      return minPaisa <= 1
+          ? 'Enter an amount above zero'
+          : 'Minimum amount is ${formatRupees(minPaisa)}';
+    }
     if (paisa > maxPaisa) return 'Maximum amount is ${formatRupees(maxPaisa)}';
     return null;
   }
 
   /// Validates a weight in kilograms (up to 3 decimals, above zero, at most 9,999.999).
-  static String? weight(String? value, {bool isRequired = false, String fieldName = 'Weight'}) {
+  static String? weight(
+    String? value, {
+    bool isRequired = false,
+    String fieldName = 'Weight',
+  }) {
     final trimmed = value?.trim() ?? '';
     if (trimmed.isEmpty) {
       return isRequired ? '$fieldName is required' : null;
@@ -103,16 +119,24 @@ class AppValidators {
   /// Whole number of pieces: 1-99,999.
   static String? quantity(String? value, {bool isRequired = true}) {
     final trimmed = value?.trim() ?? '';
-    if (trimmed.isEmpty) return isRequired ? 'Enter the number of pieces' : null;
-    final pieces = RegExp(r'^[0-9]{1,5}$').hasMatch(trimmed) ? int.parse(trimmed) : 0;
+    if (trimmed.isEmpty) {
+      return isRequired ? 'Enter the number of pieces' : null;
+    }
+    final pieces = RegExp(r'^[0-9]{1,5}$').hasMatch(trimmed)
+        ? int.parse(trimmed)
+        : 0;
     return pieces >= 1 ? null : 'Enter a whole number of pieces (1–99,999)';
   }
 
   /// A postal reference as printed on the slip (see [isValidPostalReference]).
   static String? postalReference(String? value, {bool isRequired = false}) {
     final trimmed = value?.trim() ?? '';
-    if (trimmed.isEmpty) return isRequired ? 'Postal reference is required to mark as Sent' : null;
-    return isValidPostalReference(trimmed) ? null : 'Use 5–30 letters or numbers (also - and /)';
+    if (trimmed.isEmpty) {
+      return isRequired ? 'Postal reference is required to mark as Sent' : null;
+    }
+    return isValidPostalReference(trimmed)
+        ? null
+        : 'Use 5–30 letters or numbers (also - and /)';
   }
 
   /// Validates a phone number (see [isValidPhone]).
@@ -128,8 +152,9 @@ class AppValidators {
   static String? address(String? value, {String fieldName = 'Address'}) {
     final trimmed = (value ?? '').trim();
     if (trimmed.isEmpty) return '$fieldName is required';
-    if (trimmed.length < 5 || trimmed.length > 200) return 'Enter the full address (5–200 characters)';
+    if (trimmed.length < 5 || trimmed.length > 200) {
+      return 'Enter the full address (5–200 characters)';
+    }
     return null;
   }
 }
-

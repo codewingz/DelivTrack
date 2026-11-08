@@ -16,19 +16,19 @@ void main() {
     test('compares nested maps and lists by value', () {
       final before = {
         'items': [
-          {'id': 'p1', 'qty': 2}
+          {'id': 'p1', 'qty': 2},
         ],
         'customer': {'name': 'Ali', 'phone': '1'},
       };
       final same = {
         'items': [
-          {'id': 'p1', 'qty': 2}
+          {'id': 'p1', 'qty': 2},
         ],
         'customer': {'name': 'Ali', 'phone': '1'},
       };
       final other = {
         'items': [
-          {'id': 'p1', 'qty': 3}
+          {'id': 'p1', 'qty': 3},
         ],
         'customer': {'name': 'Ali', 'phone': '1'},
       };
@@ -37,8 +37,28 @@ void main() {
     });
 
     test('list order and length matter; null and missing are different from a value', () {
-      expect(changedKeys({'l': [1, 2]}, {'l': [2, 1]}), ['l']);
-      expect(changedKeys({'l': [1]}, {'l': [1, 2]}), ['l']);
+      expect(
+        changedKeys(
+          {
+            'l': [1, 2],
+          },
+          {
+            'l': [2, 1],
+          },
+        ),
+        ['l'],
+      );
+      expect(
+        changedKeys(
+          {
+            'l': [1],
+          },
+          {
+            'l': [1, 2],
+          },
+        ),
+        ['l'],
+      );
       expect(changedKeys({'x': null}, {'x': 0}), ['x']);
     });
   });
@@ -53,7 +73,11 @@ void main() {
 
     test('payment status', () {
       PaymentStatus status(int expected, int received, {bool free = false}) =>
-          paymentStatusFor(isFree: free, expectedPaisa: expected, receivedPaisa: received);
+          paymentStatusFor(
+            isFree: free,
+            expectedPaisa: expected,
+            receivedPaisa: received,
+          );
       expect(status(1000, 0), PaymentStatus.pending);
       expect(status(1000, 1), PaymentStatus.partial);
       expect(status(1000, 999), PaymentStatus.partial);

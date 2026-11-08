@@ -8,9 +8,9 @@ enum PaymentType {
   final String label;
 
   static PaymentType fromValue(String value) => values.firstWhere(
-        (t) => t.value == value,
-        orElse: () => throw StateError('Unknown payment type "$value"'),
-      );
+    (t) => t.value == value,
+    orElse: () => throw StateError('Unknown payment type "$value"'),
+  );
 }
 
 /// One payment received for a parcel (append-only).

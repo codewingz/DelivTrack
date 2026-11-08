@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../common_widgets/app_choice_field.dart';
 import '../../../common_widgets/app_text_field.dart';
 import '../../../common_widgets/primary_button.dart';
@@ -9,7 +10,11 @@ import '../data/product_repository.dart';
 import '../domain/product.dart';
 
 /// Opens the add/edit sheet. Returns true when a product was saved.
-Future<bool> showProductFormSheet(BuildContext context, ProductRepository repository, {Product? product}) async {
+Future<bool> showProductFormSheet(
+  BuildContext context,
+  ProductRepository repository, {
+  Product? product,
+}) async {
   final saved = await showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
@@ -53,7 +58,11 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
     final unit = _unit!;
     final saved = await _viewModel.run(
       () => _isEditing
-          ? widget.repository.update(widget.product!.id, name: _name.text, saleUnit: unit)
+          ? widget.repository.update(
+              widget.product!.id,
+              name: _name.text,
+              saleUnit: unit,
+            )
           : widget.repository.add(name: _name.text, saleUnit: unit),
     );
     if (!mounted || !saved) return;
@@ -81,7 +90,11 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
               children: [
                 Text(
                   _isEditing ? 'Edit product' : 'Add product',
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primaryDark,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.xl),
                 AppTextField.name(
@@ -98,15 +111,22 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
                   isRequired: true,
                   enabled: !busy,
                   initialValue: _unit,
-                  options: [for (final unit in SaleUnit.values) (value: unit, label: unit.label)],
+                  options: [
+                    for (final unit in SaleUnit.values)
+                      (value: unit, label: unit.label),
+                  ],
                   onChanged: (unit) => setState(() => _unit = unit),
-                  validator: (unit) => unit == null ? 'Choose how this product is sold' : null,
+                  validator: (unit) =>
+                      unit == null ? 'Choose how this product is sold' : null,
                 ),
                 if (_unitChanged) ...[
                   const SizedBox(height: AppSpacing.sm),
                   const Text(
                     'Existing parcels keep their old unit.',
-                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
                 if (_viewModel.errorMessage != null) ...[
@@ -115,12 +135,20 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
                     liveRegion: true,
                     child: Text(
                       _viewModel.errorMessage!,
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.error),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.error,
+                      ),
                     ),
                   ),
                 ],
                 const SizedBox(height: AppSpacing.xxl),
-                PrimaryButton(label: _isEditing ? 'Save Changes' : 'Add Product', isLoading: busy, onPressed: _save),
+                PrimaryButton(
+                  label: _isEditing ? 'Save Changes' : 'Add Product',
+                  isLoading: busy,
+                  onPressed: _save,
+                ),
               ],
             ),
           ),

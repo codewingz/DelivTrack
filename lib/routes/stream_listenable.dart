@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 /// Notifies listeners on every stream event (used as go_router's refreshListenable).

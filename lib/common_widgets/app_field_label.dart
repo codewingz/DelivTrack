@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../constants/app_colors.dart';
 
 /// Label above a form field, with a red * when required. Wraps instead of overflowing.
@@ -13,7 +14,11 @@ class AppFieldLabel extends StatelessWidget {
       TextSpan(
         text: label,
         children: [
-          if (isRequired) const TextSpan(text: ' *', style: TextStyle(color: AppColors.error)),
+          if (isRequired)
+            const TextSpan(
+              text: ' *',
+              style: TextStyle(color: AppColors.error),
+            ),
         ],
       ),
       style: const TextStyle(

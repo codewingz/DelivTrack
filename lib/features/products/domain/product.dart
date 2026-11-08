@@ -11,9 +11,9 @@ enum SaleUnit {
   final String label;
 
   static SaleUnit fromValue(String value) => SaleUnit.values.firstWhere(
-        (unit) => unit.value == value,
-        orElse: () => throw StateError('Unknown sale unit "$value"'),
-      );
+    (unit) => unit.value == value,
+    orElse: () => throw StateError('Unknown sale unit "$value"'),
+  );
 }
 
 class Product {
@@ -34,4 +34,5 @@ class Product {
 String normalizeProductName(String raw) => collapseSpaces(raw);
 
 /// Firestore document id of the uniqueness guard for [name] (case-insensitive).
-String productNameKey(String name) => 'n_${Uri.encodeComponent(normalizeProductName(name).toLowerCase())}';
+String productNameKey(String name) =>
+    'n_${Uri.encodeComponent(normalizeProductName(name).toLowerCase())}';

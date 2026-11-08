@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../common_widgets/app_date_field.dart';
 import '../../../common_widgets/empty_state.dart';
 import '../../../common_widgets/list_skeleton.dart';
@@ -28,7 +29,10 @@ class ReportsScreen extends StatelessWidget {
                 for (final type in ReportType.values) ...[
                   ListTile(
                     minTileHeight: 64,
-                    title: Text(type.title, style: const TextStyle(fontWeight: FontWeight.w700)),
+                    title: Text(
+                      type.title,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
                     subtitle: Text(type.description),
                     trailing: const Icon(Icons.chevron_right_rounded),
                     onTap: () => onOpen(type),
@@ -46,7 +50,13 @@ class ReportsScreen extends StatelessWidget {
 
 /// One report: a date range, the rows, and the totals pinned at the bottom. A row opens its parcel.
 class ReportScreen extends StatefulWidget {
-  const ReportScreen({super.key, required this.repository, required this.type, required this.onOpenParcel, this.clock = const Clock()});
+  const ReportScreen({
+    super.key,
+    required this.repository,
+    required this.type,
+    required this.onOpenParcel,
+    this.clock = const Clock(),
+  });
   final ParcelRepository repository;
   final ReportType type;
   final void Function(String parcelId) onOpenParcel;
@@ -57,7 +67,11 @@ class ReportScreen extends StatefulWidget {
 }
 
 class _ReportScreenState extends State<ReportScreen> {
-  late final _viewModel = ReportViewModel(widget.repository, widget.type, clock: widget.clock);
+  late final _viewModel = ReportViewModel(
+    widget.repository,
+    widget.type,
+    clock: widget.clock,
+  );
 
   @override
   void dispose() {
@@ -74,7 +88,10 @@ class _ReportScreenState extends State<ReportScreen> {
           alignment: Alignment.topCenter,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 640),
-            child: ListenableBuilder(listenable: _viewModel, builder: (context, _) => _body()),
+            child: ListenableBuilder(
+              listenable: _viewModel,
+              builder: (context, _) => _body(),
+            ),
           ),
         ),
       ),
@@ -83,10 +100,22 @@ class _ReportScreenState extends State<ReportScreen> {
 
   Widget _body() {
     if (_viewModel.errorMessage != null) {
-      return EmptyState(icon: Icons.error_outline_rounded, title: "Couldn't load the report", message: _viewModel.errorMessage, actionLabel: 'Retry', onAction: _viewModel.retry);
+      return EmptyState(
+        icon: Icons.error_outline_rounded,
+        title: "Couldn't load the report",
+        message: _viewModel.errorMessage,
+        actionLabel: 'Retry',
+        onAction: _viewModel.retry,
+      );
     }
     if (_viewModel.paymentsError != null) {
-      return EmptyState(icon: Icons.error_outline_rounded, title: "Couldn't load the payments", message: _viewModel.paymentsError, actionLabel: 'Retry', onAction: _viewModel.retryPayments);
+      return EmptyState(
+        icon: Icons.error_outline_rounded,
+        title: "Couldn't load the payments",
+        message: _viewModel.paymentsError,
+        actionLabel: 'Retry',
+        onAction: _viewModel.retryPayments,
+      );
     }
     final result = _viewModel.result;
     final today = _viewModel.today;
@@ -106,8 +135,10 @@ class _ReportScreenState extends State<ReportScreen> {
                         hint: 'Any day',
                         value: _viewModel.from,
                         firstDate: '2020-01-01',
-                        lastDate: '${int.parse(today.substring(0, 4)) + 5}${today.substring(4)}',
-                        onChanged: (date) => _viewModel.setRange(from: date, to: _viewModel.to),
+                        lastDate:
+                            '${int.parse(today.substring(0, 4)) + 5}${today.substring(4)}',
+                        onChanged: (date) =>
+                            _viewModel.setRange(from: date, to: _viewModel.to),
                       ),
                       const SizedBox(height: AppSpacing.md),
                       AppDateField(
@@ -115,13 +146,26 @@ class _ReportScreenState extends State<ReportScreen> {
                         hint: 'Any day',
                         value: _viewModel.to,
                         firstDate: '2020-01-01',
-                        lastDate: '${int.parse(today.substring(0, 4)) + 5}${today.substring(4)}',
-                        onChanged: (date) => _viewModel.setRange(from: _viewModel.from, to: date),
+                        lastDate:
+                            '${int.parse(today.substring(0, 4)) + 5}${today.substring(4)}',
+                        onChanged: (date) => _viewModel.setRange(
+                          from: _viewModel.from,
+                          to: date,
+                        ),
                       ),
                       if (_viewModel.rangeProblem != null)
                         Padding(
-                          padding: const EdgeInsetsDirectional.only(top: AppSpacing.sm),
-                          child: Text(_viewModel.rangeProblem!, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.error)),
+                          padding: const EdgeInsetsDirectional.only(
+                            top: AppSpacing.sm,
+                          ),
+                          child: Text(
+                            _viewModel.rangeProblem!,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.error,
+                            ),
+                          ),
                         ),
                     ],
                   ),
@@ -130,14 +174,24 @@ class _ReportScreenState extends State<ReportScreen> {
               if (result == null && _viewModel.rangeProblem == null)
                 const SliverToBoxAdapter(child: ListSkeleton())
               else if (result != null && result.rows.isEmpty)
-                const SliverFillRemaining(hasScrollBody: false, child: EmptyState(icon: Icons.assignment_outlined, title: 'Nothing to report', message: 'Nothing matches this report and date range.'))
+                const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: EmptyState(
+                    icon: Icons.assignment_outlined,
+                    title: 'Nothing to report',
+                    message: 'Nothing matches this report and date range.',
+                  ),
+                )
               else if (result != null)
                 SliverList.separated(
                   itemCount: result.rows.length,
                   separatorBuilder: (_, _) => const Divider(height: 1),
                   itemBuilder: (context, index) => _ReportRowTile(
                     row: result.rows[index],
-                    onTap: result.rows[index].parcelId == null ? null : () => widget.onOpenParcel(result.rows[index].parcelId!),
+                    onTap: result.rows[index].parcelId == null
+                        ? null
+                        : () =>
+                              widget.onOpenParcel(result.rows[index].parcelId!),
                   ),
                 ),
             ],
@@ -159,7 +213,10 @@ class _ReportRowTile extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsetsDirectional.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+        padding: const EdgeInsetsDirectional.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.md,
+        ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -167,15 +224,37 @@ class _ReportRowTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(row.title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+                  Text(
+                    row.title,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primaryDark,
+                    ),
+                  ),
                   for (final line in row.lines.where((line) => line.isNotEmpty))
-                    Text(line, style: TextStyle(fontSize: 13, color: row.urgent ? AppColors.error : AppColors.textSecondary)),
+                    Text(
+                      line,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: row.urgent
+                            ? AppColors.error
+                            : AppColors.textSecondary,
+                      ),
+                    ),
                 ],
               ),
             ),
             if (row.trailing != null) ...[
               const SizedBox(width: AppSpacing.md),
-              Text(row.trailing!, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: row.urgent ? AppColors.error : AppColors.textPrimary)),
+              Text(
+                row.trailing!,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: row.urgent ? AppColors.error : AppColors.textPrimary,
+                ),
+              ),
             ],
           ],
         ),
@@ -200,7 +279,17 @@ class _Totals extends StatelessWidget {
           child: Wrap(
             spacing: AppSpacing.lg,
             runSpacing: AppSpacing.xs,
-            children: [for (final total in totals) Text(total, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.primaryDark))],
+            children: [
+              for (final total in totals)
+                Text(
+                  total,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primaryDark,
+                  ),
+                ),
+            ],
           ),
         ),
       ),

@@ -1,7 +1,12 @@
 import '../../../utils/phone.dart';
 
 class Customer {
-  const Customer({required this.id, required this.name, required this.phone, required this.address});
+  const Customer({
+    required this.id,
+    required this.name,
+    required this.phone,
+    required this.address,
+  });
 
   final String id;
   final String name;

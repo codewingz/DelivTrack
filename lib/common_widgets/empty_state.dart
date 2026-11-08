@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../constants/app_colors.dart';
 import '../design_system/foundations/spacing/app_spacing.dart';
 
@@ -33,20 +34,30 @@ class EmptyState extends StatelessWidget {
             Text(
               title,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
             ),
             if (message != null) ...[
               const SizedBox(height: AppSpacing.xs),
               Text(
                 message!,
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
+                ),
               ),
             ],
             if (actionLabel != null) ...[
               const SizedBox(height: AppSpacing.lg),
               FilledButton(
-                style: FilledButton.styleFrom(minimumSize: const Size(48, 48), backgroundColor: AppColors.primary),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(48, 48),
+                  backgroundColor: AppColors.primary,
+                ),
                 onPressed: onAction,
                 child: Text(actionLabel!),
               ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../common_widgets/app_choice_field.dart';
 import '../../../common_widgets/app_date_field.dart';
 import '../../../common_widgets/app_select_field.dart';
@@ -53,12 +54,20 @@ class ParcelFormScreen extends StatefulWidget {
 
 class _ParcelFormScreenState extends State<ParcelFormScreen> {
   final _formKey = GlobalKey<FormState>();
-  late final _form = widget.parcel == null ? ParcelFormViewModel() : ParcelFormViewModel.fromParcel(widget.parcel!);
+  late final _form = widget.parcel == null
+      ? ParcelFormViewModel()
+      : ParcelFormViewModel.fromParcel(widget.parcel!);
   final _action = ActionViewModel();
-  late final _otherService = TextEditingController(text: _form.otherServiceName);
+  late final _otherService = TextEditingController(
+    text: _form.otherServiceName,
+  );
   late final _reference = TextEditingController(text: _form.reference);
-  late final _charge = TextEditingController(text: _form.chargePaisa == null ? null : plainRupees(_form.chargePaisa!));
-  late final _packedWeight = TextEditingController(text: _form.packedGrams == null ? null : plainKg(_form.packedGrams!));
+  late final _charge = TextEditingController(
+    text: _form.chargePaisa == null ? null : plainRupees(_form.chargePaisa!),
+  );
+  late final _packedWeight = TextEditingController(
+    text: _form.packedGrams == null ? null : plainKg(_form.packedGrams!),
+  );
   bool _saved = false;
 
   @override
@@ -75,7 +84,10 @@ class _ParcelFormScreenState extends State<ParcelFormScreen> {
   Future<void> _pickCustomer() async {
     final picked = await Navigator.of(context).push<Customer>(
       MaterialPageRoute(
-        builder: (_) => CustomerPickerScreen(repository: widget.customerRepository, onAdd: widget.onAddCustomer),
+        builder: (_) => CustomerPickerScreen(
+          repository: widget.customerRepository,
+          onAdd: widget.onAddCustomer,
+        ),
       ),
     );
     if (!mounted || picked == null) return;
@@ -106,8 +118,12 @@ class _ParcelFormScreenState extends State<ParcelFormScreen> {
   Future<void> _confirmDiscard() async {
     final discard = await showConfirmDialog(
       context,
-      title: widget.parcel == null ? 'Discard this parcel?' : 'Discard your changes?',
-      message: widget.parcel == null ? 'What you entered will be lost.' : 'Your changes to this parcel will be lost.',
+      title: widget.parcel == null
+          ? 'Discard this parcel?'
+          : 'Discard your changes?',
+      message: widget.parcel == null
+          ? 'What you entered will be lost.'
+          : 'Your changes to this parcel will be lost.',
       confirmLabel: 'Discard',
       destructive: true,
     );
@@ -128,21 +144,26 @@ class _ParcelFormScreenState extends State<ParcelFormScreen> {
             if (!didPop) _confirmDiscard();
           },
           child: Scaffold(
-            appBar: AppBar(title: Text(widget.parcel == null ? 'Add parcel' : 'Edit parcel')),
+            appBar: AppBar(
+              title: Text(widget.parcel == null ? 'Add parcel' : 'Edit parcel'),
+            ),
             body: SafeArea(
               child: Align(
                 alignment: Alignment.topCenter,
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 560),
                   child: SingleChildScrollView(
-                    keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
                     padding: const EdgeInsetsDirectional.all(AppSpacing.xxl),
                     child: Form(
                       key: _formKey,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          _OrderNumberNote(orderNumber: widget.parcel?.orderNumber),
+                          _OrderNumberNote(
+                            orderNumber: widget.parcel?.orderNumber,
+                          ),
                           const SizedBox(height: AppSpacing.xl),
                           AppSelectField(
                             label: 'Customer',
@@ -152,7 +173,9 @@ class _ParcelFormScreenState extends State<ParcelFormScreen> {
                             enabled: !busy,
                             icon: Icons.person_search_outlined,
                             onTap: _pickCustomer,
-                            validator: () => _form.customer == null ? 'Select a customer' : null,
+                            validator: () => _form.customer == null
+                                ? 'Select a customer'
+                                : null,
                           ),
                           const SizedBox(height: AppSpacing.lg),
                           AppChoiceField<CollectionMethod>(
@@ -160,9 +183,13 @@ class _ParcelFormScreenState extends State<ParcelFormScreen> {
                             isRequired: true,
                             enabled: !busy,
                             initialValue: _form.method,
-                            options: [for (final m in CollectionMethod.values) (value: m, label: m.label)],
+                            options: [
+                              for (final m in CollectionMethod.values)
+                                (value: m, label: m.label),
+                            ],
                             onChanged: _form.setMethod,
-                            validator: (value) => value == null ? 'Select a parcel type' : null,
+                            validator: (value) =>
+                                value == null ? 'Select a parcel type' : null,
                           ),
                           const SizedBox(height: AppSpacing.xxl),
                           const _SectionTitle('Products'),
@@ -180,7 +207,9 @@ class _ParcelFormScreenState extends State<ParcelFormScreen> {
                           ],
                           if (_form.canAddItem)
                             OutlinedButton.icon(
-                              style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                              style: OutlinedButton.styleFrom(
+                                minimumSize: const Size.fromHeight(48),
+                              ),
                               onPressed: busy ? null : _form.addItem,
                               icon: const Icon(Icons.add),
                               label: const Text('Add another product'),
@@ -197,9 +226,14 @@ class _ParcelFormScreenState extends State<ParcelFormScreen> {
                             isRequired: true,
                             enabled: !busy,
                             initialValue: _form.service,
-                            options: [for (final s in PostalService.values) (value: s, label: s.value)],
+                            options: [
+                              for (final s in PostalService.values)
+                                (value: s, label: s.value),
+                            ],
                             onChanged: _form.setService,
-                            validator: (value) => value == null ? 'Select a postal service' : null,
+                            validator: (value) => value == null
+                                ? 'Select a postal service'
+                                : null,
                           ),
                           if (_form.service == PostalService.other) ...[
                             const SizedBox(height: AppSpacing.lg),
@@ -210,11 +244,19 @@ class _ParcelFormScreenState extends State<ParcelFormScreen> {
                               isRequired: true,
                               enabled: !busy,
                               onChanged: _form.setOtherServiceName,
-                              validator: (value) => AppValidators.name(value, fieldName: 'Service name'),
+                              validator: (value) => AppValidators.name(
+                                value,
+                                fieldName: 'Service name',
+                              ),
                             ),
                           ],
                           const SizedBox(height: AppSpacing.lg),
-                          AppTextField.reference(controller: _reference, isRequired: _form.requiresSlipDetails, enabled: !busy, onChanged: _form.setReference),
+                          AppTextField.reference(
+                            controller: _reference,
+                            isRequired: _form.requiresSlipDetails,
+                            enabled: !busy,
+                            onChanged: _form.setReference,
+                          ),
                           const SizedBox(height: AppSpacing.lg),
                           AppTextField.amount(
                             controller: _charge,
@@ -222,7 +264,8 @@ class _ParcelFormScreenState extends State<ParcelFormScreen> {
                             hint: 'Amount on slip',
                             isRequired: _form.requiresSlipDetails,
                             enabled: !busy,
-                            onChanged: (value) => _form.setCharge(parseRupeesToPaisa(value)),
+                            onChanged: (value) =>
+                                _form.setCharge(parseRupeesToPaisa(value)),
                           ),
                           const SizedBox(height: AppSpacing.lg),
                           AppTextField.weight(
@@ -231,7 +274,8 @@ class _ParcelFormScreenState extends State<ParcelFormScreen> {
                             hint: 'Weight shown on slip',
                             enabled: !busy,
                             textInputAction: TextInputAction.done,
-                            onChanged: (value) => _form.setPackedWeight(parseKgToGrams(value)),
+                            onChanged: (value) =>
+                                _form.setPackedWeight(parseKgToGrams(value)),
                           ),
                           if (_form.method == CollectionMethod.payLater) ...[
                             const SizedBox(height: AppSpacing.lg),
@@ -241,7 +285,8 @@ class _ParcelFormScreenState extends State<ParcelFormScreen> {
                               value: _form.payDate,
                               enabled: !busy,
                               firstDate: today,
-                              lastDate: '${int.parse(today.substring(0, 4)) + 5}${today.substring(4)}',
+                              lastDate:
+                                  '${int.parse(today.substring(0, 4)) + 5}${today.substring(4)}',
                               onChanged: _form.setPayDate,
                             ),
                           ],
@@ -251,7 +296,11 @@ class _ParcelFormScreenState extends State<ParcelFormScreen> {
                               liveRegion: true,
                               child: Text(
                                 _action.errorMessage!,
-                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.error),
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.error,
+                                ),
                               ),
                             ),
                           ],
@@ -259,7 +308,9 @@ class _ParcelFormScreenState extends State<ParcelFormScreen> {
                           PrimaryButton(
                             label: widget.parcel != null
                                 ? 'Save Changes'
-                                : (_form.status == ParcelStatus.sent ? 'Save & Mark Sent' : 'Save as Draft'),
+                                : (_form.status == ParcelStatus.sent
+                                      ? 'Save & Mark Sent'
+                                      : 'Save as Draft'),
                             isLoading: busy,
                             onPressed: _save,
                           ),
@@ -268,14 +319,22 @@ class _ParcelFormScreenState extends State<ParcelFormScreen> {
                             const Text(
                               'Saving will mark this parcel as Sent.',
                               textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary),
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
+                              ),
                             ),
-                          ] else if (_form.status == ParcelStatus.draft && !_form.requiresSlipDetails) ...[
+                          ] else if (_form.status == ParcelStatus.draft &&
+                              !_form.requiresSlipDetails) ...[
                             const SizedBox(height: AppSpacing.md),
                             const Text(
                               'Add the postal reference and delivery charge from the slip to mark this parcel as Sent.',
                               textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
                             ),
                           ],
                         ],
@@ -306,8 +365,14 @@ class _OrderNumberNote extends StatelessWidget {
         const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Text(
-            orderNumber == null ? 'Order number: assigned automatically when you save' : 'Order number: $orderNumber (cannot be changed)',
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+            orderNumber == null
+                ? 'Order number: assigned automatically when you save'
+                : 'Order number: $orderNumber (cannot be changed)',
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
+            ),
           ),
         ),
       ],
@@ -321,9 +386,13 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(
-        text,
-        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
-      );
+    text,
+    style: const TextStyle(
+      fontSize: 18,
+      fontWeight: FontWeight.w800,
+      color: AppColors.primaryDark,
+    ),
+  );
 }
 
 class _TotalLine extends StatelessWidget {
@@ -332,10 +401,19 @@ class _TotalLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final text = form.isFree ? 'No payment expected (Gift / Free)' : 'Products total: ${formatRupees(form.totalPaisa)}';
+    final text = form.isFree
+        ? 'No payment expected (Gift / Free)'
+        : 'Products total: ${formatRupees(form.totalPaisa)}';
     return Semantics(
       liveRegion: true,
-      child: Text(text, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w800,
+          color: AppColors.textPrimary,
+        ),
+      ),
     );
   }
 }
@@ -362,9 +440,19 @@ class _ItemCard extends StatefulWidget {
 }
 
 class _ItemCardState extends State<_ItemCard> {
-  late final _quantity = TextEditingController(text: widget.item.quantity?.toString());
-  late final _weight = TextEditingController(text: widget.item.weightGrams == null ? null : plainKg(widget.item.weightGrams!));
-  late final _price = TextEditingController(text: widget.item.pricePaisa == null ? null : plainRupees(widget.item.pricePaisa!));
+  late final _quantity = TextEditingController(
+    text: widget.item.quantity?.toString(),
+  );
+  late final _weight = TextEditingController(
+    text: widget.item.weightGrams == null
+        ? null
+        : plainKg(widget.item.weightGrams!),
+  );
+  late final _price = TextEditingController(
+    text: widget.item.pricePaisa == null
+        ? null
+        : plainRupees(widget.item.pricePaisa!),
+  );
 
   @override
   void dispose() {
@@ -376,7 +464,10 @@ class _ItemCardState extends State<_ItemCard> {
 
   Future<void> _pickProduct() async {
     final picked = await Navigator.of(context).push<Product>(
-      MaterialPageRoute(builder: (_) => ProductPickerScreen(repository: widget.productRepository)),
+      MaterialPageRoute(
+        builder: (_) =>
+            ProductPickerScreen(repository: widget.productRepository),
+      ),
     );
     if (!mounted || picked == null) return;
     if (widget.item.product?.saleUnit != picked.saleUnit) {
@@ -406,13 +497,25 @@ class _ItemCardState extends State<_ItemCard> {
             Row(
               children: [
                 Expanded(
-                  child: Text('Product $number', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.label)),
+                  child: Text(
+                    'Product $number',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.label,
+                    ),
+                  ),
                 ),
                 if (form.items.length > 1)
                   IconButton(
                     tooltip: 'Remove product $number',
-                    icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
-                    onPressed: widget.enabled ? () => form.removeItem(item) : null,
+                    icon: const Icon(
+                      Icons.delete_outline_rounded,
+                      color: AppColors.error,
+                    ),
+                    onPressed: widget.enabled
+                        ? () => form.removeItem(item)
+                        : null,
                   ),
               ],
             ),
@@ -426,7 +529,9 @@ class _ItemCardState extends State<_ItemCard> {
               onTap: _pickProduct,
               validator: () {
                 if (item.product == null) return 'Select a product';
-                return form.isDuplicate(item) ? 'This product is already added' : null;
+                return form.isDuplicate(item)
+                    ? 'This product is already added'
+                    : null;
               },
             ),
             if (item.product != null) ...[
@@ -438,30 +543,39 @@ class _ItemCardState extends State<_ItemCard> {
                   hint: 'e.g. 1.5',
                   isRequired: true,
                   enabled: widget.enabled,
-                  onChanged: (value) => form.setWeight(item, parseKgToGrams(value)),
+                  onChanged: (value) =>
+                      form.setWeight(item, parseKgToGrams(value)),
                 )
               else
                 AppTextField.integer(
                   controller: _quantity,
                   enabled: widget.enabled,
-                  onChanged: (value) => form.setQuantity(item, int.tryParse(value.trim())),
+                  onChanged: (value) =>
+                      form.setQuantity(item, int.tryParse(value.trim())),
                 ),
               if (!form.isFree) ...[
                 const SizedBox(height: AppSpacing.lg),
                 AppTextField.amount(
                   controller: _price,
-                  label: item.isPerKg ? 'Price per kg (Rs.)' : 'Price per piece (Rs.)',
+                  label: item.isPerKg
+                      ? 'Price per kg (Rs.)'
+                      : 'Price per piece (Rs.)',
                   hint: 'Agreed price',
                   minPaisa: 1,
                   enabled: widget.enabled,
                   textInputAction: TextInputAction.done,
-                  onChanged: (value) => form.setPrice(item, parseRupeesToPaisa(value)),
+                  onChanged: (value) =>
+                      form.setPrice(item, parseRupeesToPaisa(value)),
                 ),
                 if (lineTotal != null) ...[
                   const SizedBox(height: AppSpacing.md),
                   Text(
                     'Line total: ${formatRupees(lineTotal)}',
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textSecondary),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ],

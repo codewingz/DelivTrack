@@ -19,16 +19,18 @@ class ParcelItem {
     required String productName,
     required int quantity,
     required int unitPricePaisa,
-  }) =>
-      ParcelItem._(
-        productId: productId,
-        productName: productName,
-        saleUnit: SaleUnit.perPiece,
-        quantity: quantity,
-        weightGrams: null,
-        unitPricePaisa: unitPricePaisa,
-        lineTotalPaisa: pieceLineTotalPaisa(quantity: quantity, unitPricePaisa: unitPricePaisa),
-      );
+  }) => ParcelItem._(
+    productId: productId,
+    productName: productName,
+    saleUnit: SaleUnit.perPiece,
+    quantity: quantity,
+    weightGrams: null,
+    unitPricePaisa: unitPricePaisa,
+    lineTotalPaisa: pieceLineTotalPaisa(
+      quantity: quantity,
+      unitPricePaisa: unitPricePaisa,
+    ),
+  );
 
   /// A per-kg line: [weightGrams] at [unitPricePaisa] per kg.
   factory ParcelItem.weight({
@@ -36,16 +38,18 @@ class ParcelItem {
     required String productName,
     required int weightGrams,
     required int unitPricePaisa,
-  }) =>
-      ParcelItem._(
-        productId: productId,
-        productName: productName,
-        saleUnit: SaleUnit.perKg,
-        quantity: null,
-        weightGrams: weightGrams,
-        unitPricePaisa: unitPricePaisa,
-        lineTotalPaisa: weightLineTotalPaisa(grams: weightGrams, pricePerKgPaisa: unitPricePaisa),
-      );
+  }) => ParcelItem._(
+    productId: productId,
+    productName: productName,
+    saleUnit: SaleUnit.perKg,
+    quantity: null,
+    weightGrams: weightGrams,
+    unitPricePaisa: unitPricePaisa,
+    lineTotalPaisa: weightLineTotalPaisa(
+      grams: weightGrams,
+      pricePerKgPaisa: unitPricePaisa,
+    ),
+  );
 
   factory ParcelItem.fromMap(Map<String, dynamic> map) {
     final unit = SaleUnit.fromValue(map['saleUnit'] as String);
@@ -75,15 +79,17 @@ class ParcelItem {
   final int lineTotalPaisa;
 
   Map<String, Object> toMap() => {
-        'productId': productId,
-        'productName': productName,
-        'saleUnit': saleUnit.value,
-        'quantity': ?quantity,
-        'weightGrams': ?weightGrams,
-        'unitPricePaisa': unitPricePaisa,
-        'lineTotalPaisa': lineTotalPaisa,
-      };
+    'productId': productId,
+    'productName': productName,
+    'saleUnit': saleUnit.value,
+    'quantity': ?quantity,
+    'weightGrams': ?weightGrams,
+    'unitPricePaisa': unitPricePaisa,
+    'lineTotalPaisa': lineTotalPaisa,
+  };
 
   /// "3 pieces" or "1.25 kg".
-  String get amountLabel => saleUnit == SaleUnit.perPiece ? '$quantity ${quantity == 1 ? 'piece' : 'pieces'}' : formatKg(weightGrams!);
+  String get amountLabel => saleUnit == SaleUnit.perPiece
+      ? '$quantity ${quantity == 1 ? 'piece' : 'pieces'}'
+      : formatKg(weightGrams!);
 }

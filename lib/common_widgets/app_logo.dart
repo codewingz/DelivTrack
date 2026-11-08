@@ -24,13 +24,9 @@ class AppLogo extends StatelessWidget {
     );
 
     if (showHero) {
-      return Hero(
-        tag: heroTag,
-        child: imageWidget,
-      );
+      return Hero(tag: heroTag, child: imageWidget);
     }
 
     return imageWidget;
   }
 }
-

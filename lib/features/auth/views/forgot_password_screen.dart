@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../common_widgets/app_text_field.dart';
 import '../../../common_widgets/primary_button.dart';
 import '../data/auth_repository.dart';
@@ -6,7 +7,11 @@ import '../../../core/view_models/action_view_model.dart';
 import 'auth_scaffold.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
-  const ForgotPasswordScreen({super.key, required this.repository, required this.onBackToLogin});
+  const ForgotPasswordScreen({
+    super.key,
+    required this.repository,
+    required this.onBackToLogin,
+  });
   final AuthRepository repository;
   final VoidCallback onBackToLogin;
 
@@ -31,7 +36,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     if (!_formKey.currentState!.validate()) return;
     final email = _email.text.trim();
     setState(() => _sentTo = null);
-    final sent = await _viewModel.run(() => widget.repository.sendPasswordReset(email: email));
+    final sent = await _viewModel.run(
+      () => widget.repository.sendPasswordReset(email: email),
+    );
     if (!mounted || !sent) return;
     setState(() => _sentTo = email);
   }
@@ -50,7 +57,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           successMessage: _sentTo == null
               ? null
               : 'If an account exists for $_sentTo, a reset link is on its way. '
-                  'Check your inbox and spam folder.',
+                    'Check your inbox and spam folder.',
           fields: [
             AppTextField.email(
               controller: _email,

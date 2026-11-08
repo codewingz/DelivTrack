@@ -1,5 +1,7 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
+
 import '../../../common_widgets/empty_state.dart';
 import '../../../common_widgets/searchable_list_page.dart';
 import '../data/customer_repository.dart';
@@ -9,7 +11,11 @@ import '../viewmodel/customer_list_view_model.dart';
 /// Pick a customer for a parcel. Pops with the chosen [Customer].
 /// "Add Customer" opens the full-screen form through [onAdd]; the new customer is then chosen automatically.
 class CustomerPickerScreen extends StatefulWidget {
-  const CustomerPickerScreen({super.key, required this.repository, required this.onAdd});
+  const CustomerPickerScreen({
+    super.key,
+    required this.repository,
+    required this.onAdd,
+  });
   final CustomerRepository repository;
   final Future<String?> Function() onAdd;
 
@@ -61,11 +67,22 @@ class _CustomerPickerScreenState extends State<CustomerPickerScreen> {
                 actionLabel: 'New Customer',
                 onAction: _addAndSelect,
               )
-            : EmptyState(icon: Icons.search_off_rounded, title: 'No customers match "${_viewModel.query.trim()}"'),
+            : EmptyState(
+                icon: Icons.search_off_rounded,
+                title: 'No customers match "${_viewModel.query.trim()}"',
+              ),
         itemBuilder: (context, customer) => ListTile(
           minTileHeight: 64,
-          title: Text(customer.name, maxLines: 2, overflow: TextOverflow.ellipsis),
-          subtitle: Text('${customer.phone}\n${customer.address}', maxLines: 3, overflow: TextOverflow.ellipsis),
+          title: Text(
+            customer.name,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          subtitle: Text(
+            '${customer.phone}\n${customer.address}',
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
           isThreeLine: true,
           onTap: () => Navigator.of(context).pop(customer),
         ),

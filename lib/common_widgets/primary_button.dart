@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../constants/app_colors.dart';
 import 'brand_loading_indicator.dart';
 import '../design_system/foundations/radius/app_radius.dart';
@@ -25,14 +26,23 @@ class PrimaryButton extends StatelessWidget {
         style: FilledButton.styleFrom(
           minimumSize: const Size.fromHeight(56),
           backgroundColor: AppColors.primary,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.control)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.control),
+          ),
         ),
         child: isLoading
-            ? const BrandLoadingIndicator(size: 22, strokeWidth: 2.4, color: Colors.white)
+            ? const BrandLoadingIndicator(
+                size: 22,
+                strokeWidth: 2.4,
+                color: Colors.white,
+              )
             : Text(
                 label,
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
       ),
     );

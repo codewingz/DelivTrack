@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../common_widgets/primary_button.dart';
 import '../../../constants/app_colors.dart';
 import '../../../constants/app_info.dart';
@@ -10,7 +11,11 @@ import '../../reminders/data/reminder_scheduler.dart';
 
 /// Read-only information and the few controls that are not tied to one parcel.
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key, required this.repository, required this.scheduler});
+  const SettingsScreen({
+    super.key,
+    required this.repository,
+    required this.scheduler,
+  });
   final AuthRepository repository;
   final ReminderScheduler scheduler;
 
@@ -18,7 +23,8 @@ class SettingsScreen extends StatefulWidget {
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObserver {
+class _SettingsScreenState extends State<SettingsScreen>
+    with WidgetsBindingObserver {
   bool? _notificationsOn;
 
   @override
@@ -46,7 +52,9 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
   }
 
   Future<void> _turnOn() async {
-    if (!await widget.scheduler.requestPermission()) await widget.scheduler.openSettings();
+    if (!await widget.scheduler.requestPermission()) {
+      await widget.scheduler.openSettings();
+    }
     await _refresh();
   }
 
@@ -63,38 +71,63 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
             child: ListView(
               padding: const EdgeInsetsDirectional.all(AppSpacing.lg),
               children: [
-                _Section(title: 'Account', children: [_Info('Email', widget.repository.email ?? 'Not available')]),
-                _Section(title: 'Reminders', children: [
-                  _Info('Reminder time', '9:00 AM (Pakistan time) on the day a Pay Later payment is due'),
-                  _Info(
-                    'Phone notifications',
-                    switch (_notificationsOn) {
+                _Section(
+                  title: 'Account',
+                  children: [
+                    _Info('Email', widget.repository.email ?? 'Not available'),
+                  ],
+                ),
+                _Section(
+                  title: 'Reminders',
+                  children: [
+                    _Info(
+                      'Reminder time',
+                      '9:00 AM (Pakistan time) on the day a Pay Later payment is due',
+                    ),
+                    _Info('Phone notifications', switch (_notificationsOn) {
                       null => 'Checking...',
                       true => 'On',
                       false => 'Off. Without them the Reminders list inside the app still works.',
-                    },
-                  ),
-                  const _Info(
-                    'How phone reminders work',
-                    'They are set up whenever you open DelivTrack, so open the app after changing a date on another phone. '
-                        'They arrive at about 9:00 AM (a few minutes late is normal). A reminder for today that is set after 9:00 AM '
-                        'shows in the bell and the Reminders list, not as a phone notification.',
-                  ),
-                  if (_notificationsOn == false) PrimaryButton(label: 'Turn On Notifications', onPressed: _turnOn),
-                  if (problem != null) _Info('Last problem scheduling reminders', problem),
-                ]),
-                const _Section(title: 'Backup', children: [
-                  _Info(
-                    'Your data',
-                    'Everything is saved to the cloud under your account as you work and is kept private to you. '
-                        'Automatic scheduled backups are not turned on yet: they need the Firebase Blaze plan.',
-                  ),
-                ]),
-                const _Section(title: 'About', children: [_Info('App version', appVersion)]),
+                    }),
+                    const _Info(
+                      'How phone reminders work',
+                      'They are set up whenever you open DelivTrack, so open the app after changing a date on another phone. '
+                          'They arrive at about 9:00 AM (a few minutes late is normal). A reminder for today that is set after 9:00 AM '
+                          'shows in the bell and the Reminders list, not as a phone notification.',
+                    ),
+                    if (_notificationsOn == false)
+                      PrimaryButton(
+                        label: 'Turn On Notifications',
+                        onPressed: _turnOn,
+                      ),
+                    if (problem != null)
+                      _Info('Last problem scheduling reminders', problem),
+                  ],
+                ),
+                const _Section(
+                  title: 'Backup',
+                  children: [
+                    _Info(
+                      'Your data',
+                      'Everything is saved to the cloud under your account as you work and is kept private to you. '
+                          'Automatic scheduled backups are not turned on yet: they need the Firebase Blaze plan.',
+                    ),
+                  ],
+                ),
+                const _Section(
+                  title: 'About',
+                  children: [_Info('App version', appVersion)],
+                ),
                 OutlinedButton.icon(
                   onPressed: () => confirmLogout(context, widget.repository),
-                  icon: const Icon(Icons.logout_rounded, color: AppColors.error),
-                  label: const Text('Log out', style: TextStyle(color: AppColors.error)),
+                  icon: const Icon(
+                    Icons.logout_rounded,
+                    color: AppColors.error,
+                  ),
+                  label: const Text(
+                    'Log out',
+                    style: TextStyle(color: AppColors.error),
+                  ),
                 ),
               ],
             ),
@@ -115,14 +148,28 @@ class _Section extends StatelessWidget {
     return Padding(
       padding: const EdgeInsetsDirectional.only(bottom: AppSpacing.lg),
       child: DecoratedBox(
-        decoration: BoxDecoration(color: AppColors.surface, border: Border.all(color: AppColors.border), borderRadius: BorderRadius.circular(AppRadius.control)),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          border: Border.all(color: AppColors.border),
+          borderRadius: BorderRadius.circular(AppRadius.control),
+        ),
         child: Padding(
           padding: const EdgeInsetsDirectional.all(AppSpacing.lg),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
-              for (final child in children) ...[const SizedBox(height: AppSpacing.md), child],
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primaryDark,
+                ),
+              ),
+              for (final child in children) ...[
+                const SizedBox(height: AppSpacing.md),
+                child,
+              ],
             ],
           ),
         ),
@@ -141,8 +188,22 @@ class _Info extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textSecondary)),
-        Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
       ],
     );
   }

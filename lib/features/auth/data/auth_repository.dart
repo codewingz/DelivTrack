@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+
 import '../../../core/errors/app_failure.dart';
 
 abstract class AuthRepository {
@@ -24,7 +25,11 @@ abstract class AuthRepository {
 
   /// Creates the account (saving [name] as the display name) and leaves the user signed in.
   /// Throws [AppFailure] with a user-presentable message on failure.
-  Future<void> signUp({required String name, required String email, required String password});
+  Future<void> signUp({
+    required String name,
+    required String email,
+    required String password,
+  });
 
   /// Signs in an existing user. Throws [AppFailure] with a user-presentable message.
   Future<void> signIn({required String email, required String password});
@@ -35,7 +40,8 @@ abstract class AuthRepository {
 }
 
 class FirebaseAuthRepository implements AuthRepository {
-  FirebaseAuthRepository({FirebaseAuth? auth}) : _auth = auth ?? FirebaseAuth.instance;
+  FirebaseAuthRepository({FirebaseAuth? auth})
+    : _auth = auth ?? FirebaseAuth.instance;
   final FirebaseAuth _auth;
 
   static const _invalidSessionCodes = {
@@ -49,7 +55,8 @@ class FirebaseAuthRepository implements AuthRepository {
   bool get isSignedIn => _auth.currentUser != null;
 
   @override
-  Stream<bool> get signedInChanges => _auth.authStateChanges().map((user) => user != null);
+  Stream<bool> get signedInChanges =>
+      _auth.authStateChanges().map((user) => user != null);
 
   @override
   String? get displayName => _auth.currentUser?.displayName;
@@ -58,7 +65,8 @@ class FirebaseAuthRepository implements AuthRepository {
   String? get email => _auth.currentUser?.email;
 
   @override
-  Stream<String?> get displayNameChanges => _auth.userChanges().map((user) => user?.displayName);
+  Stream<String?> get displayNameChanges =>
+      _auth.userChanges().map((user) => user?.displayName);
 
   @override
   Future<void> signOut() => _auth.signOut();
@@ -75,24 +83,36 @@ class FirebaseAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<void> signUp({required String name, required String email, required String password}) async {
+  Future<void> signUp({
+    required String name,
+    required String email,
+    required String password,
+  }) async {
     final UserCredential credential;
     try {
-      credential = await _auth.createUserWithEmailAndPassword(email: email.trim(), password: password);
+      credential = await _auth.createUserWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
     } on FirebaseAuthException catch (e) {
       throw AppFailure(authErrorMessage(e.code));
     }
     try {
       await credential.user?.updateDisplayName(name.trim());
     } on FirebaseAuthException {
-      throw const AppFailure('Account created, but your name could not be saved. Please log in and try again.');
+      throw const AppFailure(
+        'Account created, but your name could not be saved. Please log in and try again.',
+      );
     }
   }
 
   @override
   Future<void> signIn({required String email, required String password}) async {
     try {
-      await _auth.signInWithEmailAndPassword(email: email.trim(), password: password);
+      await _auth.signInWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
     } on FirebaseAuthException catch (e) {
       throw AppFailure(authErrorMessage(e.code));
     }
@@ -110,17 +130,20 @@ class FirebaseAuthRepository implements AuthRepository {
 }
 
 String authErrorMessage(String code) => switch (code) {
-      'email-already-in-use' => 'This email is already registered. Try logging in instead.',
-      'invalid-email' => 'Enter a valid email address.',
-      'invalid-credential' ||
-      'wrong-password' ||
-      'user-not-found' ||
-      'invalid-login-credentials' =>
-        'Incorrect email or password.',
-      'user-disabled' => 'This account has been disabled.',
-      'weak-password' => 'Password is too weak. Use at least 8 characters with letters and numbers.',
-      'network-request-failed' => 'No internet connection. Check your network and try again.',
-      'too-many-requests' => 'Too many attempts. Please wait a moment and try again.',
-      'operation-not-allowed' => 'Email sign-up is not enabled for this app.',
-      _ => 'Something went wrong. Please try again.',
-    };
+  'email-already-in-use' =>
+    'This email is already registered. Try logging in instead.',
+  'invalid-email' => 'Enter a valid email address.',
+  'invalid-credential' ||
+  'wrong-password' ||
+  'user-not-found' ||
+  'invalid-login-credentials' => 'Incorrect email or password.',
+  'user-disabled' => 'This account has been disabled.',
+  'weak-password' =>
+    'Password is too weak. Use at least 8 characters with letters and numbers.',
+  'network-request-failed' =>
+    'No internet connection. Check your network and try again.',
+  'too-many-requests' =>
+    'Too many attempts. Please wait a moment and try again.',
+  'operation-not-allowed' => 'Email sign-up is not enabled for this app.',
+  _ => 'Something went wrong. Please try again.',
+};

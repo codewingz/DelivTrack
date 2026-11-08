@@ -11,9 +11,9 @@ enum CollectionMethod {
   final String label;
 
   static CollectionMethod fromValue(String value) => values.firstWhere(
-        (m) => m.value == value,
-        orElse: () => throw StateError('Unknown collection method "$value"'),
-      );
+    (m) => m.value == value,
+    orElse: () => throw StateError('Unknown collection method "$value"'),
+  );
 }
 
 enum PostalService {
@@ -29,12 +29,14 @@ enum PostalService {
 
   /// Suggested service for a parcel type: collection -> VPP, everything else -> VPL.
   static PostalService defaultFor(CollectionMethod method) =>
-      method == CollectionMethod.postalCollection ? PostalService.vpp : PostalService.vpl;
+      method == CollectionMethod.postalCollection
+      ? PostalService.vpp
+      : PostalService.vpl;
 
   static PostalService fromValue(String value) => values.firstWhere(
-        (s) => s.value == value,
-        orElse: () => throw StateError('Unknown postal service "$value"'),
-      );
+    (s) => s.value == value,
+    orElse: () => throw StateError('Unknown postal service "$value"'),
+  );
 }
 
 /// How a returned parcel's payment review was settled. It only records the decision: nothing is
@@ -50,9 +52,9 @@ enum ReviewResolution {
   final String label;
 
   static ReviewResolution fromValue(String value) => values.firstWhere(
-        (r) => r.value == value,
-        orElse: () => throw StateError('Unknown review resolution "$value"'),
-      );
+    (r) => r.value == value,
+    orElse: () => throw StateError('Unknown review resolution "$value"'),
+  );
 }
 
 enum ParcelStatus {
@@ -65,9 +67,9 @@ enum ParcelStatus {
   final String label;
 
   static ParcelStatus fromValue(String value) => values.firstWhere(
-        (s) => s.value == value,
-        orElse: () => throw StateError('Unknown parcel status "$value"'),
-      );
+    (s) => s.value == value,
+    orElse: () => throw StateError('Unknown parcel status "$value"'),
+  );
 }
 
 enum PaymentStatus {
@@ -81,7 +83,7 @@ enum PaymentStatus {
   final String label;
 
   static PaymentStatus fromValue(String value) => values.firstWhere(
-        (s) => s.value == value,
-        orElse: () => throw StateError('Unknown payment status "$value"'),
-      );
+    (s) => s.value == value,
+    orElse: () => throw StateError('Unknown payment status "$value"'),
+  );
 }

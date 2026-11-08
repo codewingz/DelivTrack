@@ -14,13 +14,25 @@ class AppShell extends StatelessWidget {
     return Column(
       children: [
         // The tab bar below already handles the bottom system inset.
-        Expanded(child: MediaQuery.removePadding(context: context, removeBottom: true, child: navigationShell)),
+        Expanded(
+          child: MediaQuery.removePadding(
+            context: context,
+            removeBottom: true,
+            child: navigationShell,
+          ),
+        ),
         NavigationBar(
           selectedIndex: navigationShell.currentIndex,
-          onDestinationSelected: (index) =>
-              navigationShell.goBranch(index, initialLocation: index == navigationShell.currentIndex),
+          onDestinationSelected: (index) => navigationShell.goBranch(
+            index,
+            initialLocation: index == navigationShell.currentIndex,
+          ),
           destinations: const [
-            NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Home'),
+            NavigationDestination(
+              icon: Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home),
+              label: 'Home',
+            ),
             NavigationDestination(
               icon: Icon(Icons.local_shipping_outlined),
               selectedIcon: Icon(Icons.local_shipping),
@@ -36,7 +48,10 @@ class AppShell extends StatelessWidget {
               selectedIcon: Icon(Icons.people_rounded),
               label: 'Customers',
             ),
-            NavigationDestination(icon: Icon(Icons.menu_rounded), label: 'More'),
+            NavigationDestination(
+              icon: Icon(Icons.menu_rounded),
+              label: 'More',
+            ),
           ],
         ),
       ],

@@ -9,11 +9,17 @@ import '../domain/reminder_rules.dart';
 class ReminderListViewModel extends LiveListViewModel<Parcel> {
   /// [includeArchived] is for the dashboard, whose money totals keep archived parcels; the reminders
   /// themselves only ever look at active parcels.
-  ReminderListViewModel(ParcelRepository repository, {this.clock = const Clock(), bool includeArchived = false})
-      : super(() => repository.watchAll(includeArchived: includeArchived));
+  ReminderListViewModel(
+    ParcelRepository repository, {
+    this.clock = const Clock(),
+    bool includeArchived = false,
+  }) : super(() => repository.watchAll(includeArchived: includeArchived));
 
   final Clock clock;
 
   String get today => pakistanDate(clock.nowUtc());
-  Reminders get reminders => Reminders.from([for (final parcel in all) if (!parcel.isArchived) parcel], today);
+  Reminders get reminders => Reminders.from([
+    for (final parcel in all)
+      if (!parcel.isArchived) parcel,
+  ], today);
 }

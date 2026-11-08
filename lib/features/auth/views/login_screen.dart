@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../common_widgets/app_text_field.dart';
 import '../../../common_widgets/primary_button.dart';
 import '../../../constants/app_colors.dart';
@@ -39,7 +40,10 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
     // On success the router redirects to the dashboard.
     await _viewModel.run(
-      () => widget.repository.signIn(email: _email.text, password: _password.text),
+      () => widget.repository.signIn(
+        email: _email.text,
+        password: _password.text,
+      ),
     );
   }
 
@@ -69,12 +73,19 @@ class _LoginScreenState extends State<LoginScreen> {
                 style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
                 child: const Text(
                   'Forgot password?',
-                  style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.primary),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
+                  ),
                 ),
               ),
             ),
           ],
-          button: PrimaryButton(label: 'Log In', isLoading: busy, onPressed: _submit),
+          button: PrimaryButton(
+            label: 'Log In',
+            isLoading: busy,
+            onPressed: _submit,
+          ),
           footer: AuthFooterLink(
             prompt: "Don't have an account?",
             action: 'Sign up',

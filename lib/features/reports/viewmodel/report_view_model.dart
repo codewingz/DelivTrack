@@ -10,7 +10,8 @@ import '../domain/reports.dart';
 /// One report over the user's live parcels, limited to an optional From / To date range. The payment
 /// history also covers archived parcels (archiving never removes received money from the history).
 class ReportViewModel extends LiveListViewModel<Parcel> {
-  ReportViewModel(this._repository, this.type, {this.clock = const Clock()}) : super(() => _repository.watchAll(includeArchived: type.needsPayments)) {
+  ReportViewModel(this._repository, this.type, {this.clock = const Clock()})
+    : super(() => _repository.watchAll(includeArchived: type.needsPayments)) {
     addListener(_loadPaymentsOnceParcelsArrive);
   }
 
@@ -31,15 +32,31 @@ class ReportViewModel extends LiveListViewModel<Parcel> {
   String get today => pakistanDate(clock.nowUtc());
 
   /// The range ends before it starts.
-  String? get rangeProblem => _from != null && _to != null && _to!.compareTo(_from!) < 0 ? 'The To date is before the From date.' : null;
+  String? get rangeProblem =>
+      _from != null && _to != null && _to!.compareTo(_from!) < 0
+      ? 'The To date is before the From date.'
+      : null;
 
   /// True while the payments the history needs are still being fetched.
-  bool get isLoadingPayments => type.needsPayments && _payments == null && _paymentsError == null;
+  bool get isLoadingPayments =>
+      type.needsPayments && _payments == null && _paymentsError == null;
   String? get paymentsError => _paymentsError;
 
   ReportResult? get result {
-    if (isLoading || isLoadingPayments || _paymentsError != null || rangeProblem != null) return null;
-    return buildReport(type, all, payments: _payments ?? const {}, from: _from, to: _to, today: today);
+    if (isLoading ||
+        isLoadingPayments ||
+        _paymentsError != null ||
+        rangeProblem != null) {
+      return null;
+    }
+    return buildReport(
+      type,
+      all,
+      payments: _payments ?? const {},
+      from: _from,
+      to: _to,
+      today: today,
+    );
   }
 
   void setRange({String? from, String? to}) {
@@ -63,7 +80,10 @@ class ReportViewModel extends LiveListViewModel<Parcel> {
     _paymentsError = null;
     notifyListeners();
     try {
-      final ids = [for (final parcel in all) if (parcel.method != CollectionMethod.giftFree) parcel.id];
+      final ids = [
+        for (final parcel in all)
+          if (parcel.method != CollectionMethod.giftFree) parcel.id,
+      ];
       final payments = await _repository.paymentsFor(ids);
       if (_disposed || mine != _lookup) return;
       _payments = payments;

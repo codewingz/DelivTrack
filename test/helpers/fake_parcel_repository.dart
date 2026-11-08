@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:deliv_track/core/errors/app_failure.dart';
 import 'package:deliv_track/core/ids/order_number.dart';
 import 'package:deliv_track/core/time/pakistan_time.dart';
@@ -40,8 +41,19 @@ Parcel testParcel({
   bool isArchived = false,
   List<ParcelItem>? items,
 }) {
-  final lines = items ?? [ParcelItem.pieces(productId: 'x', productName: 'Mango Box', quantity: 2, unitPricePaisa: 250000)];
-  final expected = method == CollectionMethod.giftFree ? 0 : lines.fold(0, (sum, i) => sum + i.lineTotalPaisa);
+  final lines =
+      items ??
+      [
+        ParcelItem.pieces(
+          productId: 'x',
+          productName: 'Mango Box',
+          quantity: 2,
+          unitPricePaisa: 250000,
+        ),
+      ];
+  final expected = method == CollectionMethod.giftFree
+      ? 0
+      : lines.fold(0, (sum, i) => sum + i.lineTotalPaisa);
   return Parcel(
     id: id,
     orderNumber: formatOrderNumber(sequence),
@@ -61,9 +73,17 @@ Parcel testParcel({
     estimatedPaymentDate: payDate,
     expectedPaisa: expected,
     receivedPaisa: received,
-    outstandingPaisa: outstandingFor(expectedPaisa: expected, receivedPaisa: received),
-    paymentStatus: payment ??
-        paymentStatusFor(isFree: method == CollectionMethod.giftFree, expectedPaisa: expected, receivedPaisa: received),
+    outstandingPaisa: outstandingFor(
+      expectedPaisa: expected,
+      receivedPaisa: received,
+    ),
+    paymentStatus:
+        payment ??
+        paymentStatusFor(
+          isFree: method == CollectionMethod.giftFree,
+          expectedPaisa: expected,
+          receivedPaisa: received,
+        ),
     status: status,
     notes: notes,
     returnedDate: returnedDate,
@@ -77,36 +97,50 @@ Parcel testParcel({
 }
 
 /// [old] with a few fields replaced.
-Parcel _changed(Parcel old, {int? received, ParcelStatus? status, String? notes, String? payDate, String? returnedDate, String? returnReason, bool? review, ReviewResolution? resolution, String? reviewNote, String? reviewDate, bool? archived}) => testParcel(
-      id: old.id,
-      sequence: old.orderSequence,
-      customerName: old.customerName,
-      customerPhone: old.customerPhone,
-      customerAddress: old.customerAddress,
-      method: old.method,
-      service: old.service,
-      otherName: old.otherServiceName,
-      reference: old.postalReference,
-      charge: old.deliveryChargePaisa,
-      packedGrams: old.packedWeightGrams,
-      sendingDate: old.sendingDate,
-      payDate: payDate ?? old.estimatedPaymentDate,
-      status: status ?? old.status,
-      items: old.items,
-      received: received ?? old.receivedPaisa,
-      notes: notes ?? old.notes,
-      returnedDate: returnedDate ?? old.returnedDate,
-      returnReason: returnReason ?? old.returnReason,
-      paymentReviewRequired: review ?? old.paymentReviewRequired,
-      reviewResolution: resolution ?? old.reviewResolution,
-      reviewNote: reviewNote ?? old.reviewNote,
-      reviewDate: reviewDate ?? old.reviewDate,
-      isArchived: archived ?? old.isArchived,
-    );
+Parcel _changed(
+  Parcel old, {
+  int? received,
+  ParcelStatus? status,
+  String? notes,
+  String? payDate,
+  String? returnedDate,
+  String? returnReason,
+  bool? review,
+  ReviewResolution? resolution,
+  String? reviewNote,
+  String? reviewDate,
+  bool? archived,
+}) => testParcel(
+  id: old.id,
+  sequence: old.orderSequence,
+  customerName: old.customerName,
+  customerPhone: old.customerPhone,
+  customerAddress: old.customerAddress,
+  method: old.method,
+  service: old.service,
+  otherName: old.otherServiceName,
+  reference: old.postalReference,
+  charge: old.deliveryChargePaisa,
+  packedGrams: old.packedWeightGrams,
+  sendingDate: old.sendingDate,
+  payDate: payDate ?? old.estimatedPaymentDate,
+  status: status ?? old.status,
+  items: old.items,
+  received: received ?? old.receivedPaisa,
+  notes: notes ?? old.notes,
+  returnedDate: returnedDate ?? old.returnedDate,
+  returnReason: returnReason ?? old.returnReason,
+  paymentReviewRequired: review ?? old.paymentReviewRequired,
+  reviewResolution: resolution ?? old.reviewResolution,
+  reviewNote: reviewNote ?? old.reviewNote,
+  reviewDate: reviewDate ?? old.reviewDate,
+  isArchived: archived ?? old.isArchived,
+);
 
 /// In-memory repository: keeps parcels (newest first), records created inputs, can fail or wait.
 class FakeParcelRepository implements ParcelRepository {
-  FakeParcelRepository({this.failure, List<Parcel> initial = const []}) : _parcels = [...initial];
+  FakeParcelRepository({this.failure, List<Parcel> initial = const []})
+    : _parcels = [...initial];
 
   AppFailure? failure;
   Completer<void>? gate;
@@ -129,7 +163,10 @@ class FakeParcelRepository implements ParcelRepository {
     _changes.add(null);
   }
 
-  List<Parcel> _sorted({bool? archived = false}) => [for (final p in _parcels) if (archived == null || p.isArchived == archived) p]..sort((a, b) => b.orderSequence.compareTo(a.orderSequence));
+  List<Parcel> _sorted({bool? archived = false}) => [
+    for (final p in _parcels)
+      if (archived == null || p.isArchived == archived) p,
+  ]..sort((a, b) => b.orderSequence.compareTo(a.orderSequence));
 
   void emitError(Object error) => _changes.addError(error);
 
@@ -140,22 +177,24 @@ class FakeParcelRepository implements ParcelRepository {
     if (failure != null) throw failure!;
     created.add(input);
     final sequence = _parcels.length + 1;
-    _parcels.add(testParcel(
-      id: 'parcel-$sequence',
-      sequence: sequence,
-      customerName: input.customer.name,
-      customerPhone: input.customer.phone,
-      customerAddress: input.customer.address,
-      method: input.method,
-      service: input.service,
-      otherName: input.otherServiceName,
-      reference: input.postalReference.trim(),
-      charge: input.deliveryChargePaisa,
-      packedGrams: input.packedWeightGrams,
-      payDate: input.estimatedPaymentDate,
-      status: input.status,
-      items: input.items,
-    ));
+    _parcels.add(
+      testParcel(
+        id: 'parcel-$sequence',
+        sequence: sequence,
+        customerName: input.customer.name,
+        customerPhone: input.customer.phone,
+        customerAddress: input.customer.address,
+        method: input.method,
+        service: input.service,
+        otherName: input.otherServiceName,
+        reference: input.postalReference.trim(),
+        charge: input.deliveryChargePaisa,
+        packedGrams: input.packedWeightGrams,
+        payDate: input.estimatedPaymentDate,
+        status: input.status,
+        items: input.items,
+      ),
+    );
     _changes.add(null);
     return 'parcel-$sequence';
   }
@@ -200,14 +239,21 @@ class FakeParcelRepository implements ParcelRepository {
   int paymentDateLookups = 0;
 
   @override
-  Future<Map<String, List<Payment>>> paymentsFor(Iterable<String> parcelIds) async {
+  Future<Map<String, List<Payment>>> paymentsFor(
+    Iterable<String> parcelIds,
+  ) async {
     await gate?.future;
     if (failure != null) throw failure!;
-    return {for (final id in parcelIds) if ((payments[id] ?? const []).isNotEmpty) id: List.of(payments[id]!)};
+    return {
+      for (final id in parcelIds)
+        if ((payments[id] ?? const []).isNotEmpty) id: List.of(payments[id]!),
+    };
   }
 
   @override
-  Future<Map<String, Set<String>>> paymentDates(Iterable<String> parcelIds) async {
+  Future<Map<String, Set<String>>> paymentDates(
+    Iterable<String> parcelIds,
+  ) async {
     paymentDateLookups++;
     await gate?.future;
     if (failure != null) throw failure!;
@@ -215,14 +261,24 @@ class FakeParcelRepository implements ParcelRepository {
     for (final id in parcelIds) {
       final list = payments[id] ?? const <Payment>[];
       final reversed = {for (final p in list) ?p.reversalOfPaymentId};
-      final dates = {for (final p in list) if (p.amountPaisa > 0 && !reversed.contains(p.id)) pakistanDate(p.receivedAt)};
+      final dates = {
+        for (final p in list)
+          if (p.amountPaisa > 0 && !reversed.contains(p.id))
+            pakistanDate(p.receivedAt),
+      };
       if (dates.isNotEmpty) result[id] = dates;
     }
     return result;
   }
 
   @override
-  Future<void> recordPayment(String parcelId, {required int amountPaisa, required PaymentType type, String? note, String? receivedOn}) async {
+  Future<void> recordPayment(
+    String parcelId, {
+    required int amountPaisa,
+    required PaymentType type,
+    String? note,
+    String? receivedOn,
+  }) async {
     paymentRecords++;
     await gate?.future;
     if (failure != null) throw failure!;
@@ -231,49 +287,119 @@ class FakeParcelRepository implements ParcelRepository {
     if (problem != null) throw AppFailure(problem);
     final index = _index(parcelId);
     final old = _parcels[index];
-    if (receivedOn != null && receivedOn.compareTo(old.sendingDate) < 0) throw const AppFailure('The received date cannot be before the sending date.');
-    if (old.method == CollectionMethod.giftFree) throw const AppFailure('A Gift / Free parcel has no payment to receive.');
-    if (old.status == ParcelStatus.returned) throw const AppFailure("A returned parcel can't take payments.");
-    if (amountPaisa > old.outstandingPaisa) throw const AppFailure('Cannot exceed outstanding amount.');
+    if (receivedOn != null && receivedOn.compareTo(old.sendingDate) < 0) {
+      throw const AppFailure(
+        'The received date cannot be before the sending date.',
+      );
+    }
+    if (old.method == CollectionMethod.giftFree) {
+      throw const AppFailure('A Gift / Free parcel has no payment to receive.');
+    }
+    if (old.status == ParcelStatus.returned) {
+      throw const AppFailure("A returned parcel can't take payments.");
+    }
+    if (amountPaisa > old.outstandingPaisa) {
+      throw const AppFailure('Cannot exceed outstanding amount.');
+    }
     _parcels[index] = _changed(old, received: old.receivedPaisa + amountPaisa);
-    final when = receivedOn == null ? DateTime.now() : DateTime.parse('${receivedOn}T07:00:00Z');
-    (payments[parcelId] ??= []).insert(0, Payment(id: 'pay-$paymentRecords', amountPaisa: amountPaisa, type: type, note: cleanNote.isEmpty ? null : cleanNote, receivedAt: when));
+    final when = receivedOn == null
+        ? DateTime.now()
+        : DateTime.parse('${receivedOn}T07:00:00Z');
+    (payments[parcelId] ??= []).insert(
+      0,
+      Payment(
+        id: 'pay-$paymentRecords',
+        amountPaisa: amountPaisa,
+        type: type,
+        note: cleanNote.isEmpty ? null : cleanNote,
+        receivedAt: when,
+      ),
+    );
     _changes.add(null);
   }
 
   final returns = <({String id, String date, String? reason})>[];
   final notesSaved = <({String id, String notes})>[];
   final payDates = <({String id, String? date})>[];
-  final corrections = <({String parcelId, String paymentId, int amount, String reason, String? receivedOn})>[];
+  final corrections =
+      <
+        ({
+          String parcelId,
+          String paymentId,
+          int amount,
+          String reason,
+          String? receivedOn,
+        })
+      >[];
 
   @override
-  Future<void> markReturned(String parcelId, {required String date, String? reason}) async {
+  Future<void> markReturned(
+    String parcelId, {
+    required String date,
+    String? reason,
+  }) async {
     await gate?.future;
     if (failure != null) throw failure!;
     final index = _index(parcelId);
     final old = _parcels[index];
-    if (old.status != ParcelStatus.sent) throw const AppFailure('Only a Sent parcel can be marked as returned.');
-    if (date.compareTo(old.sendingDate) < 0) throw const AppFailure('The returned date cannot be before the sending date.');
+    if (old.status != ParcelStatus.sent) {
+      throw const AppFailure('Only a Sent parcel can be marked as returned.');
+    }
+    if (date.compareTo(old.sendingDate) < 0) {
+      throw const AppFailure(
+        'The returned date cannot be before the sending date.',
+      );
+    }
     final clean = collapseSpaces(reason ?? '');
-    returns.add((id: parcelId, date: date, reason: clean.isEmpty ? null : clean));
-    _parcels[index] = _changed(old,
-        status: ParcelStatus.returned, returnedDate: date, returnReason: clean.isEmpty ? null : clean, review: old.receivedPaisa > 0 || old.outstandingPaisa > 0);
+    returns.add((
+      id: parcelId,
+      date: date,
+      reason: clean.isEmpty ? null : clean,
+    ));
+    _parcels[index] = _changed(
+      old,
+      status: ParcelStatus.returned,
+      returnedDate: date,
+      returnReason: clean.isEmpty ? null : clean,
+      review: old.receivedPaisa > 0 || old.outstandingPaisa > 0,
+    );
     _changes.add(null);
   }
 
-  final reviewsCompleted = <({String id, ReviewResolution resolution, String note, String date})>[];
+  final reviewsCompleted =
+      <({String id, ReviewResolution resolution, String note, String date})>[];
 
   @override
-  Future<void> completePaymentReview(String parcelId, {required ReviewResolution resolution, required String note, required String date}) async {
+  Future<void> completePaymentReview(
+    String parcelId, {
+    required ReviewResolution resolution,
+    required String note,
+    required String date,
+  }) async {
     await gate?.future;
     if (failure != null) throw failure!;
     final index = _index(parcelId);
     final old = _parcels[index];
     final clean = collapseSpaces(note);
-    if (clean.length < 5) throw const AppFailure('Write a note (at least 5 characters).');
-    if (!old.paymentReviewRequired) throw const AppFailure('This parcel has no payment review to complete.');
-    reviewsCompleted.add((id: parcelId, resolution: resolution, note: clean, date: date));
-    _parcels[index] = _changed(old, review: false, resolution: resolution, reviewNote: clean, reviewDate: date);
+    if (clean.length < 5) {
+      throw const AppFailure('Write a note (at least 5 characters).');
+    }
+    if (!old.paymentReviewRequired) {
+      throw const AppFailure('This parcel has no payment review to complete.');
+    }
+    reviewsCompleted.add((
+      id: parcelId,
+      resolution: resolution,
+      note: clean,
+      date: date,
+    ));
+    _parcels[index] = _changed(
+      old,
+      review: false,
+      resolution: resolution,
+      reviewNote: clean,
+      reviewDate: date,
+    );
     _changes.add(null);
   }
 
@@ -282,7 +408,9 @@ class FakeParcelRepository implements ParcelRepository {
     await gate?.future;
     if (failure != null) throw failure!;
     final index = _index(parcelId);
-    if (notes.trim().length > 500) throw const AppFailure('Use at most 500 characters.');
+    if (notes.trim().length > 500) {
+      throw const AppFailure('Use at most 500 characters.');
+    }
     notesSaved.add((id: parcelId, notes: notes.trim()));
     _parcels[index] = _changed(_parcels[index], notes: notes.trim());
     _changes.add(null);
@@ -294,8 +422,12 @@ class FakeParcelRepository implements ParcelRepository {
     if (failure != null) throw failure!;
     final index = _index(parcelId);
     final old = _parcels[index];
-    if (date != null && date.compareTo(_today) < 0) throw const AppFailure('Choose today or a later date.');
-    if (old.method != CollectionMethod.payLater) throw const AppFailure('Only a Pay Later parcel has a payment date.');
+    if (date != null && date.compareTo(_today) < 0) {
+      throw const AppFailure('Choose today or a later date.');
+    }
+    if (old.method != CollectionMethod.payLater) {
+      throw const AppFailure('Only a Pay Later parcel has a payment date.');
+    }
     payDates.add((id: parcelId, date: date));
     // `null` clears the date, so rebuild without _changed (which keeps the old one).
     _parcels[index] = testParcel(
@@ -316,31 +448,87 @@ class FakeParcelRepository implements ParcelRepository {
   }
 
   @override
-  Future<void> correctPayment(String parcelId, String paymentId, {required int correctedAmountPaisa, required String reason, String? receivedOn}) async {
+  Future<void> correctPayment(
+    String parcelId,
+    String paymentId, {
+    required int correctedAmountPaisa,
+    required String reason,
+    String? receivedOn,
+  }) async {
     await gate?.future;
     if (failure != null) throw failure!;
     final index = _index(parcelId);
     final old = _parcels[index];
     final list = payments[parcelId] ?? [];
     final original = list.where((p) => p.id == paymentId).firstOrNull;
-    if (original == null) throw const AppFailure('This payment no longer exists.');
-    if (list.any((p) => p.reversalOfPaymentId == paymentId)) throw const AppFailure('This payment was already corrected.');
-    final clean = collapseSpaces(reason);
-    if (clean.length < 5) throw const AppFailure('Give a reason (at least 5 characters).');
-    if (receivedOn != null && receivedOn.compareTo(pakistanDate(DateTime.now().toUtc())) > 0) throw const AppFailure('The received date cannot be in the future.');
-    if (receivedOn != null && receivedOn.compareTo(old.sendingDate) < 0) throw const AppFailure('The received date cannot be before the sending date.');
-    final originalDate = pakistanDate(original.receivedAt);
-    if (correctedAmountPaisa == original.amountPaisa && (receivedOn ?? originalDate) == originalDate) {
-      throw const AppFailure('Change the amount or the date: the correction is the same as the payment.');
+    if (original == null) {
+      throw const AppFailure('This payment no longer exists.');
     }
-    final received = old.receivedPaisa - original.amountPaisa + correctedAmountPaisa;
-    if (received > old.expectedPaisa) throw const AppFailure('The total received cannot exceed the order total.');
-    corrections.add((parcelId: parcelId, paymentId: paymentId, amount: correctedAmountPaisa, reason: clean, receivedOn: receivedOn));
+    if (list.any((p) => p.reversalOfPaymentId == paymentId)) {
+      throw const AppFailure('This payment was already corrected.');
+    }
+    final clean = collapseSpaces(reason);
+    if (clean.length < 5) {
+      throw const AppFailure('Give a reason (at least 5 characters).');
+    }
+    if (receivedOn != null &&
+        receivedOn.compareTo(pakistanDate(DateTime.now().toUtc())) > 0) {
+      throw const AppFailure('The received date cannot be in the future.');
+    }
+    if (receivedOn != null && receivedOn.compareTo(old.sendingDate) < 0) {
+      throw const AppFailure(
+        'The received date cannot be before the sending date.',
+      );
+    }
+    final originalDate = pakistanDate(original.receivedAt);
+    if (correctedAmountPaisa == original.amountPaisa &&
+        (receivedOn ?? originalDate) == originalDate) {
+      throw const AppFailure(
+        'Change the amount or the date: the correction is the same as the payment.',
+      );
+    }
+    final received =
+        old.receivedPaisa - original.amountPaisa + correctedAmountPaisa;
+    if (received > old.expectedPaisa) {
+      throw const AppFailure(
+        'The total received cannot exceed the order total.',
+      );
+    }
+    corrections.add((
+      parcelId: parcelId,
+      paymentId: paymentId,
+      amount: correctedAmountPaisa,
+      reason: clean,
+      receivedOn: receivedOn,
+    ));
     _parcels[index] = _changed(old, received: received);
     final now = DateTime.now();
-    list.insert(0, Payment(id: 'rev_$paymentId', amountPaisa: -original.amountPaisa, type: original.type, note: null, receivedAt: now, reversalOfPaymentId: paymentId, correctionReason: clean));
+    list.insert(
+      0,
+      Payment(
+        id: 'rev_$paymentId',
+        amountPaisa: -original.amountPaisa,
+        type: original.type,
+        note: null,
+        receivedAt: now,
+        reversalOfPaymentId: paymentId,
+        correctionReason: clean,
+      ),
+    );
     if (correctedAmountPaisa > 0) {
-      list.insert(0, Payment(id: 'cor_$paymentId', amountPaisa: correctedAmountPaisa, type: original.type, note: null, receivedAt: receivedOn == null ? original.receivedAt : DateTime.parse('${receivedOn}T07:00:00Z'), correctionOfPaymentId: paymentId));
+      list.insert(
+        0,
+        Payment(
+          id: 'cor_$paymentId',
+          amountPaisa: correctedAmountPaisa,
+          type: original.type,
+          note: null,
+          receivedAt: receivedOn == null
+              ? original.receivedAt
+              : DateTime.parse('${receivedOn}T07:00:00Z'),
+          correctionOfPaymentId: paymentId,
+        ),
+      );
     }
     payments[parcelId] = list;
     _changes.add(null);
@@ -390,7 +578,11 @@ class FakeParcelRepository implements ParcelRepository {
     if (failure != null) throw failure!;
     final index = _index(parcelId);
     final old = _parcels[index];
-    if (!old.isArchived && !old.canArchive) throw const AppFailure("A parcel that still has money to collect can't be archived.");
+    if (!old.isArchived && !old.canArchive) {
+      throw const AppFailure(
+        "A parcel that still has money to collect can't be archived.",
+      );
+    }
     archivedIds.add(parcelId);
     _parcels[index] = _changed(old, archived: true);
     _changes.add(null);

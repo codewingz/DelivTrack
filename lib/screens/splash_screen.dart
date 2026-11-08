@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../common_widgets/app_logo.dart';
 import '../common_widgets/brand_loading_indicator.dart';
 import '../constants/app_colors.dart';

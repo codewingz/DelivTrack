@@ -1,6 +1,7 @@
 import 'package:deliv_track/features/parcels/domain/parcel_enums.dart';
 import 'package:deliv_track/features/reminders/domain/reminder_rules.dart';
 import 'package:flutter_test/flutter_test.dart';
+
 import 'helpers/fake_parcel_repository.dart';
 
 const _today = '2026-11-10';
@@ -8,40 +9,125 @@ const _today = '2026-11-10';
 void main() {
   group('reminderGroupFor', () {
     test('Pay Later with an outstanding balance is grouped by its date', () {
-      ReminderGroup? group(String? date) =>
-          reminderGroupFor(testParcel(method: CollectionMethod.payLater, payDate: date), _today);
+      ReminderGroup? group(String? date) => reminderGroupFor(
+        testParcel(method: CollectionMethod.payLater, payDate: date),
+        _today,
+      );
       expect(group('2026-11-09'), ReminderGroup.overdue);
       expect(group('2000-01-01'), ReminderGroup.overdue);
-      expect(group('2026-11-10'), ReminderGroup.dueToday, reason: 'the day itself is due, not overdue');
+      expect(
+        group('2026-11-10'),
+        ReminderGroup.dueToday,
+        reason: 'the day itself is due, not overdue',
+      );
       expect(group('2026-11-11'), ReminderGroup.upcoming);
       expect(group('2031-01-01'), ReminderGroup.upcoming);
-      expect(group(null), ReminderGroup.noDate, reason: 'a parcel without a date is never overdue');
+      expect(
+        group(null),
+        ReminderGroup.noDate,
+        reason: 'a parcel without a date is never overdue',
+      );
     });
 
     test('nothing to follow up on other types, returned parcels or settled balances', () {
-      expect(reminderGroupFor(testParcel(method: CollectionMethod.postalCollection, payDate: '2026-11-01'), _today), isNull);
-      expect(reminderGroupFor(testParcel(method: CollectionMethod.advance), _today), isNull);
-      expect(reminderGroupFor(testParcel(method: CollectionMethod.giftFree), _today), isNull);
-      expect(reminderGroupFor(testParcel(method: CollectionMethod.payLater, payDate: '2026-11-01', status: ParcelStatus.returned), _today), isNull);
-      expect(reminderGroupFor(testParcel(method: CollectionMethod.payLater, payDate: '2026-11-01', received: 500000), _today), isNull, reason: 'paid in full');
+      expect(
+        reminderGroupFor(
+          testParcel(
+            method: CollectionMethod.postalCollection,
+            payDate: '2026-11-01',
+          ),
+          _today,
+        ),
+        isNull,
+      );
+      expect(
+        reminderGroupFor(testParcel(method: CollectionMethod.advance), _today),
+        isNull,
+      );
+      expect(
+        reminderGroupFor(testParcel(method: CollectionMethod.giftFree), _today),
+        isNull,
+      );
+      expect(
+        reminderGroupFor(
+          testParcel(
+            method: CollectionMethod.payLater,
+            payDate: '2026-11-01',
+            status: ParcelStatus.returned,
+          ),
+          _today,
+        ),
+        isNull,
+      );
+      expect(
+        reminderGroupFor(
+          testParcel(
+            method: CollectionMethod.payLater,
+            payDate: '2026-11-01',
+            received: 500000,
+          ),
+          _today,
+        ),
+        isNull,
+        reason: 'paid in full',
+      );
     });
 
     test('a partly paid parcel still follows up for what is left', () {
-      expect(reminderGroupFor(testParcel(method: CollectionMethod.payLater, payDate: '2026-11-01', received: 100000), _today), ReminderGroup.overdue);
+      expect(
+        reminderGroupFor(
+          testParcel(
+            method: CollectionMethod.payLater,
+            payDate: '2026-11-01',
+            received: 100000,
+          ),
+          _today,
+        ),
+        ReminderGroup.overdue,
+      );
     });
   });
 
   group('Reminders', () {
     test('groups are ordered: overdue longest first, upcoming soonest first, no date newest first; bell counts due + overdue', () {
       final parcels = [
-        testParcel(id: 'u2', sequence: 1, method: CollectionMethod.payLater, payDate: '2026-12-01'),
-        testParcel(id: 'o2', sequence: 2, method: CollectionMethod.payLater, payDate: '2026-11-05'),
+        testParcel(
+          id: 'u2',
+          sequence: 1,
+          method: CollectionMethod.payLater,
+          payDate: '2026-12-01',
+        ),
+        testParcel(
+          id: 'o2',
+          sequence: 2,
+          method: CollectionMethod.payLater,
+          payDate: '2026-11-05',
+        ),
         testParcel(id: 'n1', sequence: 3, method: CollectionMethod.payLater),
-        testParcel(id: 'd', sequence: 4, method: CollectionMethod.payLater, payDate: _today),
-        testParcel(id: 'o1', sequence: 5, method: CollectionMethod.payLater, payDate: '2026-11-01'),
-        testParcel(id: 'u1', sequence: 6, method: CollectionMethod.payLater, payDate: '2026-11-20'),
+        testParcel(
+          id: 'd',
+          sequence: 4,
+          method: CollectionMethod.payLater,
+          payDate: _today,
+        ),
+        testParcel(
+          id: 'o1',
+          sequence: 5,
+          method: CollectionMethod.payLater,
+          payDate: '2026-11-01',
+        ),
+        testParcel(
+          id: 'u1',
+          sequence: 6,
+          method: CollectionMethod.payLater,
+          payDate: '2026-11-20',
+        ),
         testParcel(id: 'n2', sequence: 7, method: CollectionMethod.payLater),
-        testParcel(id: 'x', sequence: 8, method: CollectionMethod.postalCollection),
+        testParcel(
+          id: 'x',
+          sequence: 8,
+          method: CollectionMethod.postalCollection,
+        ),
       ];
       final r = Reminders.from(parcels, _today);
       expect(r[ReminderGroup.overdue].map((p) => p.id), ['o1', 'o2']);

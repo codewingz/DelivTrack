@@ -9,8 +9,12 @@ abstract final class DashboardLists {
   static const sent = ParcelFilters(statuses: {ParcelStatus.sent});
   static const returned = ParcelFilters(statuses: {ParcelStatus.returned});
   static const freeGift = ParcelFilters(methods: {CollectionMethod.giftFree});
-  static const paymentReceived = ParcelFilters(payments: {PaymentFilter.partial, PaymentFilter.received});
-  static const pendingPayment = ParcelFilters(payments: {PaymentFilter.pending});
+  static const paymentReceived = ParcelFilters(
+    payments: {PaymentFilter.partial, PaymentFilter.received},
+  );
+  static const pendingPayment = ParcelFilters(
+    payments: {PaymentFilter.pending},
+  );
 }
 
 /// The dashboard figures for a user's parcels.
@@ -43,23 +47,35 @@ class DashboardStats {
   /// the money received stays in "Total received" and "Advance amount"; every count, list, balance and
   /// reminder covers the active (not archived) parcels only.
   factory DashboardStats.from(List<Parcel> everyParcel, String today) {
-    final parcels = [for (final parcel in everyParcel) if (!parcel.isArchived) parcel];
-    int count(ParcelFilters list) => parcels.where((parcel) => list.matches(parcel, today)).length;
+    final parcels = [
+      for (final parcel in everyParcel)
+        if (!parcel.isArchived) parcel,
+    ];
+    int count(ParcelFilters list) =>
+        parcels.where((parcel) => list.matches(parcel, today)).length;
     var received = 0;
     var outstanding = 0;
     var payLater = 0;
     var advance = 0;
     for (final parcel in everyParcel) {
       received += parcel.receivedPaisa;
-      if (parcel.method == CollectionMethod.advance) advance += parcel.receivedPaisa;
+      if (parcel.method == CollectionMethod.advance) {
+        advance += parcel.receivedPaisa;
+      }
     }
     for (final parcel in parcels) {
-      if (parcel.method == CollectionMethod.giftFree || parcel.status == ParcelStatus.returned) continue;
+      if (parcel.method == CollectionMethod.giftFree ||
+          parcel.status == ParcelStatus.returned) {
+        continue;
+      }
       outstanding += parcel.outstandingPaisa;
-      if (parcel.method == CollectionMethod.payLater) payLater += parcel.outstandingPaisa;
+      if (parcel.method == CollectionMethod.payLater) {
+        payLater += parcel.outstandingPaisa;
+      }
     }
     final reminders = Reminders.from(parcels, today);
-    final newestFirst = [...parcels]..sort((a, b) => b.orderSequence.compareTo(a.orderSequence));
+    final newestFirst = [...parcels]
+      ..sort((a, b) => b.orderSequence.compareTo(a.orderSequence));
     return DashboardStats(
       totalParcels: parcels.length,
       sent: count(DashboardLists.sent),
@@ -71,7 +87,9 @@ class DashboardStats {
       totalOutstandingPaisa: outstanding,
       payLaterBalancePaisa: payLater,
       advancePaisa: advance,
-      needsReview: parcels.where((parcel) => parcel.paymentReviewRequired).length,
+      needsReview: parcels
+          .where((parcel) => parcel.paymentReviewRequired)
+          .length,
       dueToday: reminders[ReminderGroup.dueToday].length,
       overdue: reminders[ReminderGroup.overdue].length,
       recent: newestFirst.take(5).toList(),

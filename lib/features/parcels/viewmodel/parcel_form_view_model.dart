@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+
 import '../../../utils/postal_reference.dart';
 import '../../customers/domain/customer.dart';
 import '../../products/domain/product.dart';
@@ -23,32 +24,44 @@ class ItemDraft {
 
 /// State of the Add Parcel form and the rules that connect its fields.
 class ParcelFormViewModel extends ChangeNotifier {
-  ParcelFormViewModel()
-      : parcel = null,
-        items = [ItemDraft(0)] {
+  ParcelFormViewModel() : parcel = null, items = [ItemDraft(0)] {
     _initialSignature = _signature();
   }
 
   /// Prefills the form from a saved parcel (edit mode).
   ParcelFormViewModel.fromParcel(Parcel saved)
-      : parcel = saved,
-        customer = Customer(id: saved.customerId, name: saved.customerName, phone: saved.customerPhone, address: saved.customerAddress),
-        method = saved.method,
-        service = saved.service,
-        otherServiceName = saved.otherServiceName ?? '',
-        reference = saved.postalReference,
-        chargePaisa = saved.deliveryChargePaisa,
-        packedGrams = saved.packedWeightGrams,
-        payDate = saved.estimatedPaymentDate,
-        _serviceChosenByUser = true,
-        items = [
-          for (var i = 0; i < saved.items.length; i++)
-            ItemDraft(i)
-              ..product = Product(id: saved.items[i].productId, name: saved.items[i].productName, saleUnit: saved.items[i].saleUnit, isActive: true)
-              ..quantity = saved.items[i].quantity
-              ..weightGrams = saved.items[i].weightGrams
-              ..pricePaisa = saved.items[i].unitPricePaisa == 0 && saved.method == CollectionMethod.giftFree ? null : saved.items[i].unitPricePaisa,
-        ] {
+    : parcel = saved,
+      customer = Customer(
+        id: saved.customerId,
+        name: saved.customerName,
+        phone: saved.customerPhone,
+        address: saved.customerAddress,
+      ),
+      method = saved.method,
+      service = saved.service,
+      otherServiceName = saved.otherServiceName ?? '',
+      reference = saved.postalReference,
+      chargePaisa = saved.deliveryChargePaisa,
+      packedGrams = saved.packedWeightGrams,
+      payDate = saved.estimatedPaymentDate,
+      _serviceChosenByUser = true,
+      items = [
+        for (var i = 0; i < saved.items.length; i++)
+          ItemDraft(i)
+            ..product = Product(
+              id: saved.items[i].productId,
+              name: saved.items[i].productName,
+              saleUnit: saved.items[i].saleUnit,
+              isActive: true,
+            )
+            ..quantity = saved.items[i].quantity
+            ..weightGrams = saved.items[i].weightGrams
+            ..pricePaisa =
+                saved.items[i].unitPricePaisa == 0 &&
+                    saved.method == CollectionMethod.giftFree
+                ? null
+                : saved.items[i].unitPricePaisa,
+      ] {
     _nextKey = saved.items.length;
     _initialSignature = _signature();
   }
@@ -79,10 +92,15 @@ class ParcelFormViewModel extends ChangeNotifier {
 
   /// Sent once the slip details are in (a valid reference and a delivery charge); otherwise a draft.
   ParcelStatus get status =>
-      reference.trim().isNotEmpty && isValidPostalReference(reference) && chargePaisa != null ? ParcelStatus.sent : ParcelStatus.draft;
+      reference.trim().isNotEmpty &&
+          isValidPostalReference(reference) &&
+          chargePaisa != null
+      ? ParcelStatus.sent
+      : ParcelStatus.draft;
 
   /// True when saving this edit would turn a draft into a sent parcel.
-  bool get willBecomeSent => parcel?.status == ParcelStatus.draft && status == ParcelStatus.sent;
+  bool get willBecomeSent =>
+      parcel?.status == ParcelStatus.draft && status == ParcelStatus.sent;
 
   /// Total of the lines that are complete so far (0 for gift parcels).
   int get totalPaisa {
@@ -96,28 +114,34 @@ class ParcelFormViewModel extends ChangeNotifier {
   }
 
   /// "Line total" shown under a row once product, amount and price are filled in.
-  int? lineTotalPaisa(ItemDraft item) => isFree ? null : _lineOrNull(item)?.lineTotalPaisa;
+  int? lineTotalPaisa(ItemDraft item) =>
+      isFree ? null : _lineOrNull(item)?.lineTotalPaisa;
 
   /// True once anything differs from how the form started (empty, or the saved parcel).
   bool get isDirty => _signature() != _initialSignature;
 
   String _signature() => [
-        customer?.id,
-        method,
-        service,
-        otherServiceName.trim(),
-        reference.trim(),
-        chargePaisa,
-        packedGrams,
-        payDate,
-        [for (final i in items) [i.product?.id, i.quantity, i.weightGrams, i.pricePaisa]],
-      ].toString();
+    customer?.id,
+    method,
+    service,
+    otherServiceName.trim(),
+    reference.trim(),
+    chargePaisa,
+    packedGrams,
+    payDate,
+    [
+      for (final i in items)
+        [i.product?.id, i.quantity, i.weightGrams, i.pricePaisa],
+    ],
+  ].toString();
 
   /// True when an earlier row already has the same product (only the repeat is flagged).
   bool isDuplicate(ItemDraft item) {
     final product = item.product;
     if (product == null) return false;
-    return items.takeWhile((other) => other != item).any((other) => other.product?.id == product.id);
+    return items
+        .takeWhile((other) => other != item)
+        .any((other) => other.product?.id == product.id);
   }
 
   void setCustomer(Customer value) {
@@ -201,11 +225,21 @@ class ParcelFormViewModel extends ChangeNotifier {
     if (item.isPerKg) {
       final grams = item.weightGrams;
       if (grams == null || grams <= 0) return null;
-      return ParcelItem.weight(productId: product.id, productName: product.name, weightGrams: grams, unitPricePaisa: price);
+      return ParcelItem.weight(
+        productId: product.id,
+        productName: product.name,
+        weightGrams: grams,
+        unitPricePaisa: price,
+      );
     }
     final pieces = item.quantity;
     if (pieces == null || pieces <= 0) return null;
-    return ParcelItem.pieces(productId: product.id, productName: product.name, quantity: pieces, unitPricePaisa: price);
+    return ParcelItem.pieces(
+      productId: product.id,
+      productName: product.name,
+      quantity: pieces,
+      unitPricePaisa: price,
+    );
   }
 
   /// The validated-so-far input. Call only after the form's field validators passed.
@@ -216,8 +250,18 @@ class ParcelFormViewModel extends ChangeNotifier {
       final price = isFree ? 0 : item.pricePaisa!;
       lines.add(
         item.isPerKg
-            ? ParcelItem.weight(productId: product.id, productName: product.name, weightGrams: item.weightGrams!, unitPricePaisa: price)
-            : ParcelItem.pieces(productId: product.id, productName: product.name, quantity: item.quantity!, unitPricePaisa: price),
+            ? ParcelItem.weight(
+                productId: product.id,
+                productName: product.name,
+                weightGrams: item.weightGrams!,
+                unitPricePaisa: price,
+              )
+            : ParcelItem.pieces(
+                productId: product.id,
+                productName: product.name,
+                quantity: item.quantity!,
+                unitPricePaisa: price,
+              ),
       );
     }
     return ParcelInput(
@@ -225,11 +269,15 @@ class ParcelFormViewModel extends ChangeNotifier {
       items: lines,
       method: method!,
       service: service!,
-      otherServiceName: service == PostalService.other ? otherServiceName : null,
+      otherServiceName: service == PostalService.other
+          ? otherServiceName
+          : null,
       postalReference: reference,
       deliveryChargePaisa: chargePaisa,
       packedWeightGrams: packedGrams,
-      estimatedPaymentDate: method == CollectionMethod.payLater ? payDate : null,
+      estimatedPaymentDate: method == CollectionMethod.payLater
+          ? payDate
+          : null,
       status: status,
     );
   }

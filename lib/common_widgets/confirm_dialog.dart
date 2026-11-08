@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../constants/app_colors.dart';
 
 /// Asks the user to confirm an action. Returns true only when they confirm.

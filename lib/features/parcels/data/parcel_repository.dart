@@ -140,8 +140,24 @@ class FirestoreParcelRepository implements ParcelRepository {
   Stream<List<String>> watchUnreadable() =>
       _parcels.snapshots().map((snapshot) => _read(snapshot).unreadableIds).withFirestoreFailures();
 
-  static ({List<Parcel> parcels, List<String> unreadableIds}) _read(QuerySnapshot<Map<String, dynamic>> snapshot) =>
-      Parcel.readAll([for (final doc in snapshot.docs) MapEntry(doc.id, doc.data())]);
+  ({List<Parcel> parcels, List<String> unreadableIds}) _read(QuerySnapshot<Map<String, dynamic>> snapshot) {
+    final result = Parcel.readAll([for (final doc in snapshot.docs) MapEntry(doc.id, doc.data())]);
+    // Remember what each parcel's payment history looked like, so cached payments can be checked.
+    for (final parcel in result.parcels) {
+      _paymentSignatures[parcel.id] = parcel.paymentsSignature;
+    }
+    return result;
+  }
+
+  // Payments already read in this session. An entry is used only while the parcel's signature (received
+  // money + last payment id) is the one the entry was read under; any payment or correction changes it.
+  // Bounded, and keyed by user so accounts never share entries.
+  final _paymentSignatures = <String, String>{};
+  final _paymentCache = <String, ({String signature, List<Payment> payments})>{};
+  static const _maxCachedParcels = 5000;
+
+  /// Diagnostic counter: how many payment sub-collections were read from Firestore (the rest came from the cache).
+  int paymentQueries = 0;
 
   @override
   Stream<Parcel?> watch(String id) => _parcels
@@ -281,15 +297,34 @@ class FirestoreParcelRepository implements ParcelRepository {
 
   @override
   Future<Map<String, List<Payment>>> paymentsFor(Iterable<String> parcelIds) async {
-    final ids = parcelIds.toList();
+    final uid = _auth.currentUser?.uid;
     final result = <String, List<Payment>>{};
+    final missing = <String>[];
+    for (final id in parcelIds) {
+      final signature = _paymentSignatures[id];
+      final cached = _paymentCache['$uid/$id'];
+      if (signature != null && cached != null && cached.signature == signature) {
+        if (cached.payments.isNotEmpty) result[id] = List.of(cached.payments);
+      } else {
+        missing.add(id);
+      }
+    }
     try {
       // A few parcels at a time, so a long list does not open hundreds of requests at once.
-      for (var start = 0; start < ids.length; start += 10) {
-        final batch = ids.skip(start).take(10).toList();
+      for (var start = 0; start < missing.length; start += 10) {
+        final batch = missing.skip(start).take(10).toList();
+        // The signature is taken before reading: if a payment lands meanwhile, the entry just reads as stale.
+        final signatures = [for (final id in batch) _paymentSignatures[id]];
+        paymentQueries += batch.length;
         final snapshots = await Future.wait([for (final id in batch) _parcels.doc(id).collection('payments').orderBy('receivedAt', descending: true).get()]);
         for (final (index, snapshot) in snapshots.indexed) {
-          if (snapshot.docs.isNotEmpty) result[batch[index]] = [for (final doc in snapshot.docs) ?_paymentFrom(doc)];
+          final payments = [for (final doc in snapshot.docs) ?_paymentFrom(doc)];
+          final signature = signatures[index];
+          if (signature != null) {
+            if (_paymentCache.length >= _maxCachedParcels) _paymentCache.clear();
+            _paymentCache['$uid/${batch[index]}'] = (signature: signature, payments: payments);
+          }
+          if (payments.isNotEmpty) result[batch[index]] = payments;
         }
       }
     } on FirebaseException catch (e) {

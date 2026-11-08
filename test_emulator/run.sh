@@ -7,5 +7,5 @@
 set -e
 device="${1:?usage: run.sh <android-emulator-id>}"
 for name in parcels customers products; do
-  flutter drive --driver=test_emulator/driver.dart --target="test_emulator/${name}_repository_test.dart" -d "$device"
+  flutter drive --no-pub --driver=test_emulator/driver.dart --target="test_emulator/${name}_repository_test.dart" -d "$device"
 done

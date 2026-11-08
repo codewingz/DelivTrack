@@ -23,10 +23,17 @@ Future<void> signUpNewUser(String tag) async {
 
 /// Latest list. Transactions reach the local cache only after the server confirms them,
 /// so wait until [test] accepts the list instead of trusting the first (possibly stale) event.
-Future<List<Product>> current(ProductRepository repo, {bool Function(List<Product>)? until}) => repo
+Future<List<Product>> current(
+  ProductRepository repo, {
+  bool Function(List<Product>)? until,
+}) => repo
     .watchAll()
     .firstWhere(until ?? (_) => true)
-    .timeout(const Duration(seconds: 10), onTimeout: () => throw StateError('List never reached the expected state'));
+    .timeout(
+      const Duration(seconds: 10),
+      onTimeout: () =>
+          throw StateError('List never reached the expected state'),
+    );
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -34,7 +41,9 @@ void main() {
   late FirestoreProductRepository repo;
 
   setUpAll(() async {
-    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
     await FirebaseAuth.instance.useAuthEmulator('localhost', 9099);
     FirebaseFirestore.instance.useFirestoreEmulator('localhost', 8080);
     repo = FirestoreProductRepository();
@@ -50,46 +59,85 @@ void main() {
     expect(list.every((p) => p.isActive), isTrue);
   });
 
-  testWidgets('duplicate names are rejected case-insensitively, also when archived', (t) async {
-    await signUpNewUser('dup');
-    await repo.add(name: 'Mango Box', saleUnit: SaleUnit.perPiece);
-    await expectLater(
-      repo.add(name: '  MANGO   box ', saleUnit: SaleUnit.perKg),
-      throwsA(isA<AppFailure>().having((e) => e.message, 'message', duplicateProductMessage)),
-    );
-    final only = (await current(repo, until: (l) => l.length == 1)).single;
-    await repo.setActive(only.id, false);
-    await expectLater(repo.add(name: 'mango box', saleUnit: SaleUnit.perPiece), throwsA(isA<AppFailure>()),
-        reason: 'archived names stay reserved');
-    expect(await current(repo, until: (l) => l.length == 1), hasLength(1));
-  });
+  testWidgets(
+    'duplicate names are rejected case-insensitively, also when archived',
+    (t) async {
+      await signUpNewUser('dup');
+      await repo.add(name: 'Mango Box', saleUnit: SaleUnit.perPiece);
+      await expectLater(
+        repo.add(name: '  MANGO   box ', saleUnit: SaleUnit.perKg),
+        throwsA(
+          isA<AppFailure>().having(
+            (e) => e.message,
+            'message',
+            duplicateProductMessage,
+          ),
+        ),
+      );
+      final only = (await current(repo, until: (l) => l.length == 1)).single;
+      await repo.setActive(only.id, false);
+      await expectLater(
+        repo.add(name: 'mango box', saleUnit: SaleUnit.perPiece),
+        throwsA(isA<AppFailure>()),
+        reason: 'archived names stay reserved',
+      );
+      expect(await current(repo, until: (l) => l.length == 1), hasLength(1));
+    },
+  );
 
-  testWidgets('two simultaneous adds of the same name: exactly one wins', (t) async {
+  testWidgets('two simultaneous adds of the same name: exactly one wins', (
+    t,
+  ) async {
     await signUpNewUser('race');
     final results = await Future.wait([
-      repo.add(name: 'Race Item', saleUnit: SaleUnit.perPiece).then((_) => true, onError: (_) => false),
-      repo.add(name: 'race item', saleUnit: SaleUnit.perPiece).then((_) => true, onError: (_) => false),
+      repo
+          .add(name: 'Race Item', saleUnit: SaleUnit.perPiece)
+          .then((_) => true, onError: (_) => false),
+      repo
+          .add(name: 'race item', saleUnit: SaleUnit.perPiece)
+          .then((_) => true, onError: (_) => false),
     ]);
     expect(results.where((ok) => ok), hasLength(1));
     expect(await current(repo, until: (l) => l.isNotEmpty), hasLength(1));
   });
 
-  testWidgets('rename frees the old name and reserves the new one; renaming onto an existing name fails', (t) async {
-    await signUpNewUser('rename');
-    await repo.add(name: 'Alpha', saleUnit: SaleUnit.perPiece);
-    await repo.add(name: 'Beta', saleUnit: SaleUnit.perPiece);
-    final alpha = (await current(repo, until: (l) => l.length == 2)).firstWhere((p) => p.name == 'Alpha');
+  testWidgets(
+    'rename frees the old name and reserves the new one; renaming onto an existing name fails',
+    (t) async {
+      await signUpNewUser('rename');
+      await repo.add(name: 'Alpha', saleUnit: SaleUnit.perPiece);
+      await repo.add(name: 'Beta', saleUnit: SaleUnit.perPiece);
+      final alpha = (await current(
+        repo,
+        until: (l) => l.length == 2,
+      )).firstWhere((p) => p.name == 'Alpha');
 
-    await expectLater(repo.update(alpha.id, name: 'beta', saleUnit: SaleUnit.perPiece), throwsA(isA<AppFailure>()));
+      await expectLater(
+        repo.update(alpha.id, name: 'beta', saleUnit: SaleUnit.perPiece),
+        throwsA(isA<AppFailure>()),
+      );
 
-    await repo.update(alpha.id, name: 'Gamma', saleUnit: SaleUnit.perKg);
-    final after = await current(repo, until: (l) => l.any((p) => p.name == 'Gamma'));
-    expect(after.map((p) => p.name), ['Beta', 'Gamma']);
-    expect(after.firstWhere((p) => p.id == alpha.id).saleUnit, SaleUnit.perKg);
+      await repo.update(alpha.id, name: 'Gamma', saleUnit: SaleUnit.perKg);
+      final after = await current(
+        repo,
+        until: (l) => l.any((p) => p.name == 'Gamma'),
+      );
+      expect(after.map((p) => p.name), ['Beta', 'Gamma']);
+      expect(
+        after.firstWhere((p) => p.id == alpha.id).saleUnit,
+        SaleUnit.perKg,
+      );
 
-    await repo.add(name: 'Alpha', saleUnit: SaleUnit.perPiece); // old name is free again
-    await expectLater(repo.add(name: 'Gamma', saleUnit: SaleUnit.perPiece), throwsA(isA<AppFailure>()));
-  });
+      await repo.add(
+        name: 'Alpha',
+        saleUnit: SaleUnit.perPiece,
+      ); // old name is free again
+      await expectLater(
+        repo.add(name: 'Gamma', saleUnit: SaleUnit.perPiece),
+        throwsA(isA<AppFailure>()),
+      );
+    },
+  );
 
   testWidgets('case-only rename and unchanged-name edit work', (t) async {
     await signUpNewUser('case');
@@ -97,7 +145,11 @@ void main() {
     final id = (await current(repo, until: (l) => l.length == 1)).single.id;
     await repo.update(id, name: 'Mango', saleUnit: SaleUnit.perPiece);
     await repo.update(id, name: 'Mango', saleUnit: SaleUnit.perKg);
-    final p = (await current(repo, until: (l) => l.single.saleUnit == SaleUnit.perKg && l.single.name == 'Mango')).single;
+    final p = (await current(
+      repo,
+      until: (l) =>
+          l.single.saleUnit == SaleUnit.perKg && l.single.name == 'Mango',
+    )).single;
     expect(p.name, 'Mango');
     expect(p.saleUnit, SaleUnit.perKg);
   });
@@ -107,37 +159,86 @@ void main() {
     await repo.add(name: 'Mango', saleUnit: SaleUnit.perPiece);
     final id = (await current(repo, until: (l) => l.length == 1)).single.id;
     await repo.setActive(id, false);
-    expect((await current(repo, until: (l) => !l.single.isActive)).single.isActive, isFalse);
+    expect(
+      (await current(repo, until: (l) => !l.single.isActive)).single.isActive,
+      isFalse,
+    );
     await repo.setActive(id, true);
-    expect((await current(repo, until: (l) => l.single.isActive)).single.isActive, isTrue);
+    expect(
+      (await current(repo, until: (l) => l.single.isActive)).single.isActive,
+      isTrue,
+    );
   });
 
-  testWidgets('users are isolated: B sees none of A\'s products and cannot read them directly', (t) async {
-    await signUpNewUser('userA');
-    final aUid = FirebaseAuth.instance.currentUser!.uid;
-    await repo.add(name: 'A Secret', saleUnit: SaleUnit.perPiece);
-    final aProductId = (await current(repo, until: (l) => l.length == 1)).single.id;
+  testWidgets(
+    'users are isolated: B sees none of A\'s products and cannot read them directly',
+    (t) async {
+      await signUpNewUser('userA');
+      final aUid = FirebaseAuth.instance.currentUser!.uid;
+      await repo.add(name: 'A Secret', saleUnit: SaleUnit.perPiece);
+      final aProductId = (await current(
+        repo,
+        until: (l) => l.length == 1,
+      )).single.id;
 
-    await signUpNewUser('userB');
-    expect(await current(repo), isEmpty, reason: 'B starts with an empty list');
-    await repo.add(name: 'A Secret', saleUnit: SaleUnit.perKg); // same name is fine for another user
-    expect((await current(repo, until: (l) => l.length == 1)).single.saleUnit, SaleUnit.perKg);
+      await signUpNewUser('userB');
+      expect(
+        await current(repo),
+        isEmpty,
+        reason: 'B starts with an empty list',
+      );
+      await repo.add(
+        name: 'A Secret',
+        saleUnit: SaleUnit.perKg,
+      ); // same name is fine for another user
+      expect(
+        (await current(repo, until: (l) => l.length == 1)).single.saleUnit,
+        SaleUnit.perKg,
+      );
 
-    final db = FirebaseFirestore.instance;
-    await expectLater(db.doc('users/$aUid/products/$aProductId').get(),
-        throwsA(isA<FirebaseException>().having((e) => e.code, 'code', 'permission-denied')));
-    await expectLater(db.collection('users/$aUid/products').get(),
-        throwsA(isA<FirebaseException>().having((e) => e.code, 'code', 'permission-denied')));
-    await expectLater(db.doc('users/$aUid/products/$aProductId').update({'isActive': false}),
-        throwsA(isA<FirebaseException>().having((e) => e.code, 'code', 'permission-denied')));
+      final db = FirebaseFirestore.instance;
+      await expectLater(
+        db.doc('users/$aUid/products/$aProductId').get(),
+        throwsA(
+          isA<FirebaseException>().having(
+            (e) => e.code,
+            'code',
+            'permission-denied',
+          ),
+        ),
+      );
+      await expectLater(
+        db.collection('users/$aUid/products').get(),
+        throwsA(
+          isA<FirebaseException>().having(
+            (e) => e.code,
+            'code',
+            'permission-denied',
+          ),
+        ),
+      );
+      await expectLater(
+        db.doc('users/$aUid/products/$aProductId').update({'isActive': false}),
+        throwsA(
+          isA<FirebaseException>().having(
+            (e) => e.code,
+            'code',
+            'permission-denied',
+          ),
+        ),
+      );
 
-    // A still has exactly their product.
-    await FirebaseAuth.instance.signOut();
-    // (re-login not needed for the check above; A's data was never touched)
-  });
+      // A still has exactly their product.
+      await FirebaseAuth.instance.signOut();
+      // (re-login not needed for the check above; A's data was never touched)
+    },
+  );
 
   testWidgets('signed-out use fails with a friendly message', (t) async {
     await FirebaseAuth.instance.signOut();
-    await expectLater(repo.add(name: 'Nobody', saleUnit: SaleUnit.perPiece), throwsA(isA<AppFailure>()));
+    await expectLater(
+      repo.add(name: 'Nobody', saleUnit: SaleUnit.perPiece),
+      throwsA(isA<AppFailure>()),
+    );
   });
 }

@@ -1,7 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 
 /// Pumps frames until [finder] matches something (or fails after [seconds]).
-Future<void> pumpUntil(WidgetTester t, Finder finder, {int seconds = 12}) async {
+Future<void> pumpUntil(
+  WidgetTester t,
+  Finder finder, {
+  int seconds = 12,
+}) async {
   for (var i = 0; i < seconds * 10; i++) {
     await t.pump(const Duration(milliseconds: 100));
     if (finder.evaluate().isNotEmpty) return;
@@ -10,7 +14,11 @@ Future<void> pumpUntil(WidgetTester t, Finder finder, {int seconds = 12}) async 
 }
 
 /// Pumps frames until [finder] matches nothing (or fails after [seconds]).
-Future<void> pumpUntilGone(WidgetTester t, Finder finder, {int seconds = 12}) async {
+Future<void> pumpUntilGone(
+  WidgetTester t,
+  Finder finder, {
+  int seconds = 12,
+}) async {
   for (var i = 0; i < seconds * 10; i++) {
     await t.pump(const Duration(milliseconds: 100));
     if (finder.evaluate().isEmpty) return;

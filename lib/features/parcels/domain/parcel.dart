@@ -34,6 +34,7 @@ class Parcel {
     this.reviewResolution,
     this.reviewNote,
     this.reviewDate,
+    this.lastPaymentId,
     this.isArchived = false,
   });
 
@@ -101,6 +102,7 @@ class Parcel {
       reviewResolution: data['paymentReviewReason'] == null ? null : ReviewResolution.fromValue(data['paymentReviewReason'] as String),
       reviewNote: data['paymentReviewNote'] as String?,
       reviewDate: data['paymentReviewDateLocal'] as String?,
+      lastPaymentId: data['lastPaymentId'] as String?,
       isArchived: data['isArchived'] as bool? ?? false,
     );
   }
@@ -144,6 +146,13 @@ class Parcel {
   final String? reviewDate;
 
   bool get paymentReviewCompleted => reviewResolution != null;
+
+  /// The payment or reversal that last moved this parcel's money (every payment, correction and
+  /// date-only correction changes it), so "received + this" says whether the payments changed.
+  final String? lastPaymentId;
+
+  /// Changes whenever the parcel's payment history changes (used to know when cached payments are stale).
+  String get paymentsSignature => '$receivedPaisa|${lastPaymentId ?? ''}';
 
   /// Hidden from every list and total; the order number stays reserved. Only restoring is possible.
   final bool isArchived;

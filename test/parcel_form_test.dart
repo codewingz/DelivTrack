@@ -163,8 +163,8 @@ Future<void> _fillValid(WidgetTester t) async {
   await _pickCustomer(t, 'Ali Raza');
   await _chooseType(t, 'Post office collection');
   await _pickProduct(t, 'Mango Box');
-  await _type(t, 'e.g. 2', '2');
-  await _type(t, 'Agreed price', '2500');
+  await _type(t, 'Enter quantity', '2');
+  await _type(t, 'Enter agreed price', '2500');
 }
 
 void main() {
@@ -237,8 +237,8 @@ void main() {
       await _tapSave(t);
       expect(find.text('Enter the number of pieces'), findsOneWidget);
       expect(find.text('Price per piece is required'), findsOneWidget);
-      await _type(t, 'e.g. 2', '0');
-      await _type(t, 'Agreed price', '0');
+      await _type(t, 'Enter quantity', '0');
+      await _type(t, 'Enter agreed price', '0');
       await _tapSave(t);
       expect(
         find.text('Enter a whole number of pieces (1–99,999)'),
@@ -254,7 +254,7 @@ void main() {
       await _pickProduct(t, 'Dry Fruits');
       await _tapSave(t);
       expect(find.text('Weight is required'), findsOneWidget);
-      await _type(t, 'e.g. 1.5', '0');
+      await _type(t, 'Enter weight', '0');
       await _tapSave(t);
       expect(find.text('Enter a valid weight in kg'), findsOneWidget);
     });
@@ -294,8 +294,8 @@ void main() {
         await _open(t);
         await _chooseType(t, 'Post office collection');
         await _pickProduct(t, 'Mango Box');
-        await _type(t, 'e.g. 2', '3');
-        await _type(t, 'Agreed price', '2500.50');
+        await _type(t, 'Enter quantity', '3');
+        await _type(t, 'Enter agreed price', '2500.50');
         expect(find.text('Line total: Rs. 7,501.50'), findsOneWidget);
         expect(find.text('Products total: Rs. 7,501.50'), findsOneWidget);
       },
@@ -307,8 +307,8 @@ void main() {
       await _open(t);
       await _chooseType(t, 'Post office collection');
       await _pickProduct(t, 'Dry Fruits');
-      await _type(t, 'e.g. 1.5', '0.333');
-      await _type(t, 'Agreed price', '100.10');
+      await _type(t, 'Enter weight', '0.333');
+      await _type(t, 'Enter agreed price', '100.10');
       expect(find.text('Line total: Rs. 33.33'), findsOneWidget);
     });
 
@@ -318,14 +318,14 @@ void main() {
       await _open(t);
       await _chooseType(t, 'Post office collection');
       await _pickProduct(t, 'Mango Box');
-      await _type(t, 'e.g. 2', '2');
-      await _type(t, 'Agreed price', '100');
+      await _type(t, 'Enter quantity', '2');
+      await _type(t, 'Enter agreed price', '100');
       await _scrollTo(t, find.text('Add another product'));
       await t.tap(find.text('Add another product'));
       await t.pump();
       await _pickProduct(t, 'Dry Fruits', row: 1);
-      await _type(t, 'e.g. 1.5', '2');
-      await _type(t, 'Agreed price', '50', last: true);
+      await _type(t, 'Enter weight', '2');
+      await _type(t, 'Enter agreed price', '50', last: true);
       expect(find.text('Products total: Rs. 300'), findsOneWidget);
 
       await _scrollTo(t, find.byTooltip('Remove product 2'));
@@ -359,7 +359,7 @@ void main() {
         await _open(t);
         await _chooseType(t, 'Post office collection');
         await _pickProduct(t, 'Mango Box');
-        await _type(t, 'e.g. 2', '7');
+        await _type(t, 'Enter quantity', '7');
         await _pickProduct(t, 'Mango Box'); // opens picker again
         // choose a per-kg product on the same row
         final f = find.widgetWithText(TextFormField, 'Mango Box');
@@ -373,7 +373,7 @@ void main() {
         expect(
           t
               .widget<TextFormField>(
-                find.widgetWithText(TextFormField, 'e.g. 1.5'),
+                find.widgetWithText(TextFormField, 'Enter weight'),
               )
               .controller!
               .text,
@@ -405,7 +405,7 @@ void main() {
         await _pickProduct(t, 'Mango Box');
         expect(find.text('Price per piece (Rs.) *'), findsNothing);
         expect(find.text('No payment expected (Gift / Free)'), findsOneWidget);
-        await _type(t, 'e.g. 2', '4');
+        await _type(t, 'Enter quantity', '4');
         await _tapSave(t);
         await t.pumpAndSettle();
         final input = env.parcels.created.single;
@@ -454,8 +454,8 @@ void main() {
       await _pickCustomer(t, 'Ali Raza');
       await _chooseType(t, 'Pay Later');
       await _pickProduct(t, 'Mango Box');
-      await _type(t, 'e.g. 2', '1');
-      await _type(t, 'Agreed price', '100');
+      await _type(t, 'Enter quantity', '1');
+      await _type(t, 'Enter agreed price', '100');
       await _tapSave(t);
       await t.pumpAndSettle();
       expect(env.parcels.created.single.estimatedPaymentDate, isNull);
@@ -510,8 +510,8 @@ void main() {
       await _pickCustomer(t, 'Ali Raza');
       await _chooseType(t, 'Advance paid');
       await _pickProduct(t, 'Mango Box');
-      await _type(t, 'e.g. 2', '1');
-      await _type(t, 'Agreed price', '99.99');
+      await _type(t, 'Enter quantity', '1');
+      await _type(t, 'Enter agreed price', '99.99');
       await _tapSave(t);
       await t.pumpAndSettle();
       final input = env.parcels.created.single;
@@ -670,7 +670,7 @@ void main() {
           t,
           testParcel(reference: 'VPP 12345', charge: 15050, packedGrams: 2500),
         );
-        await _type(t, 'Agreed price', '3000');
+        await _type(t, 'Enter agreed price', '3000');
         await _tapSave(t);
         await t.pumpAndSettle();
         expect(env.parcels.updates, 1);
@@ -695,7 +695,7 @@ void main() {
         );
         await _scrollTo(t, _saveButton);
         expect(find.textContaining('still a Draft'), findsOneWidget);
-        await _type(t, 'Agreed price', '2600');
+        await _type(t, 'Enter agreed price', '2600');
         await _tapSave(t);
         await t.pumpAndSettle();
         expect(env.parcels.updated.single.input.status, ParcelStatus.draft);
@@ -712,7 +712,7 @@ void main() {
       expect(env.popped, isTrue);
 
       final env2 = await openEdit(t, testParcel());
-      await _type(t, 'Agreed price', '999');
+      await _type(t, 'Enter agreed price', '999');
       await t.pageBack();
       await t.pumpAndSettle();
       expect(find.text('Discard your changes?'), findsOneWidget);

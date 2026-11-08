@@ -210,7 +210,7 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
                           AppTextField.name(
                             controller: _name,
                             label: 'Customer name',
-                            hint: 'e.g. Ali Raza',
+                            hint: 'Enter customer name',
                             enabled: !busy,
                           ),
                           const SizedBox(height: AppSpacing.lg),
@@ -225,7 +225,7 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
                           AppTextField.phone(
                             controller: _phone2,
                             label: 'Second phone number (optional)',
-                            hint: 'Another number',
+                            hint: 'Enter second phone number',
                             isRequired: false,
                             enabled: !busy,
                             onPickContact: () => _pickContact(_phone2),
@@ -240,7 +240,7 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
                           AppTextField.multiline(
                             controller: _address,
                             label: 'Full address',
-                            hint: 'House, street, area, city',
+                            hint: 'Enter full address',
                             isRequired: true,
                             maxLength: 200,
                             enabled: !busy,
@@ -253,7 +253,7 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
                           AppTextField.multiline(
                             controller: _details,
                             label: 'Business details (optional)',
-                            hint: 'e.g. Animate Dairy Farm, buyer of high-protein feed',
+                            hint: 'Enter business details',
                             minLines: 2,
                             maxLength: 200,
                             enabled: !busy,

@@ -95,19 +95,16 @@ void main() {
       String weight = '',
     }) async {
       await t.enterText(
-        find.widgetWithText(
-          TextFormField,
-          'Enter VPP / VPL / VPR reference from slip',
-        ),
+        find.widgetWithText(TextFormField, 'Enter reference number'),
         reference,
       );
       await t.enterText(
-        find.widgetWithText(TextFormField, 'Amount on slip'),
+        find.widgetWithText(TextFormField, 'Enter delivery charges'),
         charge,
       );
       if (weight.isNotEmpty) {
         await t.enterText(
-          find.widgetWithText(TextFormField, 'Weight shown on slip (optional)'),
+          find.widgetWithText(TextFormField, 'Enter parcel weight (optional)'),
           weight,
         );
       }
@@ -183,10 +180,7 @@ void main() {
         await t.pump();
         expect(find.text('Service name is required'), findsOneWidget);
         await t.enterText(
-          find.widgetWithText(
-            TextFormField,
-            'Type the service written on the slip',
-          ),
+          find.widgetWithText(TextFormField, 'Enter service name'),
           'Fast Courier',
         );
         await t.tap(_submit);

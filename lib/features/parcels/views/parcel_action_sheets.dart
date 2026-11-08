@@ -188,7 +188,7 @@ class _ReviewSheetState extends State<_ReviewSheet> {
         AppTextField.multiline(
           controller: _note,
           label: 'Note',
-          hint: 'For example: refund of Rs. 1,000 sent by bank transfer',
+          hint: 'Enter note',
           isRequired: true,
           minLines: 2,
           maxLines: 4,
@@ -243,7 +243,7 @@ class _NotesSheetState extends State<_NotesSheet> {
         AppTextField.multiline(
           controller: _notes,
           label: 'Notes',
-          hint: 'Anything worth remembering about this parcel',
+          hint: 'Enter notes',
           minLines: 3,
           maxLines: 6,
           enabled: !busy,
@@ -415,7 +415,7 @@ class _CorrectPaymentSheetState extends State<_CorrectPaymentSheet> {
         AppTextField.multiline(
           controller: _reason,
           label: 'Reason for the correction',
-          hint: 'Required',
+          hint: 'Enter reason for the correction',
           isRequired: true,
           minLines: 2,
           maxLines: 4,
@@ -523,7 +523,7 @@ class _HandoverSheetState extends State<_HandoverSheet> {
           AppTextField(
             controller: _other,
             label: 'Service name',
-            hint: 'Type the service written on the slip',
+            hint: 'Enter service name',
             isRequired: true,
             enabled: !busy,
             validator: (value) =>
@@ -537,14 +537,14 @@ class _HandoverSheetState extends State<_HandoverSheet> {
         AppTextField.amount(
           controller: _charge,
           label: 'Delivery charges (Rs.)',
-          hint: 'Amount on slip',
+          hint: 'Enter delivery charges',
           isRequired: true,
           enabled: !busy,
         ),
         AppTextField.weight(
           controller: _weight,
           label: 'Actual packed parcel weight (kg)',
-          hint: 'Weight shown on slip (optional)',
+          hint: 'Enter parcel weight (optional)',
           enabled: !busy,
           textInputAction: TextInputAction.done,
         ),

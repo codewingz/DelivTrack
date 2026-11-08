@@ -468,14 +468,11 @@ void main() {
         await t.tap(primary('Hand over to post office'));
         await t.pumpAndSettle();
         await t.enterText(
-          find.widgetWithText(
-            TextFormField,
-            'Enter VPP / VPL / VPR reference from slip',
-          ),
+          find.widgetWithText(TextFormField, 'Enter reference number'),
           'VPP 40404',
         );
         await t.enterText(
-          find.widgetWithText(TextFormField, 'Amount on slip'),
+          find.widgetWithText(TextFormField, 'Enter delivery charges'),
           '120',
         );
         await t.pump();

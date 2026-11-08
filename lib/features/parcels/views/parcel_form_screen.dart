@@ -453,7 +453,7 @@ class _ItemCardState extends State<_ItemCard> {
                 AppTextField.weight(
                   controller: _weight,
                   label: 'Weight (kg)',
-                  hint: 'e.g. 1.5',
+                  hint: 'Enter weight',
                   isRequired: true,
                   enabled: widget.enabled,
                   onChanged: (value) =>
@@ -473,7 +473,7 @@ class _ItemCardState extends State<_ItemCard> {
                   label: item.isPerKg
                       ? 'Price per kg (Rs.)'
                       : 'Price per piece (Rs.)',
-                  hint: 'Agreed price',
+                  hint: 'Enter agreed price',
                   minPaisa: 1,
                   enabled: widget.enabled,
                   textInputAction: TextInputAction.done,

@@ -100,7 +100,7 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
                 AppTextField.name(
                   controller: _name,
                   label: 'Product name',
-                  hint: 'e.g. Mango Box',
+                  hint: 'Enter product name',
                   icon: Icons.inventory_2_outlined,
                   enabled: !busy,
                   textInputAction: TextInputAction.done,

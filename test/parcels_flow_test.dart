@@ -120,9 +120,12 @@ void main() {
       await t.pumpAndSettle();
       await t.tap(find.text('Mango Box'));
       await t.pumpAndSettle();
-      await t.enterText(find.widgetWithText(TextFormField, 'e.g. 2'), '2');
       await t.enterText(
-        find.widgetWithText(TextFormField, 'Agreed price'),
+        find.widgetWithText(TextFormField, 'Enter quantity'),
+        '2',
+      );
+      await t.enterText(
+        find.widgetWithText(TextFormField, 'Enter agreed price'),
         '100',
       );
       await t.pump();

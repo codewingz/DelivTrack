@@ -60,7 +60,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
           title: 'Create account',
           errorMessage: _viewModel.errorMessage,
           fields: [
-            AppTextField.name(controller: _name, enabled: !busy),
+            AppTextField.name(
+              controller: _name,
+              hint: 'Enter your full name',
+              enabled: !busy,
+            ),
             AppTextField.email(controller: _email, enabled: !busy),
             AppTextField.password(
               controller: _password,

@@ -28,6 +28,13 @@ void main() {
     expect(appVersion, version);
   });
 
+  testWidgets('explains when phone reminders are set up and what a late-today date does', (t) async {
+    await _open(t, FakeAuthRepository(signedIn: true, name: 'Ali', accountEmail: 'ali@codewingz.com'), FakeReminderScheduler());
+    expect(find.text('How phone reminders work'), findsOneWidget);
+    expect(find.textContaining('whenever you open DelivTrack'), findsOneWidget);
+    expect(find.textContaining('set after 9:00 AM'), findsOneWidget);
+  });
+
   testWidgets('shows the account email, the reminder time, the backup note and the version; no inputs', (t) async {
     await _open(t, FakeAuthRepository(signedIn: true, name: 'Ali', accountEmail: 'ali@codewingz.com'), FakeReminderScheduler());
     expect(find.text('ali@codewingz.com'), findsOneWidget);

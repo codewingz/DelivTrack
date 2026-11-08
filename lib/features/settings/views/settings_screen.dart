@@ -74,6 +74,12 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
                       false => 'Off. Without them the Reminders list inside the app still works.',
                     },
                   ),
+                  const _Info(
+                    'How phone reminders work',
+                    'They are set up whenever you open DelivTrack, so open the app after changing a date on another phone. '
+                        'They arrive at about 9:00 AM (a few minutes late is normal). A reminder for today that is set after 9:00 AM '
+                        'shows in the bell and the Reminders list, not as a phone notification.',
+                  ),
                   if (_notificationsOn == false) PrimaryButton(label: 'Turn On Notifications', onPressed: _turnOn),
                   if (problem != null) _Info('Last problem scheduling reminders', problem),
                 ]),

@@ -9,7 +9,7 @@ Parcels with automatic order numbers, products (per piece / per kg), Post Office
 - `lib/features/<feature>/{data,domain,viewmodel,views}` — feature-first MVVM (auth, customers, dashboard, parcels, payments, products, reminders, reports, settings, more); `lib/common_widgets`, `lib/design_system`, `lib/core`, `lib/routes` (go_router).
 - `firestore.rules` — security rules (per-user isolation, money and audit integrity); `firestore.indexes.json`.
 - `test/` unit and widget tests; `test/rules/` rules tests; `test_emulator/` repository tests on an Android emulator.
-- `docs/` plan, requirement traceability, backup notes, device checklist, `docs/audit_fixes/` remediation reports. `AGENTS.md` has the working rules.
+- `DelivTrack_Project_Requirements.md` is the specification; `AGENTS.md` has the working rules.
 
 ## Set up
 1. Flutter 3.47.8 (stable) and the Android SDK; Firebase CLI for the emulators (`firebase --version`).
@@ -30,4 +30,4 @@ firebase emulators:exec --only auth,firestore --project delivtrack-codewingz "sh
 `flutter build apk --release` (or `appbundle`) needs `android/key.properties` pointing at the upload keystore (kept outside the repository, never committed). Without it the build stops with a clear message; `-PallowDebugSigning=true` allows a local, debug-signed build that must not be published.
 
 ## Firebase
-Rules and indexes are deployed with the Firebase CLI only after the emulator tests pass (see `AGENTS.md`). Backups are managed by the owner outside the code (`docs/BACKUP_AND_RESTORE.md`).
+Rules and indexes are deployed with the Firebase CLI only after the emulator tests pass (see `AGENTS.md`). Backups are managed by the owner outside the code.

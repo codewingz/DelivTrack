@@ -1,6 +1,6 @@
 # DelivTrack — requirements traceability (7 Nov 2026)
 
-Every functional requirement (FR-01…FR-14) and acceptance test (AT-01…AT-44) of `DelivTrack_Project_Requirements.md` v1.2, with where it is built and where it is verified. "Rules" = `test/rules/firestore_rules_test.dart` (Firestore emulator, two users, mutation-checked). "Emulator" = `integration_test/` on the Android emulator against the Auth + Firestore emulators. Unit/widget tests live in `test/`.
+Every functional requirement (FR-01…FR-14) and acceptance test (AT-01…AT-44) of `DelivTrack_Project_Requirements.md` v1.2, with where it is built and where it is verified. "Rules" = `test/rules/firestore_rules_test.dart` (Firestore emulator, two users, mutation-checked). "Emulator" = the Android-emulator flow tests that existed in `integration_test/` until 8 Nov 2026 (deleted at the owner's request, still in Git history at commit `2a8f97d`). Unit/widget tests live in `test/`.
 
 ## Not fully done — read this first
 
@@ -65,9 +65,8 @@ Owner decision recorded in the plan (D1): **Sign Up is kept** and every user's d
 | 40 Parcel Details | `parcel_details_test` |
 | 42 clear the Pay Later date | emulator `parcels_repository_test`; `reminders_flow_test` |
 
-## How to re-run everything
+## How to re-run what remains
 
 * `flutter analyze` and `flutter test` (≈ 900 tests; the rules tests are skipped without emulators).
 * Rules: `firebase emulators:exec --only auth,firestore --project delivtrack-codewingz "flutter test test/rules"`.
-* Emulator flows: start `firebase emulators:start --only auth,firestore --project delivtrack-codewingz`, then `flutter test integration_test/<file> -d emulator-5554` (one file at a time; `notifications_test` needs the install described in AGENTS.md).
-* Screenshots at four sizes: see AGENTS.md.
+* The emulator flow tests and the screenshot script were deleted; restore them from commit `2a8f97d` (`git checkout 2a8f97d -- integration_test test_driver`) if they are needed again. Real-phone notification checks: `docs/MANUAL_DEVICE_CHECKLIST.md`.

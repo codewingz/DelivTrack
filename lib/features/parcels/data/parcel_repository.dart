@@ -464,7 +464,8 @@ class FirestoreParcelRepository implements ParcelRepository {
           'paymentReviewRequired': needsReview,
           'updatedAt': FieldValue.serverTimestamp(),
         });
-        _audit(tx, 'return', parcelId, parcel['orderNumber'] as String, ['parcelStatus', 'returnedDateLocal', 'returnReason', 'paymentReviewRequired']);
+        _audit(tx, 'return', parcelId, parcel['orderNumber'] as String,
+            ['parcelStatus', 'returnedDateLocal', if (cleanReason.isNotEmpty) 'returnReason', 'paymentReviewRequired']);
       });
     } on FirebaseException catch (e) {
       throw firestoreFailure(e);
@@ -592,10 +593,12 @@ class FirestoreParcelRepository implements ParcelRepository {
             if (received > expected) throw AppFailure('The total received cannot exceed ${formatRupees(expected)}.');
 
             final isFree = parcel['collectionMethod'] == CollectionMethod.giftFree.value;
+            final outstanding = outstandingFor(expectedPaisa: expected, receivedPaisa: received);
+            final status = paymentStatusFor(isFree: isFree, expectedPaisa: expected, receivedPaisa: received).value;
             tx.update(parcelRef, {
               'receivedPaisa': received,
-              'outstandingPaisa': outstandingFor(expectedPaisa: expected, receivedPaisa: received),
-              'paymentStatus': paymentStatusFor(isFree: isFree, expectedPaisa: expected, receivedPaisa: received).value,
+              'outstandingPaisa': outstanding,
+              'paymentStatus': status,
               'lastPaymentId': reversalRef.id,
               'updatedAt': FieldValue.serverTimestamp(),
             });
@@ -620,7 +623,13 @@ class FirestoreParcelRepository implements ParcelRepository {
                 'recordedAt': FieldValue.serverTimestamp(),
               });
             }
-            _audit(tx, 'correct_payment', parcelId, parcel['orderNumber'] as String, ['receivedPaisa', 'outstandingPaisa', 'paymentStatus']);
+            // only the fields that really changed (a date-only correction moves no money)
+            _audit(tx, 'correct_payment', parcelId, parcel['orderNumber'] as String, [
+              'lastPaymentId',
+              if (received != parcel['receivedPaisa']) 'receivedPaisa',
+              if (outstanding != parcel['outstandingPaisa']) 'outstandingPaisa',
+              if (status != parcel['paymentStatus']) 'paymentStatus',
+            ]);
           }));
     } on FirebaseException catch (e) {
       throw firestoreFailure(e);

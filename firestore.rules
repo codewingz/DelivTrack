@@ -392,19 +392,40 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // Audit log: one entry per edit of a parcel. Written together with the edit, never changed.
+    // Audit log: one entry per edit of a parcel. Written in the SAME commit as the edit it describes and
+    // checked against that edit: the parcel must be written in this commit, the order number must be its
+    // own, every listed field must really have changed, and the action must match what happened
+    // (archive / restore / return / review completed / payment corrected). Entries never change.
+    // Limit: without a trusted server the app still writes the entry itself, so it proves the entry
+    // matches a real change, not that every change has an entry.
+    function auditMatchesEdit(uid, data) {
+      let p = parcelAt(uid, data.entityId);
+      return exists(p) && existsAfter(p)
+        && getAfter(p).data.updatedAt == request.time
+        && getAfter(p).data.orderNumber == data.orderNumber
+        && data.changedFields.toSet().difference(getAfter(p).data.diff(get(p).data).affectedKeys()).size() == 0
+        && (data.action == 'archive' ? (!get(p).data.get('isArchived', false) && getAfter(p).data.get('isArchived', false))
+            : data.action == 'restore' ? (get(p).data.get('isArchived', false) && !getAfter(p).data.get('isArchived', false))
+            : data.action == 'return' ? (get(p).data.parcelStatus == 'sent' && getAfter(p).data.parcelStatus == 'returned')
+            : data.action == 'resolve_review' ? (!('paymentReviewResolvedAt' in get(p).data) && 'paymentReviewResolvedAt' in getAfter(p).data)
+            : data.action == 'correct_payment' ? (getAfter(p).data.get('lastPaymentId', '').matches('^rev_.+')
+                && getAfter(p).data.get('lastPaymentId', '') != get(p).data.get('lastPaymentId', ''))
+            : true);
+    }
+
     match /users/{uid}/audit_logs/{logId} {
       allow read: if isOwner(uid);
       allow create: if isOwner(uid)
         && request.resource.data.keys().hasOnly(['entityType', 'entityId', 'action', 'orderNumber', 'changedFields', 'createdAt'])
-        && request.resource.data.keys().hasAll(['entityType', 'entityId', 'action', 'changedFields', 'createdAt'])
+        && request.resource.data.keys().hasAll(['entityType', 'entityId', 'action', 'orderNumber', 'changedFields', 'createdAt'])
         && request.resource.data.entityType in ['parcel']
         && request.resource.data.entityId is string && request.resource.data.entityId.size() > 0 && request.resource.data.entityId.size() <= 40
         && request.resource.data.action in ['update', 'return', 'correct_payment', 'archive', 'restore', 'resolve_review']
         && request.resource.data.changedFields is list
         && request.resource.data.changedFields.size() >= 1 && request.resource.data.changedFields.size() <= 30
-        && (!('orderNumber' in request.resource.data) || request.resource.data.orderNumber.matches('^ADT-[0-9]{6,}$'))
-        && request.resource.data.createdAt == request.time;
+        && request.resource.data.orderNumber.matches('^ADT-[0-9]{6,}$')
+        && request.resource.data.createdAt == request.time
+        && auditMatchesEdit(uid, request.resource.data);
       allow update, delete: if false;
     }
 

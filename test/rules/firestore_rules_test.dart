@@ -599,14 +599,34 @@ void main() {
   });
 
   group('audit log', () {
+    String ppath(String uid, String id) => 'users/$uid/parcels/$id';
     String apath(String uid, String id) => 'users/$uid/audit_logs/$id';
-    Map<String, Object?> entry({Map<String, Object?> overrides = const {}, List<String> remove = const []}) {
+
+    /// A user with one parcel, and a way to edit it (notes) together with an audit entry in one commit.
+    Future<({({String uid, String token}) user, String pid, DateTime created, int Function() edits})> setup() async {
+      final u = await emu.signUp('aud${DateTime.now().microsecondsSinceEpoch}_${n++}@x.com');
+      final pid = id();
+      await _ensureCustomer(emu, u);
+      final parcel = _parcel(seq: 1);
+      expect(
+        await emu.commit(u.token, [
+          DocWrite('users/${u.uid}/counters/orders', {'lastSequence': 1}),
+          DocWrite(ppath(u.uid, pid), parcel, serverTimes: const ['createdAt', 'updatedAt']),
+          ..._guardFor(u.uid, pid, parcel),
+        ]),
+        200,
+      );
+      var edits = 0;
+      return (user: u, pid: pid, created: await emu.createdAt(u.token, ppath(u.uid, pid)), edits: () => edits++);
+    }
+
+    Map<String, Object?> entry(String pid, {Map<String, Object?> overrides = const {}, List<String> remove = const []}) {
       final base = <String, Object?>{
         'entityType': 'parcel',
-        'entityId': 'p1',
+        'entityId': pid,
         'action': 'update',
         'orderNumber': 'ADT-000001',
-        'changedFields': ['postalReference', 'parcelStatus'],
+        'changedFields': ['notes'],
       };
       base.addAll(overrides);
       for (final k in remove) {
@@ -615,37 +635,64 @@ void main() {
       return base;
     }
 
-    test('owner can append entries and read them; nobody else can; entries never change', () async {
-      final a = await emu.signUp('au${DateTime.now().microsecondsSinceEpoch}@x.com');
+    /// The real edit (a new note) plus the given audit entry, in one commit.
+    Future<int> edit(({({String uid, String token}) user, String pid, DateTime created, int Function() edits}) s, Map<String, Object?> audit,
+        {Map<String, Object?> parcelOverrides = const {'notes': 'a note'}, String? token, String? logId, List<String> times = const ['createdAt']}) {
+      return emu.commit(token ?? s.user.token, [
+        DocWrite(ppath(s.user.uid, s.pid), {..._parcel(seq: 1, overrides: parcelOverrides), 'createdAt': s.created}, serverTimes: const ['updatedAt']),
+        DocWrite(apath(s.user.uid, logId ?? id()), audit, serverTimes: times),
+      ]);
+    }
+
+    test('an entry that describes a real edit made in the same commit is accepted, readable by the owner only, and never changes', () async {
+      final s = await setup();
       final b = await emu.signUp('av${DateTime.now().microsecondsSinceEpoch}@x.com');
       final lid = id();
-      expect(await emu.set(a.token, apath(a.uid, lid), entry(), serverTimes: const ['createdAt']), 200);
-      expect(await emu.get(a.token, apath(a.uid, lid)), 200);
-
-      expect(await emu.get(b.token, apath(a.uid, lid)), 403, reason: 'read');
-      expect((await emu.list(b.token, 'users/${a.uid}/audit_logs')).status, 403, reason: 'list');
-      expect(await emu.set(b.token, apath(a.uid, id()), entry(), serverTimes: const ['createdAt']), 403, reason: 'write into A');
-      expect(await emu.set(a.token, apath(a.uid, lid), entry(overrides: {'changedFields': ['x']}), serverTimes: const ['createdAt']), 403, reason: 'no rewriting');
-      expect(await emu.delete(a.token, apath(a.uid, lid)), 403, reason: 'no deleting');
-      expect(await emu.get(null, apath(a.uid, lid)), 403, reason: 'signed out');
+      expect(await edit(s, entry(s.pid), logId: lid), 200);
+      expect(await emu.get(s.user.token, apath(s.user.uid, lid)), 200);
+      expect(await emu.get(b.token, apath(s.user.uid, lid)), 403, reason: 'read');
+      expect((await emu.list(b.token, 'users/${s.user.uid}/audit_logs')).status, 403, reason: 'list');
+      expect(await emu.set(s.user.token, apath(s.user.uid, lid), entry(s.pid, overrides: {'changedFields': ['x']}), serverTimes: const ['createdAt']), 403, reason: 'no rewriting');
+      expect(await emu.delete(s.user.token, apath(s.user.uid, lid)), 403, reason: 'no deleting');
+      expect(await emu.get(null, apath(s.user.uid, lid)), 403, reason: 'signed out');
     }, skip: skip);
 
-    test('malformed entries are refused', () async {
-      final u = await emu.signUp('aw${DateTime.now().microsecondsSinceEpoch}@x.com');
+    test('a forged entry is refused: nothing was edited, other fields were claimed, or it names someone else\'s parcel', () async {
+      final s = await setup();
+      final other = await emu.signUp('aw${DateTime.now().microsecondsSinceEpoch}@x.com');
+      expect(await emu.set(s.user.token, apath(s.user.uid, id()), entry(s.pid), serverTimes: const ['createdAt']), 403, reason: 'no edit at all in this commit');
+      expect(await edit(s, entry(s.pid, overrides: {'changedFields': ['postalReference']})), 403, reason: 'claims a field that did not change');
+      expect(await edit(s, entry(s.pid, overrides: {'changedFields': ['notes', 'receivedPaisa']})), 403, reason: 'claims one real and one invented change');
+      expect(await edit(s, entry(s.pid, overrides: {'orderNumber': 'ADT-000099'})), 403, reason: 'another order number');
+      expect(await edit(s, entry('ghost')), 403, reason: 'a parcel that does not exist');
+      expect(await emu.set(other.token, apath(other.uid, id()), entry(s.pid), serverTimes: const ['createdAt']), 403, reason: 'another user\'s parcel');
+      expect(await emu.set(other.token, apath(s.user.uid, id()), entry(s.pid), serverTimes: const ['createdAt']), 403, reason: 'written into someone else\'s log');
+    }, skip: skip);
+
+    test('the action must match what happened', () async {
+      final s = await setup();
+      for (final action in ['archive', 'restore', 'return', 'resolve_review', 'correct_payment']) {
+        expect(await edit(s, entry(s.pid, overrides: {'action': action})), 403, reason: 'a plain edit is not "$action"');
+      }
+      expect(await edit(s, entry(s.pid, overrides: {'action': 'delete'})), 403, reason: 'unknown action');
+    }, skip: skip);
+
+    test('malformed entries are refused even next to a real edit', () async {
+      final s = await setup();
       Future<void> denied(String why, Map<String, Object?> data, {List<String> times = const ['createdAt']}) async =>
-          expect(await emu.set(u.token, apath(u.uid, id()), data, serverTimes: times), 403, reason: why);
-      await denied('unknown entity', entry(overrides: {'entityType': 'customer'}));
-      await denied('unknown action', entry(overrides: {'action': 'delete'}));
-      await denied('no changed fields', entry(overrides: {'changedFields': <Object?>[]}));
-      await denied('31 changed fields', entry(overrides: {'changedFields': List.generate(31, (i) => 'f$i')}));
-      await denied('changedFields not a list', entry(overrides: {'changedFields': 'postalReference'}));
-      await denied('missing entityId', entry(remove: ['entityId']));
-      await denied('empty entityId', entry(overrides: {'entityId': ''}));
-      await denied('bad order number', entry(overrides: {'orderNumber': 'order 1'}));
-      await denied('extra field', entry(overrides: {'note': 'hi'}));
-      await denied('client-supplied time', {...entry(), 'createdAt': DateTime.utc(2000)}, times: const []);
-      await denied('no time', entry(), times: const []);
-      expect(await emu.set(u.token, apath(u.uid, id()), entry(remove: ['orderNumber']), serverTimes: const ['createdAt']), 200, reason: 'order number is optional');
+          expect(await edit(s, data, times: times), 403, reason: why);
+      await denied('unknown entity', entry(s.pid, overrides: {'entityType': 'customer'}));
+      await denied('no changed fields', entry(s.pid, overrides: {'changedFields': <Object?>[]}));
+      await denied('31 changed fields', entry(s.pid, overrides: {'changedFields': List.generate(31, (i) => 'f$i')}));
+      await denied('changedFields not a list', entry(s.pid, overrides: {'changedFields': 'notes'}));
+      await denied('missing entityId', entry(s.pid, remove: ['entityId']));
+      await denied('empty entityId', entry(s.pid, overrides: {'entityId': ''}));
+      await denied('missing order number', entry(s.pid, remove: ['orderNumber']));
+      await denied('bad order number', entry(s.pid, overrides: {'orderNumber': 'order 1'}));
+      await denied('extra field', entry(s.pid, overrides: {'note': 'hi'}));
+      await denied('client-supplied time', {...entry(s.pid), 'createdAt': DateTime.utc(2000)}, times: const []);
+      await denied('no time', entry(s.pid), times: const []);
+      expect(await edit(s, entry(s.pid)), 200, reason: 'and the proper entry works');
     }, skip: skip);
   });
 
@@ -896,15 +943,21 @@ void main() {
         expect(await replace(s, archived({'parcelStatus': 'draft'}), token: other.token), 403);
       }, skip: skip);
 
-      test('archive and restore audit entries are accepted', () async {
-        final u = await emu.signUp('archaudit${DateTime.now().microsecondsSinceEpoch}@x.com');
-        for (final action in ['archive', 'restore']) {
-          expect(
-            await emu.set(u.token, 'users/${u.uid}/audit_logs/$action', {'entityType': 'parcel', 'entityId': 'p', 'action': action, 'changedFields': ['isArchived']}, serverTimes: const ['createdAt']),
-            200,
-            reason: action,
-          );
-        }
+      test('archive and restore are logged with a matching entry in the same commit', () async {
+        final s = await setup(overrides: {'parcelStatus': 'draft'});
+        const draft = {'parcelStatus': 'draft'};
+        Future<int> change(Map<String, Object?> overrides, String action, List<String> fields) => emu.commit(s.user.token, [
+              DocWrite(ppath(s.user.uid, s.pid), {..._parcel(seq: 1, overrides: overrides), 'createdAt': s.created}, serverTimes: const ['updatedAt']),
+              DocWrite(
+                'users/${s.user.uid}/audit_logs/${id()}',
+                {'entityType': 'parcel', 'entityId': s.pid, 'action': action, 'orderNumber': 'ADT-000001', 'changedFields': fields},
+                serverTimes: const ['createdAt'],
+              ),
+            ]);
+        expect(await change({...draft, 'isArchived': true}, 'restore', ['isArchived']), 403, reason: 'archiving is not a restore');
+        expect(await change({...draft, 'isArchived': true}, 'archive', ['isArchived']), 200);
+        expect(await change(draft, 'archive', ['isArchived']), 403, reason: 'restoring is not an archive');
+        expect(await change(draft, 'restore', ['isArchived']), 200);
       }, skip: skip);
     });
   });

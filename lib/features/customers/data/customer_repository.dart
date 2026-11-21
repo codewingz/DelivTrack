@@ -82,7 +82,7 @@ class FirestoreCustomerRepository implements CustomerRepository {
       'displayNameLower': cleanName.toLowerCase(),
       'phone': phone.trim(),
       'phoneNormalized': normalizePhone(phone),
-      'address': address.trim(),
+      'address': collapseSpaces(address),
       for (final entry in optional.entries)
         if (entry.value.isNotEmpty)
           entry.key: entry.value

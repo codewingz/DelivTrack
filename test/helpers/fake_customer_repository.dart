@@ -72,7 +72,7 @@ class FakeCustomerRepository implements CustomerRepository {
         id: id,
         name: collapseSpaces(name),
         phone: phone.trim(),
-        address: address.trim(),
+        address: collapseSpaces(address),
         phone2: phone2.trim(),
         businessDetails: collapseSpaces(businessDetails),
       ),
@@ -97,7 +97,7 @@ class FakeCustomerRepository implements CustomerRepository {
       id: id,
       name: collapseSpaces(name),
       phone: phone.trim(),
-      address: address.trim(),
+      address: collapseSpaces(address),
       phone2: phone2.trim(),
       businessDetails: collapseSpaces(businessDetails),
     );

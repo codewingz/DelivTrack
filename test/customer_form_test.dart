@@ -145,6 +145,26 @@ void main() {
       },
     );
 
+    testWidgets('multi-line address collapses line breaks to single spaces', (
+      t,
+    ) async {
+      final repo = FakeCustomerRepository();
+      await _pump(t, repo);
+      await _fill(
+        t,
+        name: 'Dr Akbar',
+        phone: '03335443014',
+        address:
+            'Doctors vet clinic \nMalakand ,Near DHQ Hospital Batkhela,\nDistrict Malakand',
+      );
+      await _tapSave(t);
+      await t.pumpAndSettle();
+      expect(
+        repo.items.single.address,
+        'Doctors vet clinic Malakand ,Near DHQ Hospital Batkhela, District Malakand',
+      );
+    });
+
     testWidgets('typing limits: name 60, phone 20, address 200', (t) async {
       await _pump(t, FakeCustomerRepository());
       await t.enterText(_name, 'x' * 90);

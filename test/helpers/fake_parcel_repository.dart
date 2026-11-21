@@ -173,9 +173,12 @@ class FakeParcelRepository implements ParcelRepository {
     if (failure != null) throw failure!;
     created.add(input);
     final sequence = _parcels.length + 1;
+    final isAdvance = input.method == CollectionMethod.advance;
+    final expected = input.expectedPaisa;
+    final id = 'parcel-$sequence';
     _parcels.add(
       testParcel(
-        id: 'parcel-$sequence',
+        id: id,
         sequence: sequence,
         customerName: input.customer.name,
         customerPhone: input.customer.phone,
@@ -187,10 +190,27 @@ class FakeParcelRepository implements ParcelRepository {
         payDate: input.estimatedPaymentDate,
         status: input.status,
         items: input.items,
+        received: isAdvance ? expected : 0,
+        payment: isAdvance && expected > 0
+            ? PaymentStatus.received
+            : (input.method == CollectionMethod.giftFree
+                ? PaymentStatus.notRequired
+                : PaymentStatus.pending),
       ),
     );
+    if (isAdvance && expected > 0) {
+      payments[id] = [
+        Payment(
+          id: 'pay-$sequence',
+          amountPaisa: expected,
+          type: PaymentType.advance,
+          receivedAt: DateTime.now().toUtc(),
+          note: 'Advance paid',
+        ),
+      ];
+    }
     _changes.add(null);
-    return 'parcel-$sequence';
+    return id;
   }
 
   final handovers = <({String id, ParcelHandover handover})>[];

@@ -221,6 +221,7 @@ void main() {
     );
     await _open(t, repo, 'parcel-1');
     expect(find.text('Draft'), findsOneWidget);
+    expect(find.text('Mark Payment Received'), findsNothing);
   });
 
   group('responsive', () {

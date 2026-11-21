@@ -223,7 +223,7 @@ class FirestoreParcelRepository implements ParcelRepository {
           ? null
           : _guard(normalizedReference);
 
-      return await retryWhenDenied(
+      final newId = await retryWhenDenied(
         () => _firestore.runTransaction((tx) async {
           final counter = await tx.get(_counter);
           final sequence =
@@ -259,6 +259,18 @@ class FirestoreParcelRepository implements ParcelRepository {
           return parcelRef.id;
         }),
       );
+
+      if (input.method == CollectionMethod.advance && input.expectedPaisa > 0) {
+        await recordPayment(
+          newId,
+          amountPaisa: input.expectedPaisa,
+          type: PaymentType.advance,
+          note: 'Advance paid',
+          receivedOn: pakistanDate(clock.nowUtc()),
+        );
+      }
+
+      return newId;
     } on FirebaseException catch (e) {
       throw firestoreFailure(e);
     }
@@ -353,6 +365,23 @@ class FirestoreParcelRepository implements ParcelRepository {
           'createdAt': FieldValue.serverTimestamp(),
         });
       });
+
+      if (input.method == CollectionMethod.advance) {
+        final current = await _parcels.doc(id).get();
+        if (current.exists) {
+          final data = current.data()!;
+          final outstanding = data['outstandingPaisa'] as int? ?? 0;
+          if (outstanding > 0) {
+            await recordPayment(
+              id,
+              amountPaisa: outstanding,
+              type: PaymentType.advance,
+              note: 'Advance paid',
+              receivedOn: pakistanDate(clock.nowUtc()),
+            );
+          }
+        }
+      }
     } on FirebaseException catch (e) {
       throw firestoreFailure(e);
     }

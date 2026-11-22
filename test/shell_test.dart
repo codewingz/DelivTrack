@@ -134,7 +134,28 @@ void main() {
       expect(find.text('Welcome back'), findsOneWidget);
     });
 
-    testWidgets('first back press on shell shows snackbar prompt', (t) async {
+    testWidgets(
+      'back press on non-home tabs navigates back to home tab without prompt',
+      (t) async {
+        resetShellBackPressTime();
+        await _launch(t, FakeAuthRepository(signedIn: true, name: 'Ali'));
+
+        for (final tab in ['Parcels', 'Payments', 'Customers', 'More']) {
+          await t.tap(tabButton(tab));
+          await t.pumpAndSettle();
+          expect(find.widgetWithText(AppBar, tab), findsOneWidget);
+
+          final popped = await t.binding.handlePopRoute();
+          expect(popped, isTrue);
+          await t.pumpAndSettle();
+
+          expect(find.text('Press back again to exit'), findsNothing);
+          expect(greetingWith('Ali'), findsOneWidget);
+        }
+      },
+    );
+
+    testWidgets('first back press on home shell shows snackbar prompt', (t) async {
       resetShellBackPressTime();
       await _launch(t, FakeAuthRepository(signedIn: true, name: 'Ali'));
       final popped = await t.binding.handlePopRoute();
@@ -143,7 +164,7 @@ void main() {
       expect(find.text('Press back again to exit'), findsOneWidget);
     });
 
-    testWidgets('second back press within 2 seconds triggers exit', (t) async {
+    testWidgets('second back press on home shell within 2 seconds triggers exit', (t) async {
       resetShellBackPressTime();
       var exited = false;
       await _launch(

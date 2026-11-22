@@ -111,6 +111,7 @@ Widget _tabPage(
   Widget page, [
   GlobalKey<ScaffoldMessengerState>? key,
   VoidCallback? onExit,
+  VoidCallback? onBack,
 ]) =>
     ScaffoldMessenger(
       key: key,
@@ -119,7 +120,11 @@ Widget _tabPage(
           canPop: false,
           onPopInvokedWithResult: (didPop, _) {
             if (didPop) return;
-            _handleShellBack(context, key, onExit: onExit);
+            if (onBack != null) {
+              onBack();
+            } else {
+              _handleShellBack(context, key, onExit: onExit);
+            }
           },
           child: page,
         ),
@@ -384,6 +389,7 @@ GoRouter createRouter(
                   ),
                   tabMessengerKeys[1],
                   onExit,
+                  () => context.go(AppRoutes.home),
                 ),
               ),
             ],
@@ -401,6 +407,7 @@ GoRouter createRouter(
                   ),
                   tabMessengerKeys[2],
                   onExit,
+                  () => context.go(AppRoutes.home),
                 ),
               ),
             ],
@@ -420,6 +427,7 @@ GoRouter createRouter(
                   ),
                   tabMessengerKeys[3],
                   onExit,
+                  () => context.go(AppRoutes.home),
                 ),
               ),
             ],
@@ -439,6 +447,7 @@ GoRouter createRouter(
                   ),
                   tabMessengerKeys[4],
                   onExit,
+                  () => context.go(AppRoutes.home),
                 ),
               ),
             ],

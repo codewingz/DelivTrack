@@ -13,12 +13,14 @@ class MoreScreen extends StatelessWidget {
     required this.onOpenReports,
     required this.onOpenArchived,
     required this.onOpenSettings,
+    required this.onOpenSenderProfile,
   });
   final AuthRepository repository;
   final VoidCallback onOpenProducts;
   final VoidCallback onOpenReports;
   final VoidCallback onOpenArchived;
   final VoidCallback onOpenSettings;
+  final VoidCallback onOpenSenderProfile;
 
   @override
   Widget build(BuildContext context) {
@@ -27,6 +29,17 @@ class MoreScreen extends StatelessWidget {
       body: SafeArea(
         child: ListView(
           children: [
+            ListTile(
+              minTileHeight: 56,
+              leading: const Icon(
+                Icons.storefront_outlined,
+                color: AppColors.label,
+              ),
+              title: const Text('Sender & return details'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: onOpenSenderProfile,
+            ),
+            const Divider(height: 1),
             ListTile(
               minTileHeight: 56,
               leading: const Icon(

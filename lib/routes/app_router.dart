@@ -26,6 +26,8 @@ import '../features/parcels/views/parcels_screen.dart';
 import '../features/payments/views/payments_screen.dart';
 import '../features/reminders/data/reminder_scheduler.dart';
 import '../features/reports/domain/reports.dart';
+import '../features/settings/data/sender_profile_repository.dart';
+import '../features/settings/views/sender_profile_screen.dart';
 import '../features/settings/views/settings_screen.dart';
 import '../features/reports/views/reports_screens.dart';
 import '../features/reminders/views/reminders_screen.dart';
@@ -55,6 +57,7 @@ class AppRoutes {
   static const String reminders = '/reminders';
   static const String archived = '/archived';
   static const String settings = '/settings';
+  static const String senderProfile = '/sender-profile';
   static const String reports = '/reports';
   static const String reportDetails = '/reports/:type';
 
@@ -138,11 +141,14 @@ GoRouter createRouter(
   ProductRepository productRepository,
   CustomerRepository customerRepository,
   ParcelRepository parcelRepository, {
+  SenderProfileRepository senderProfileRepository =
+      const NoSenderProfileRepository(),
   ReminderScheduler reminderScheduler = const NoReminderScheduler(),
   PhoneDialer dialer = const UrlLauncherDialer(),
   ContactPicker contactPicker = const SystemContactPicker(),
   VoidCallback? onExit,
 }) {
+  final senderRepo = senderProfileRepository;
   final tabMessengerKeys = List.generate(
     5,
     (_) => GlobalKey<ScaffoldMessengerState>(),
@@ -216,6 +222,12 @@ GoRouter createRouter(
           repository: repository,
           scheduler: reminderScheduler,
         ),
+      ),
+      GoRoute(
+        path: AppRoutes.senderProfile,
+        name: 'senderProfile',
+        builder: (context, state) =>
+            SenderProfileScreen(repository: senderRepo),
       ),
       GoRoute(
         path: AppRoutes.archived,
@@ -440,6 +452,8 @@ GoRouter createRouter(
                 builder: (context, state) => _tabPage(
                   MoreScreen(
                     repository: repository,
+                    onOpenSenderProfile: () =>
+                        context.push(AppRoutes.senderProfile),
                     onOpenProducts: () => context.push(AppRoutes.products),
                     onOpenReports: () => context.push(AppRoutes.reports),
                     onOpenArchived: () => context.push(AppRoutes.archived),

@@ -4150,6 +4150,108 @@ void main() {
         403,
       );
     }, skip: skip);
+
+    group('sender profile', () {
+      Map<String, dynamic> validProfile({
+        String name = 'Ali Collection',
+        String phone = '0300 1234567',
+        String address = 'Shop 12, Main Market, Lahore',
+      }) => {
+        'name': name,
+        'phone': phone,
+        'address': address,
+      };
+
+      test('owner can create, update and read their own sender profile', () async {
+        final path = 'users/${alice.uid}/settings/sender_profile';
+        // Create
+        final createStatus = await emu.set(
+          alice.token,
+          path,
+          validProfile(),
+          serverTimes: const ['updatedAt'],
+        );
+        expect(createStatus, 200);
+
+        // Read
+        expect(await emu.get(alice.token, path), 200);
+
+        // Update
+        final updateStatus = await emu.set(
+          alice.token,
+          path,
+          validProfile(name: 'Ali & Sons Traders'),
+          serverTimes: const ['updatedAt'],
+        );
+        expect(updateStatus, 200);
+      }, skip: skip);
+
+      test('invalid fields or missing required keys are rejected', () async {
+        final path = 'users/${alice.uid}/settings/sender_profile';
+        // Name too short
+        expect(
+          await emu.set(
+            alice.token,
+            path,
+            validProfile(name: 'A'),
+            serverTimes: const ['updatedAt'],
+          ),
+          403,
+        );
+
+        // Address too short
+        expect(
+          await emu.set(
+            alice.token,
+            path,
+            validProfile(address: 'Shop'),
+            serverTimes: const ['updatedAt'],
+          ),
+          403,
+        );
+
+        // Missing phone
+        expect(
+          await emu.set(
+            alice.token,
+            path,
+            {'name': 'Ali Collection', 'address': 'Shop 12, Main Market, Lahore'},
+            serverTimes: const ['updatedAt'],
+          ),
+          403,
+        );
+
+        // Missing server timestamp updatedAt
+        expect(
+          await emu.set(
+            alice.token,
+            path,
+            validProfile(),
+          ),
+          403,
+        );
+      }, skip: skip);
+
+      test('another user or signed-out request cannot read or write sender profile', () async {
+        final path = 'users/${alice.uid}/settings/sender_profile';
+        expect(await emu.get(bob.token, path), 403);
+        expect(
+          await emu.set(
+            bob.token,
+            path,
+            validProfile(),
+            serverTimes: const ['updatedAt'],
+          ),
+          403,
+        );
+        expect(await emu.get(null, path), 403);
+      }, skip: skip);
+
+      test('deleting sender profile is forbidden', () async {
+        final path = 'users/${alice.uid}/settings/sender_profile';
+        expect(await emu.delete(alice.token, path), 403);
+      }, skip: skip);
+    });
   });
 }
 

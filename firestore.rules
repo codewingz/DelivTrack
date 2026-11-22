@@ -429,6 +429,21 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    function validSenderProfile(data) {
+      return data.keys().hasOnly(['name', 'phone', 'address', 'updatedAt'])
+        && data.keys().hasAll(['name', 'phone', 'address', 'updatedAt'])
+        && trimmedText(data.name, 2, 60)
+        && trimmedText(data.phone, 10, 20)
+        && trimmedText(data.address, 5, 200)
+        && data.updatedAt == request.time;
+    }
+
+    match /users/{uid}/settings/sender_profile {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid) && validSenderProfile(request.resource.data);
+      allow delete: if false;
+    }
+
     // Everything else is closed.
     match /{document=**} {
       allow read, write: if false;

@@ -94,7 +94,7 @@ void main() {
             expect(t.takeException(), isNull);
             await t.tap(tabButton('More'));
             await t.pumpAndSettle();
-            expect(find.widgetWithText(ListTile, 'Log out'), findsOneWidget);
+            expect(find.widgetWithText(AppBar, 'More'), findsOneWidget);
           },
         );
       }
@@ -180,6 +180,33 @@ void main() {
       await t.binding.handlePopRoute();
       expect(exited, isTrue);
     });
+  });
+
+  group('sender profile entry', () {
+    testWidgets(
+      'More lists Sender & return details; it opens the screen and back returns to More',
+      (t) async {
+        await _launch(t, FakeAuthRepository(signedIn: true, name: 'Ali'));
+        await t.tap(_moreTab);
+        await t.pumpAndSettle();
+        await t.tap(find.widgetWithText(ListTile, 'Sender & return details'));
+        await t.pumpAndSettle();
+        expect(
+          find.widgetWithText(AppBar, 'Sender & return details'),
+          findsOneWidget,
+        );
+        expect(
+          find.byType(GNav),
+          findsNothing,
+          reason: 'pushed full screen hides the tabs',
+        );
+
+        await t.pageBack();
+        await t.pumpAndSettle();
+        expect(find.widgetWithText(AppBar, 'More'), findsOneWidget);
+        expect(find.byType(GNav), findsOneWidget);
+      },
+    );
   });
 
   group('products entry', () {

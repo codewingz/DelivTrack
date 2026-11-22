@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../common_widgets/app_3d_decorations.dart';
 import '../../../common_widgets/app_text_field.dart';
 import '../../../common_widgets/confirm_dialog.dart';
 import '../../../common_widgets/primary_button.dart';
@@ -190,7 +191,7 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
             if (!didPop) _confirmDiscard();
           },
           child: Scaffold(
-            appBar: AppBar(
+            appBar: appCurvedAppBar(
               title: Text(_isEditing ? 'Edit customer' : 'Add customer'),
             ),
             body: SafeArea(

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../common_widgets/app_3d_decorations.dart';
 import '../../../common_widgets/empty_state.dart';
 import '../../../common_widgets/searchable_list_page.dart';
+import '../../../constants/app_colors.dart';
 import '../../../core/money/money.dart';
 import '../../parcels/data/parcel_repository.dart';
 import '../data/customer_repository.dart';
@@ -67,21 +69,33 @@ class _CustomersScreenState extends State<CustomersScreen> {
         emptyBuilder: _emptyState,
         itemBuilder: (context, customer) {
           final figures = _viewModel.figuresOf(customer.id);
-          return ListTile(
-            minTileHeight: 64,
-            title: Text(
-              customer.name,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Text(
-              '${customer.phone}\n${customer.address}\n${figures.parcels} ${figures.parcels == 1 ? 'parcel' : 'parcels'} · Outstanding ${formatRupees(figures.outstandingPaisa)}',
-              maxLines: 4,
-              overflow: TextOverflow.ellipsis,
-            ),
-            isThreeLine: true,
-            trailing: const Icon(Icons.chevron_right_rounded),
+          final hasDebt = figures.outstandingPaisa > 0;
+          return App3DCard(
+            stripeColor: hasDebt
+                ? const Color(0xFFD97706)
+                : const Color(0xFF115E46),
             onTap: () => widget.onOpen(customer),
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: ListTile(
+              minTileHeight: 64,
+              title: Text(
+                customer.name,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primaryDark,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: Text(
+                '${customer.phone}\n${customer.address}\n${figures.parcels} ${figures.parcels == 1 ? 'parcel' : 'parcels'} · Outstanding ${formatRupees(figures.outstandingPaisa)}',
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
+              ),
+              isThreeLine: true,
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => widget.onOpen(customer),
+            ),
           );
         },
       ),

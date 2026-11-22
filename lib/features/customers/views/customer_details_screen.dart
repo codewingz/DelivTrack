@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../../common_widgets/app_3d_decorations.dart';
 import '../../../common_widgets/empty_state.dart';
 import '../../../common_widgets/list_skeleton.dart';
 import '../../../constants/app_colors.dart';
 import '../../../core/money/money.dart';
-import '../../../design_system/foundations/radius/app_radius.dart';
 import '../../../design_system/foundations/spacing/app_spacing.dart';
 import '../../../core/time/pakistan_time.dart';
 import '../../parcels/data/parcel_repository.dart';
@@ -74,7 +74,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
             ?.where((c) => c.id == widget.customerId)
             .firstOrNull;
         return Scaffold(
-          appBar: AppBar(
+          appBar: appCurvedAppBar(
             title: Text(
               customer?.name ?? 'Customer',
               overflow: TextOverflow.ellipsis,
@@ -216,58 +216,51 @@ class _Contact extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsetsDirectional.all(AppSpacing.lg),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          border: Border.all(color: AppColors.border),
-          borderRadius: BorderRadius.circular(AppRadius.control),
-        ),
-        child: Padding(
-          padding: const EdgeInsetsDirectional.all(AppSpacing.lg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                customer.name,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.primaryDark,
-                ),
+      child: App3DCard(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              customer.name,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: AppColors.primaryDark,
               ),
-              const SizedBox(height: AppSpacing.md),
-              InkWell(
-                onTap: onCall,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(minHeight: 48),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.call_outlined, color: AppColors.primary),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(
-                        child: Text(
-                          customer.phone,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.primary,
-                          ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            InkWell(
+              onTap: onCall,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 48),
+                child: Row(
+                  children: [
+                    const Icon(Icons.call_outlined, color: AppColors.primary),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Text(
+                        customer.phone,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                customer.address,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
-                ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              customer.address,
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -323,36 +316,30 @@ class _Stat extends StatelessWidget {
       excludeSemantics: true,
       child: ConstrainedBox(
         constraints: const BoxConstraints(minWidth: 150),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            border: Border.all(color: AppColors.border),
-            borderRadius: BorderRadius.circular(AppRadius.control),
-          ),
-          child: Padding(
-            padding: const EdgeInsetsDirectional.all(AppSpacing.md),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textSecondary,
-                  ),
+        child: App3DCard(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textSecondary,
                 ),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.primaryDark,
-                  ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primaryDark,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

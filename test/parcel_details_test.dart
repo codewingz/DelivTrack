@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:deliv_track/common_widgets/list_skeleton.dart';
+import 'package:deliv_track/common_widgets/primary_button.dart';
 import 'package:deliv_track/core/errors/app_failure.dart';
 import 'package:deliv_track/features/customers/domain/customer.dart';
 import 'package:deliv_track/features/parcels/data/parcel_repository.dart';
@@ -1074,19 +1075,59 @@ void main() {
       expect(find.text('Network failure.'), findsOneWidget);
     });
 
-    testWidgets('Customer Invoice & Shipping Slips button opens the document sheet', (t) async {
+    testWidgets('AppBar receipt icon opens the document sheet', (t) async {
       final repo = FakeParcelRepository(initial: [testParcel(id: 'p1')]);
       await _open(t, repo, 'p1');
 
-      final btn = find.text('Customer Invoice & Shipping Slips');
-      await t.ensureVisible(btn);
-      await t.pump();
+      final btn = find.byTooltip('Customer invoice & slips');
+      expect(btn, findsOneWidget);
       await t.tap(btn);
       await t.pumpAndSettle();
 
       expect(find.text('Invoice & Slips'), findsOneWidget);
       expect(find.text('Send Invoice via WhatsApp'), findsOneWidget);
       expect(find.text('Open WhatsApp Chat'), findsOneWidget);
+    });
+
+    testWidgets('Print and Share Invoice buttons trigger document service directly', (t) async {
+      final docService = _MockTrackingDocumentService();
+      final repo = FakeParcelRepository(initial: [testParcel(id: 'p1')]);
+      await _open(t, repo, 'p1', documentService: docService);
+
+      expect(find.widgetWithText(OutlinedButton, 'Print'), findsOneWidget);
+      expect(find.widgetWithText(FilledButton, 'Share Invoice'), findsOneWidget);
+
+      await t.tap(find.widgetWithText(OutlinedButton, 'Print'));
+      await t.pumpAndSettle();
+      expect(docService.printedLabel, isTrue);
+
+      await t.tap(find.widgetWithText(FilledButton, 'Share Invoice'));
+      await t.pumpAndSettle();
+      expect(docService.sharedInvoice, isTrue);
+    });
+
+    testWidgets('sent parcel shows Send Tracking button which triggers WhatsApp tracking', (t) async {
+      final docService = _MockTrackingDocumentService();
+      final repo = FakeParcelRepository(
+        initial: [
+          testParcel(
+            id: 's1',
+            status: ParcelStatus.sent,
+            reference: 'CP999PK',
+          ),
+        ],
+      );
+      await _open(t, repo, 's1', documentService: docService);
+
+      final sendTrackingBtn = find.widgetWithText(PrimaryButton, 'Send Tracking');
+      expect(sendTrackingBtn, findsOneWidget);
+      expect(find.text('Edit handover'), findsOneWidget);
+
+      await t.ensureVisible(sendTrackingBtn);
+      await t.pumpAndSettle();
+      await t.tap(sendTrackingBtn);
+      await t.pumpAndSettle();
+      expect(docService.openedTracking, 'CP999PK');
     });
   });
 }
@@ -1109,6 +1150,26 @@ class _FlakyRepository extends FakeParcelRepository {
 
 class _MockTrackingDocumentService extends NoParcelDocumentService {
   String? openedTracking;
+  bool sharedInvoice = false;
+  bool printedLabel = false;
+
+  @override
+  Future<bool> shareInvoice({
+    required Parcel parcel,
+    required SenderProfile sender,
+  }) async {
+    sharedInvoice = true;
+    return true;
+  }
+
+  @override
+  Future<bool> printShippingLabel({
+    required Parcel parcel,
+    required SenderProfile sender,
+  }) async {
+    printedLabel = true;
+    return true;
+  }
 
   @override
   Future<bool> openTrackingWhatsApp({

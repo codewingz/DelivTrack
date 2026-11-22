@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -45,6 +46,8 @@ class PrintingParcelDocumentService implements ParcelDocumentService {
   final InvoicePdfBuilder invoiceBuilder;
   final ShippingLabelPdfBuilder labelBuilder;
 
+  static const _channel = MethodChannel('com.codewingz.delivtrack/whatsapp');
+
   static String buildInvoiceMessage({
     required Parcel parcel,
     required SenderProfile sender,
@@ -73,6 +76,24 @@ class PrintingParcelDocumentService implements ParcelDocumentService {
   }) async {
     final bytes = await invoiceBuilder.build(parcel: parcel, sender: sender);
     final message = buildInvoiceMessage(parcel: parcel, sender: sender);
+    final rawPhone = parcel.customerPhone;
+    final digits = normalizePhone(rawPhone);
+    final waPhone = digits.startsWith('03') && digits.length == 11
+        ? '92${digits.substring(1)}'
+        : digits;
+
+    try {
+      final ok = await _channel.invokeMethod<bool>('sharePdfToWhatsApp', {
+        'bytes': bytes,
+        'fileName': 'Invoice_${parcel.orderNumber}.pdf',
+        'phone': waPhone,
+        'message': message,
+      });
+      if (ok == true) return true;
+    } catch (_) {
+      // Fallback below
+    }
+
     return Printing.sharePdf(
       bytes: bytes,
       filename: 'Invoice_${parcel.orderNumber}.pdf',
@@ -92,11 +113,28 @@ class PrintingParcelDocumentService implements ParcelDocumentService {
         ? '92${digits.substring(1)}'
         : digits;
     final message = buildInvoiceMessage(parcel: parcel, sender: sender);
-    final url = Uri.parse(
-      'https://wa.me/$waPhone?text=${Uri.encodeComponent(message)}',
+
+    try {
+      final ok = await _channel.invokeMethod<bool>('openWhatsAppChat', {
+        'phone': waPhone,
+        'message': message,
+      });
+      if (ok == true) return true;
+    } catch (_) {
+      // Fallback to url scheme
+    }
+
+    final nativeUrl = Uri.parse(
+      'whatsapp://send?phone=$waPhone&text=${Uri.encodeComponent(message)}',
     );
     try {
-      return await launchUrl(url, mode: LaunchMode.externalApplication);
+      if (await canLaunchUrl(nativeUrl)) {
+        return await launchUrl(nativeUrl, mode: LaunchMode.externalApplication);
+      }
+      final webUrl = Uri.parse(
+        'https://wa.me/$waPhone?text=${Uri.encodeComponent(message)}',
+      );
+      return await launchUrl(webUrl, mode: LaunchMode.externalApplication);
     } catch (_) {
       return false;
     }
@@ -150,7 +188,7 @@ class PrintingParcelDocumentService implements ParcelDocumentService {
         '🌐 Track online: https://ep.gov.pk\n'
         '💰 Total Amount: ${formatRupees(totalExpected)}\n'
         '$balanceLine\n\n'
-        'Thank you for shopping with $senderName!';
+        'Thank you for ordering with $senderName!';
   }
 
   @override
@@ -169,11 +207,28 @@ class PrintingParcelDocumentService implements ParcelDocumentService {
       sender: sender,
       trackingNumber: trackingNumber,
     );
-    final url = Uri.parse(
-      'https://wa.me/$waPhone?text=${Uri.encodeComponent(message)}',
+
+    try {
+      final ok = await _channel.invokeMethod<bool>('openWhatsAppChat', {
+        'phone': waPhone,
+        'message': message,
+      });
+      if (ok == true) return true;
+    } catch (_) {
+      // Fallback
+    }
+
+    final nativeUrl = Uri.parse(
+      'whatsapp://send?phone=$waPhone&text=${Uri.encodeComponent(message)}',
     );
     try {
-      return await launchUrl(url, mode: LaunchMode.externalApplication);
+      if (await canLaunchUrl(nativeUrl)) {
+        return await launchUrl(nativeUrl, mode: LaunchMode.externalApplication);
+      }
+      final webUrl = Uri.parse(
+        'https://wa.me/$waPhone?text=${Uri.encodeComponent(message)}',
+      );
+      return await launchUrl(webUrl, mode: LaunchMode.externalApplication);
     } catch (_) {
       return false;
     }

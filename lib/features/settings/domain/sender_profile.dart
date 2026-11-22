@@ -8,6 +8,11 @@ class SenderProfile {
     required this.address,
   });
 
+  const SenderProfile.empty()
+      : name = '',
+        phone = '',
+        address = '';
+
   final String name;
   final String phone;
   final String address;

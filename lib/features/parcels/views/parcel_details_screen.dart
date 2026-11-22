@@ -150,6 +150,49 @@ class _ParcelDetailsScreenState extends State<ParcelDetailsScreen> {
     }
   }
 
+  Future<void> _shareInvoice(Parcel parcel) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final sender = await widget.senderProfileRepository.getProfile() ??
+          const SenderProfile.empty();
+      final ok = await widget.documentService.shareInvoice(
+        parcel: parcel,
+        sender: sender,
+      );
+      if (mounted && !ok) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Could not share invoice to WhatsApp'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('Could not share invoice: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _printShippingLabel(Parcel parcel) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final sender = await widget.senderProfileRepository.getProfile() ??
+          const SenderProfile.empty();
+      await widget.documentService.printShippingLabel(
+        parcel: parcel,
+        sender: sender,
+      );
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('Could not print shipping label: $e')),
+        );
+      }
+    }
+  }
+
   /// Opens one of the action sheets; a snackbar confirms when it was submitted.
   Future<void> _act(Future<bool> Function() open, String done) async {
     final messenger = ScaffoldMessenger.of(context);
@@ -248,6 +291,8 @@ class _ParcelDetailsScreenState extends State<ParcelDetailsScreen> {
       onAction: _act,
       onHandover: _handover,
       onSendTrackingWhatsApp: _sendTrackingWhatsApp,
+      onPrint: _printShippingLabel,
+      onShareInvoice: _shareInvoice,
     );
   }
 }
@@ -261,6 +306,8 @@ class _ParcelView extends StatelessWidget {
     required this.onAction,
     required this.onHandover,
     required this.onSendTrackingWhatsApp,
+    required this.onPrint,
+    required this.onShareInvoice,
   });
   final Parcel parcel;
   final ParcelRepository repository;
@@ -271,6 +318,8 @@ class _ParcelView extends StatelessWidget {
   final Future<void> Function(Parcel parcel) onHandover;
   final Future<void> Function(Parcel parcel, {String? trackingNumber})
   onSendTrackingWhatsApp;
+  final Future<void> Function(Parcel parcel) onPrint;
+  final Future<void> Function(Parcel parcel) onShareInvoice;
 
   @override
   Widget build(BuildContext context) {
@@ -341,6 +390,60 @@ class _ParcelView extends StatelessWidget {
                 ),
             ],
           ),
+          if (!parcel.isArchived) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Builder(
+              builder: (context) {
+                final width = MediaQuery.sizeOf(context).width;
+                final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+                final isCompact = width < 480 || textScale > 1.1;
+
+                final printBtn = OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(48),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.control),
+                    ),
+                    side: const BorderSide(color: AppColors.border, width: 1.5),
+                  ),
+                  icon: const Icon(Icons.print_outlined, size: 20),
+                  label: const Text('Print'),
+                  onPressed: () => onPrint(parcel),
+                );
+                final shareBtn = FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(48),
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.control),
+                    ),
+                  ),
+                  icon: const Icon(Icons.chat_outlined, size: 20),
+                  label: const Text('Share Invoice'),
+                  onPressed: () => onShareInvoice(parcel),
+                );
+
+                if (isCompact) {
+                  return Column(
+                    children: [
+                      printBtn,
+                      const SizedBox(height: AppSpacing.sm),
+                      shareBtn,
+                    ],
+                  );
+                }
+                return Row(
+                  children: [
+                    Expanded(child: printBtn),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(child: shareBtn),
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
           _Section(
             title: 'Postal details',
             children: [
@@ -393,11 +496,18 @@ class _ParcelView extends StatelessWidget {
                   label: 'Hand over parcel',
                   onPressed: () => onHandover(parcel),
                 ),
-              if (!parcel.isArchived && parcel.status == ParcelStatus.sent)
+              if (!parcel.isArchived && parcel.status == ParcelStatus.sent) ...[
+                PrimaryButton(
+                  label: 'Send Tracking',
+                  icon: Icons.send_rounded,
+                  onPressed: () => onSendTrackingWhatsApp(parcel),
+                ),
+                const SizedBox(height: AppSpacing.sm),
                 OutlinedButton(
                   onPressed: () => onHandover(parcel),
                   child: const Text('Edit handover'),
                 ),
+              ],
             ],
           ),
           _Section(
@@ -461,16 +571,6 @@ class _ParcelView extends StatelessWidget {
             _Section(
               title: 'Actions',
               children: [
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.receipt_long_rounded),
-                  label: const Text('Customer Invoice & Shipping Slips'),
-                  onPressed: () => showParcelDocumentSheet(
-                    context: context,
-                    parcel: parcel,
-                    senderRepo: senderProfileRepository,
-                    service: documentService,
-                  ),
-                ),
                 OutlinedButton(
                   onPressed: () => onAction(
                     () => showNotesSheet(context, repository, parcel),

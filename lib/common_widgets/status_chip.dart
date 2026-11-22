@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../design_system/foundations/radius/app_radius.dart';
 import '../design_system/foundations/spacing/app_spacing.dart';
 
 /// Small colored label for a status (Draft, Sent, Pending ...). The word carries the meaning;
@@ -14,13 +15,13 @@ class StatusChip extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
         border: Border.all(color: color.withValues(alpha: 0.28), width: 0.8),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm + 2,
-          vertical: 3,
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.xs,
         ),
         child: Text(
           label,

@@ -330,7 +330,7 @@ class _Stat extends StatelessWidget {
                   color: AppColors.textSecondary,
                 ),
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: AppSpacing.xs),
               Text(
                 value,
                 style: const TextStyle(

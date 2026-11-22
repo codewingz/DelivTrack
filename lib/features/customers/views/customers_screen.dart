@@ -5,6 +5,7 @@ import '../../../common_widgets/empty_state.dart';
 import '../../../common_widgets/searchable_list_page.dart';
 import '../../../constants/app_colors.dart';
 import '../../../core/money/money.dart';
+import '../../../design_system/foundations/spacing/app_spacing.dart';
 import '../../parcels/data/parcel_repository.dart';
 import '../data/customer_repository.dart';
 import '../domain/customer.dart';
@@ -75,7 +76,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                 ? const Color(0xFFD97706)
                 : const Color(0xFF115E46),
             onTap: () => widget.onOpen(customer),
-            padding: const EdgeInsets.symmetric(vertical: 4),
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
             child: ListTile(
               minTileHeight: 64,
               title: Text(

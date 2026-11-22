@@ -11,6 +11,7 @@ import '../../../constants/app_colors.dart';
 import '../../../core/money/money.dart';
 import '../../../core/time/pakistan_time.dart';
 import '../../../core/view_models/action_view_model.dart';
+import '../../../design_system/foundations/radius/app_radius.dart';
 import '../../../design_system/foundations/spacing/app_spacing.dart';
 import '../../customers/data/customer_repository.dart';
 import '../../customers/domain/customer.dart';
@@ -196,7 +197,7 @@ class _ParcelFormScreenState extends State<ParcelFormScreen> {
                               style: OutlinedButton.styleFrom(
                                 minimumSize: const Size.fromHeight(48),
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
+                                  borderRadius: BorderRadius.circular(AppRadius.card),
                                 ),
                                 side: const BorderSide(
                                   color: AppColors.border,

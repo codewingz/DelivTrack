@@ -6,6 +6,7 @@ import '../../../common_widgets/confirm_dialog.dart';
 import '../../../common_widgets/empty_state.dart';
 import '../../../common_widgets/searchable_list_page.dart';
 import '../../../constants/app_colors.dart';
+import '../../../design_system/foundations/radius/app_radius.dart';
 import '../../../design_system/foundations/spacing/app_spacing.dart';
 import '../data/product_repository.dart';
 import '../domain/product.dart';
@@ -134,7 +135,7 @@ class _ProductTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return App3DCard(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       onTap: onEdit,
       child: ListTile(
@@ -144,7 +145,7 @@ class _ProductTile extends StatelessWidget {
           height: 42,
           decoration: BoxDecoration(
             color: AppColors.brand50,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppRadius.control),
             border: Border.all(color: const Color(0xFFCDE5D8)),
           ),
           child: const Center(

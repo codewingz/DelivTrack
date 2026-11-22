@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../constants/app_colors.dart';
-import 'brand_loading_indicator.dart';
+import '../design_system/foundations/radius/app_radius.dart';
 import '../design_system/foundations/spacing/app_spacing.dart';
+import 'brand_loading_indicator.dart';
 
 /// Full-width primary action (56 high). Disabled while [isLoading] to block double taps.
 class PrimaryButton extends StatelessWidget {
@@ -31,7 +32,7 @@ class PrimaryButton extends StatelessWidget {
           shadowColor: AppColors.btnBevel,
           elevation: onPressed == null || isLoading ? 0 : 4,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(AppRadius.card),
           ),
         ),
         child: isLoading

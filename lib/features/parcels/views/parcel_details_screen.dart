@@ -10,6 +10,7 @@ import '../../../common_widgets/primary_button.dart';
 import '../../../constants/app_colors.dart';
 import '../../../core/money/money.dart';
 import '../../../core/time/pakistan_time.dart';
+import '../../../design_system/foundations/radius/app_radius.dart';
 import '../../../design_system/foundations/spacing/app_spacing.dart';
 import '../data/parcel_repository.dart';
 import '../domain/parcel.dart';
@@ -403,7 +404,7 @@ class _ParcelView extends StatelessWidget {
                     minimumSize: const Size.fromHeight(48),
                     backgroundColor: AppColors.surface,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(AppRadius.card),
                     ),
                     side: const BorderSide(color: AppColors.border, width: 1.2),
                   ),
@@ -419,7 +420,7 @@ class _ParcelView extends StatelessWidget {
                     elevation: 3,
                     shadowColor: AppColors.btnBevel,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(AppRadius.card),
                     ),
                   ),
                   icon: const Icon(Icons.chat_outlined, size: 20),

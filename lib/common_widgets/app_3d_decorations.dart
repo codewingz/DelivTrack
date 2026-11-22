@@ -169,7 +169,7 @@ class MintFabButton extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         gradient: AppColors.mintFabGradient,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
         boxShadow: const [
           BoxShadow(
             color: AppColors.fabBevel,
@@ -184,12 +184,15 @@ class MintFabButton extends StatelessWidget {
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
         child: InkWell(
-          borderRadius: BorderRadius.circular(999),
+          borderRadius: BorderRadius.circular(AppRadius.pill),
           onTap: onPressed,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.xl,
+              vertical: AppSpacing.md,
+            ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [

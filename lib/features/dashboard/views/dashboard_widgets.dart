@@ -109,7 +109,7 @@ class DashboardHero extends StatelessWidget {
       excludeSemantics: true,
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(AppRadius.cardLarge),
           gradient: AppColors.heroGradient,
           border: Border.all(color: const Color(0x991D7A5B), width: 1),
           boxShadow: const [
@@ -126,7 +126,7 @@ class DashboardHero extends StatelessWidget {
         ),
         child: Material(
           color: Colors.transparent,
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(AppRadius.cardLarge),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: onTap,
@@ -154,10 +154,13 @@ class DashboardHero extends StatelessWidget {
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.sm,
+                          vertical: AppSpacing.xs,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.16),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(AppRadius.control),
                         ),
                         child: Text(
                           '$percentage%',
@@ -266,7 +269,7 @@ class DashboardQuickActions extends StatelessWidget {
         shadowColor: AppColors.btnBevel,
         elevation: 4,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppRadius.card),
         ),
       ),
       onPressed: onAddParcel,
@@ -283,7 +286,7 @@ class DashboardQuickActions extends StatelessWidget {
         foregroundColor: AppColors.primary,
         side: const BorderSide(color: Color(0xFFDCE6E0)),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppRadius.card),
         ),
       ),
       onPressed: onSearch,
@@ -387,7 +390,7 @@ class AttentionCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AppRadius.hero),
         border: Border.all(color: AppColors.border),
         boxShadow: const [
           BoxShadow(
@@ -403,7 +406,7 @@ class AttentionCard extends StatelessWidget {
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AppRadius.hero),
         clipBehavior: Clip.antiAlias,
         child: shown.isEmpty
             ? Padding(

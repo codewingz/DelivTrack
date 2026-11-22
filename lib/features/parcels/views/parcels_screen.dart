@@ -9,6 +9,7 @@ import '../../../common_widgets/searchable_list_page.dart';
 import '../../../constants/app_colors.dart';
 import '../../../core/money/money.dart';
 import '../../../core/time/pakistan_time.dart';
+import '../../../design_system/foundations/radius/app_radius.dart';
 import '../../../design_system/foundations/spacing/app_spacing.dart';
 import '../data/parcel_repository.dart';
 import '../domain/parcel.dart';
@@ -221,7 +222,7 @@ class _FilterBar extends StatelessWidget {
             OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(AppRadius.card),
                 ),
                 side: const BorderSide(color: AppColors.border, width: 1.2),
                 backgroundColor: AppColors.surface,
@@ -266,7 +267,7 @@ class _FilterBar extends StatelessWidget {
                   ),
                   backgroundColor: AppColors.brand50,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(999),
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
                     side: const BorderSide(color: Color(0xFFCDE5D8)),
                   ),
                   onDeleted: () => viewModel.setFilters(chip.without),

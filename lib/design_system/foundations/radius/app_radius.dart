@@ -13,4 +13,10 @@ class AppRadius {
 
   /// The one hero card on a screen.
   static const double hero = 20;
+
+  /// Large card or curved section.
+  static const double cardLarge = 24;
+
+  /// Fully rounded pill or capsule.
+  static const double pill = 999;
 }

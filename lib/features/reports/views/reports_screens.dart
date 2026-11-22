@@ -6,6 +6,7 @@ import '../../../common_widgets/empty_state.dart';
 import '../../../common_widgets/list_skeleton.dart';
 import '../../../constants/app_colors.dart';
 import '../../../core/time/pakistan_time.dart';
+import '../../../design_system/foundations/radius/app_radius.dart';
 import '../../../design_system/foundations/spacing/app_spacing.dart';
 import '../../parcels/data/parcel_repository.dart';
 import '../domain/reports.dart';
@@ -39,7 +40,7 @@ class ReportsScreen extends StatelessWidget {
                             height: 38,
                             decoration: BoxDecoration(
                               color: AppColors.brand50,
-                              borderRadius: BorderRadius.circular(10),
+                              borderRadius: BorderRadius.circular(AppRadius.control),
                               border: Border.all(color: const Color(0xFFCDE5D8)),
                             ),
                             child: const Center(

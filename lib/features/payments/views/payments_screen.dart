@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../../../common_widgets/app_3d_decorations.dart';
 import '../../../common_widgets/empty_state.dart';
 import '../../../common_widgets/list_skeleton.dart';
 import '../../../constants/app_colors.dart';
 import '../../../core/money/money.dart';
 import '../../../core/time/pakistan_time.dart';
-import '../../../design_system/foundations/radius/app_radius.dart';
 import '../../../design_system/foundations/spacing/app_spacing.dart';
 import '../../parcels/data/parcel_repository.dart';
 import '../../parcels/domain/parcel.dart';
@@ -55,7 +55,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Payments')),
+      appBar: appCurvedAppBar(title: const Text('Payments')),
       body: SafeArea(
         child: Align(
           alignment: Alignment.topCenter,
@@ -188,36 +188,30 @@ class _Stat extends StatelessWidget {
   Widget build(BuildContext context) {
     return ConstrainedBox(
       constraints: const BoxConstraints(minWidth: 150),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          border: Border.all(color: AppColors.border),
-          borderRadius: BorderRadius.circular(AppRadius.control),
-        ),
-        child: Padding(
-          padding: const EdgeInsetsDirectional.all(AppSpacing.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textSecondary,
-                ),
+      child: App3DCard(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textSecondary,
               ),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.primaryDark,
-                ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: AppColors.primaryDark,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -268,18 +262,27 @@ class _PaymentTile extends StatelessWidget {
     final canReceive =
         parcel.status != ParcelStatus.returned && parcel.outstandingPaisa > 0;
     final date = parcel.estimatedPaymentDate;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        InkWell(
-          onTap: onOpen,
-          child: Padding(
-            padding: const EdgeInsetsDirectional.symmetric(
-              horizontal: AppSpacing.lg,
-              vertical: AppSpacing.md,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    final isUnpaid = parcel.outstandingPaisa > 0;
+    final stripeColor = isUnpaid
+        ? const Color(0xFFD97706)
+        : const Color(0xFF115E46);
+
+    return Padding(
+      padding: const EdgeInsetsDirectional.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.xs,
+      ),
+      child: App3DCard(
+        stripeColor: stripeColor,
+        onTap: onOpen,
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.xs,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Text(
                   parcel.orderNumber,
@@ -289,65 +292,67 @@ class _PaymentTile extends StatelessWidget {
                     color: AppColors.primaryDark,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xs),
-                ParcelStatusChips(
-                  status: parcel.status,
-                  payment: parcel.paymentStatus,
-                  reviewRequired: parcel.paymentReviewRequired,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  parcel.customerName,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Text(
-                  'Expected ${formatRupees(parcel.expectedPaisa)} · Received ${formatRupees(parcel.receivedPaisa)}',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
                 Text(
                   'Balance ${formatRupees(parcel.outstandingPaisa)}',
                   style: const TextStyle(
                     fontSize: 14,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFFB45309),
                   ),
                 ),
-                if (parcel.method == CollectionMethod.payLater)
-                  Text(
-                    date == null
-                        ? 'No date set'
-                        : 'Pay Later date ${formatDate(date)}',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: tab == PaymentTab.overdue
-                          ? AppColors.error
-                          : AppColors.textSecondary,
-                    ),
-                  ),
               ],
             ),
-          ),
+            const SizedBox(height: AppSpacing.xs),
+            ParcelStatusChips(
+              status: parcel.status,
+              payment: parcel.paymentStatus,
+              reviewRequired: parcel.paymentReviewRequired,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              parcel.customerName,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            Text(
+              'Expected ${formatRupees(parcel.expectedPaisa)} · Received ${formatRupees(parcel.receivedPaisa)}',
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            if (parcel.method == CollectionMethod.payLater) ...[
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                date == null
+                    ? 'No date set'
+                    : 'Pay Later date ${formatDate(date)}',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: tab == PaymentTab.overdue
+                      ? AppColors.error
+                      : AppColors.textSecondary,
+                ),
+              ),
+            ],
+            if (canReceive) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: TextButton(
+                  onPressed: onReceive,
+                  child: const Text('Receive'),
+                ),
+              ),
+            ],
+          ],
         ),
-        if (canReceive)
-          Padding(
-            padding: const EdgeInsetsDirectional.symmetric(
-              horizontal: AppSpacing.sm,
-            ),
-            child: TextButton(
-              onPressed: onReceive,
-              child: const Text('Receive'),
-            ),
-          ),
-        const Divider(height: 1),
-      ],
+      ),
     );
   }
 }

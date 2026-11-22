@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../common_widgets/app_3d_decorations.dart';
 import '../../../common_widgets/confirm_dialog.dart';
 import '../../../constants/app_colors.dart';
+import '../../../design_system/foundations/spacing/app_spacing.dart';
 import '../../auth/data/auth_repository.dart';
 
 /// Secondary sections. Products and Reports are here; Settings is added when it is built.
@@ -25,70 +27,104 @@ class MoreScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('More')),
+      appBar: appCurvedAppBar(title: const Text('More')),
       body: SafeArea(
         child: ListView(
+          padding: const EdgeInsetsDirectional.all(AppSpacing.lg),
           children: [
-            ListTile(
-              minTileHeight: 56,
-              leading: const Icon(
-                Icons.storefront_outlined,
-                color: AppColors.label,
+            App3DCard(
+              child: Column(
+                children: [
+                  ListTile(
+                    minTileHeight: 56,
+                    leading: const Icon(
+                      Icons.storefront_outlined,
+                      color: AppColors.primary,
+                    ),
+                    title: const Text(
+                      'Sender & return details',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: onOpenSenderProfile,
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
+                    minTileHeight: 56,
+                    leading: const Icon(
+                      Icons.inventory_2_outlined,
+                      color: AppColors.primary,
+                    ),
+                    title: const Text(
+                      'Products',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: onOpenProducts,
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
+                    minTileHeight: 56,
+                    leading: const Icon(
+                      Icons.assessment_outlined,
+                      color: AppColors.primary,
+                    ),
+                    title: const Text(
+                      'Reports',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: onOpenReports,
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
+                    minTileHeight: 56,
+                    leading: const Icon(
+                      Icons.archive_outlined,
+                      color: AppColors.primary,
+                    ),
+                    title: const Text(
+                      'Archived parcels',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: onOpenArchived,
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
+                    minTileHeight: 56,
+                    leading: const Icon(
+                      Icons.settings_outlined,
+                      color: AppColors.primary,
+                    ),
+                    title: const Text(
+                      'Settings',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: onOpenSettings,
+                  ),
+                ],
               ),
-              title: const Text('Sender & return details'),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: onOpenSenderProfile,
             ),
-            const Divider(height: 1),
-            ListTile(
-              minTileHeight: 56,
-              leading: const Icon(
-                Icons.inventory_2_outlined,
-                color: AppColors.label,
-              ),
-              title: const Text('Products'),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: onOpenProducts,
-            ),
-            const Divider(height: 1),
-            ListTile(
-              minTileHeight: 56,
-              leading: const Icon(
-                Icons.assessment_outlined,
-                color: AppColors.label,
-              ),
-              title: const Text('Reports'),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: onOpenReports,
-            ),
-            const Divider(height: 1),
-            ListTile(
-              minTileHeight: 56,
-              leading: const Icon(
-                Icons.archive_outlined,
-                color: AppColors.label,
-              ),
-              title: const Text('Archived parcels'),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: onOpenArchived,
-            ),
-            const Divider(height: 1),
-            ListTile(
-              minTileHeight: 56,
-              leading: const Icon(
-                Icons.settings_outlined,
-                color: AppColors.label,
-              ),
-              title: const Text('Settings'),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: onOpenSettings,
-            ),
-            const Divider(height: 1),
-            ListTile(
-              minTileHeight: 56,
-              leading: const Icon(Icons.logout_rounded, color: AppColors.error),
-              title: const Text('Log out'),
+            const SizedBox(height: AppSpacing.lg),
+            App3DCard(
               onTap: () => confirmLogout(context, repository),
+              child: ListTile(
+                minTileHeight: 56,
+                leading: const Icon(
+                  Icons.logout_rounded,
+                  color: AppColors.error,
+                ),
+                title: const Text(
+                  'Log out',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.error,
+                  ),
+                ),
+                onTap: () => confirmLogout(context, repository),
+              ),
             ),
           ],
         ),

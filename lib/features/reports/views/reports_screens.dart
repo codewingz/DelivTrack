@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../common_widgets/app_3d_decorations.dart';
 import '../../../common_widgets/app_date_field.dart';
 import '../../../common_widgets/empty_state.dart';
 import '../../../common_widgets/list_skeleton.dart';
@@ -18,27 +19,51 @@ class ReportsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Reports')),
+      appBar: appCurvedAppBar(title: const Text('Reports')),
       body: SafeArea(
         child: Align(
           alignment: Alignment.topCenter,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 640),
             child: ListView(
+              padding: const EdgeInsetsDirectional.all(AppSpacing.lg),
               children: [
-                for (final type in ReportType.values) ...[
-                  ListTile(
-                    minTileHeight: 64,
-                    title: Text(
-                      type.title,
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                    subtitle: Text(type.description),
-                    trailing: const Icon(Icons.chevron_right_rounded),
-                    onTap: () => onOpen(type),
+                App3DCard(
+                  child: Column(
+                    children: [
+                      for (var i = 0; i < ReportType.values.length; i++) ...[
+                        ListTile(
+                          minTileHeight: 64,
+                          leading: Container(
+                            width: 38,
+                            height: 38,
+                            decoration: BoxDecoration(
+                              color: AppColors.brand50,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: const Color(0xFFCDE5D8)),
+                            ),
+                            child: const Center(
+                              child: Icon(
+                                Icons.assessment_outlined,
+                                color: AppColors.primary,
+                                size: 18,
+                              ),
+                            ),
+                          ),
+                          title: Text(
+                            ReportType.values[i].title,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          subtitle: Text(ReportType.values[i].description),
+                          trailing: const Icon(Icons.chevron_right_rounded),
+                          onTap: () => onOpen(ReportType.values[i]),
+                        ),
+                        if (i < ReportType.values.length - 1)
+                          const Divider(height: 1),
+                      ],
+                    ],
                   ),
-                  const Divider(height: 1),
-                ],
+                ),
               ],
             ),
           ),
@@ -82,7 +107,7 @@ class _ReportScreenState extends State<ReportScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.type.title)),
+      appBar: appCurvedAppBar(title: Text(widget.type.title)),
       body: SafeArea(
         child: Align(
           alignment: Alignment.topCenter,

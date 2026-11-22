@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../../../common_widgets/app_3d_decorations.dart';
 import '../../../common_widgets/app_choice_field.dart';
 import '../../../common_widgets/confirm_dialog.dart';
 import '../../../common_widgets/empty_state.dart';
 import '../../../common_widgets/searchable_list_page.dart';
 import '../../../constants/app_colors.dart';
+import '../../../design_system/foundations/spacing/app_spacing.dart';
 import '../data/product_repository.dart';
 import '../domain/product.dart';
 import '../viewmodel/product_list_view_model.dart';
@@ -131,22 +133,50 @@ class _ProductTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      minTileHeight: 64,
-      title: Text(product.name, maxLines: 3, overflow: TextOverflow.ellipsis),
-      subtitle: Text(product.saleUnit.label),
+    return App3DCard(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       onTap: onEdit,
-      trailing: PopupMenuButton<VoidCallback>(
-        tooltip: 'Options for ${product.name}',
-        onSelected: (action) => action(),
-        itemBuilder: (_) => [
-          PopupMenuItem(value: onEdit, child: const Text('Edit')),
-          PopupMenuItem(
-            value: onToggleActive,
-            child: Text(product.isActive ? 'Archive' : 'Restore'),
+      child: ListTile(
+        minTileHeight: 64,
+        leading: Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: AppColors.brand50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFCDE5D8)),
           ),
-        ],
-        icon: const Icon(Icons.more_vert, color: AppColors.label),
+          child: const Center(
+            child: Icon(
+              Icons.inventory_2_outlined,
+              color: AppColors.primary,
+              size: 20,
+            ),
+          ),
+        ),
+        title: Text(
+          product.name,
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontWeight: FontWeight.w700,
+            color: AppColors.primaryDark,
+          ),
+        ),
+        subtitle: Text(product.saleUnit.label),
+        trailing: PopupMenuButton<VoidCallback>(
+          tooltip: 'Options for ${product.name}',
+          onSelected: (action) => action(),
+          itemBuilder: (_) => [
+            PopupMenuItem(value: onEdit, child: const Text('Edit')),
+            PopupMenuItem(
+              value: onToggleActive,
+              child: Text(product.isActive ? 'Archive' : 'Restore'),
+            ),
+          ],
+          icon: const Icon(Icons.more_vert, color: AppColors.label),
+        ),
       ),
     );
   }

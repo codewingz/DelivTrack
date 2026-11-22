@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../common_widgets/app_3d_decorations.dart';
 import '../../../common_widgets/app_logo.dart';
 import '../../../constants/app_colors.dart';
 import '../../../design_system/foundations/spacing/app_spacing.dart';
@@ -46,59 +47,67 @@ class AuthScaffold extends StatelessWidget {
                   children: [
                     const Align(child: AppLogo(width: 160)),
                     const SizedBox(height: AppSpacing.xxl),
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.primaryDark,
+                    App3DCard(
+                      padding: const EdgeInsets.all(AppSpacing.xl),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            title,
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.primaryDark,
+                            ),
+                          ),
+                          if (subtitle != null) ...[
+                            const SizedBox(height: AppSpacing.xs),
+                            Text(
+                              subtitle!,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: AppSpacing.xl),
+                          for (final field in fields) ...[
+                            field,
+                            const SizedBox(height: AppSpacing.lg),
+                          ],
+                          if (errorMessage != null) ...[
+                            Semantics(
+                              liveRegion: true,
+                              child: Text(
+                                errorMessage!,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.error,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.lg),
+                          ],
+                          if (successMessage != null) ...[
+                            Semantics(
+                              liveRegion: true,
+                              child: Text(
+                                successMessage!,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.success,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.lg),
+                          ],
+                          const SizedBox(height: AppSpacing.sm),
+                          button,
+                        ],
                       ),
                     ),
-                    if (subtitle != null) ...[
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        subtitle!,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: AppSpacing.xxl),
-                    for (final field in fields) ...[
-                      field,
-                      const SizedBox(height: AppSpacing.lg),
-                    ],
-                    if (errorMessage != null) ...[
-                      Semantics(
-                        liveRegion: true,
-                        child: Text(
-                          errorMessage!,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.error,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-                    ],
-                    if (successMessage != null) ...[
-                      Semantics(
-                        liveRegion: true,
-                        child: Text(
-                          successMessage!,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.success,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-                    ],
-                    const SizedBox(height: AppSpacing.sm),
-                    button,
                     const SizedBox(height: AppSpacing.lg),
                     footer,
                   ],

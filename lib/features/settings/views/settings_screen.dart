@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../common_widgets/app_3d_decorations.dart';
 import '../../../common_widgets/primary_button.dart';
 import '../../../constants/app_colors.dart';
 import '../../../constants/app_info.dart';
-import '../../../design_system/foundations/radius/app_radius.dart';
 import '../../../design_system/foundations/spacing/app_spacing.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../more/views/more_screen.dart';
@@ -62,7 +62,7 @@ class _SettingsScreenState extends State<SettingsScreen>
   Widget build(BuildContext context) {
     final problem = widget.scheduler.lastProblem;
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: appCurvedAppBar(title: const Text('Settings')),
       body: SafeArea(
         child: Align(
           alignment: Alignment.topCenter,
@@ -145,34 +145,25 @@ class _Section extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsetsDirectional.only(bottom: AppSpacing.lg),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          border: Border.all(color: AppColors.border),
-          borderRadius: BorderRadius.circular(AppRadius.control),
-        ),
-        child: Padding(
-          padding: const EdgeInsetsDirectional.all(AppSpacing.lg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.primaryDark,
-                ),
-              ),
-              for (final child in children) ...[
-                const SizedBox(height: AppSpacing.md),
-                child,
-              ],
-            ],
+    return App3DCard(
+      margin: const EdgeInsets.only(bottom: AppSpacing.lg),
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: AppColors.primaryDark,
+            ),
           ),
-        ),
+          for (final child in children) ...[
+            const SizedBox(height: AppSpacing.md),
+            child,
+          ],
+        ],
       ),
     );
   }

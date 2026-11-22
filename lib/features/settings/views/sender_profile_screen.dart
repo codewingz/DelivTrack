@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../common_widgets/app_3d_decorations.dart';
 import '../../../common_widgets/app_text_field.dart';
 import '../../../common_widgets/brand_loading_indicator.dart';
 import '../../../common_widgets/primary_button.dart';
@@ -93,7 +94,7 @@ class _SenderProfileScreenState extends State<SenderProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Sender & return details')),
+      appBar: appCurvedAppBar(title: const Text('Sender & return details')),
       body: SafeArea(
         child: _loading
             ? const Center(child: BrandLoadingIndicator())

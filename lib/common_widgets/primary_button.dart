@@ -29,8 +29,10 @@ class PrimaryButton extends StatelessWidget {
         style: FilledButton.styleFrom(
           minimumSize: const Size.fromHeight(56),
           backgroundColor: AppColors.primary,
+          shadowColor: AppColors.btnBevel,
+          elevation: onPressed == null || isLoading ? 0 : 4,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.control),
+            borderRadius: BorderRadius.circular(16),
           ),
         ),
         child: isLoading

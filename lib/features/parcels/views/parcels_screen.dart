@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../common_widgets/app_3d_decorations.dart';
 import '../../../common_widgets/count_badge.dart';
 import '../../../common_widgets/empty_state.dart';
 import '../../../common_widgets/searchable_list_page.dart';
@@ -273,62 +274,90 @@ class ParcelTile extends StatelessWidget {
     final reference = parcel.postalReference.isEmpty
         ? 'No tracking number yet'
         : parcel.postalReference;
-    return InkWell(
+    final isUnpaidOrDraft = parcel.status == ParcelStatus.draft ||
+        parcel.outstandingPaisa > 0;
+    final stripeColor = isUnpaidOrDraft
+        ? const Color(0xFFD97706)
+        : const Color(0xFF115E46);
+
+    return App3DCard(
+      stripeColor: stripeColor,
       onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsetsDirectional.symmetric(
-          horizontal: AppSpacing.lg,
-          vertical: AppSpacing.md,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              parcel.orderNumber,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: AppColors.primaryDark,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            ParcelStatusChips(
-              status: parcel.status,
-              payment: parcel.paymentStatus,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              parcel.customerName,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-            ),
-            Text(
-              reference,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 13,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            Text(
-              '${parcel.sendingDateLabel} · ${parcel.method == CollectionMethod.giftFree ? 'Gift / Free' : formatRupees(parcel.expectedPaisa)}',
-              style: const TextStyle(
-                fontSize: 13,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            if (parcel.method != CollectionMethod.giftFree)
+      padding: const EdgeInsets.all(AppSpacing.md),
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.xs,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
               Text(
-                'Balance ${formatRupees(parcel.outstandingPaisa)}',
+                parcel.orderNumber,
                 style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF115E46),
                 ),
               ),
-          ],
-        ),
+              Text(
+                parcel.method == CollectionMethod.giftFree
+                    ? 'Gift / Free'
+                    : formatRupees(parcel.expectedPaisa),
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.xs,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              ParcelStatusChips(
+                status: parcel.status,
+                payment: parcel.paymentStatus,
+              ),
+              if (parcel.method != CollectionMethod.giftFree)
+                Text(
+                  'Balance ${formatRupees(parcel.outstandingPaisa)}',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFFB45309),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            parcel.customerName,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+          ),
+          Text(
+            reference,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          Text(
+            '${parcel.sendingDateLabel} · ${parcel.method == CollectionMethod.giftFree ? 'Gift / Free' : formatRupees(parcel.expectedPaisa)}',
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
       ),
     );
   }

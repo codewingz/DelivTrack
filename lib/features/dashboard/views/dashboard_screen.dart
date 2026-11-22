@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../common_widgets/app_3d_decorations.dart';
 import '../../../common_widgets/confirm_dialog.dart';
 import '../../../common_widgets/count_badge.dart';
 import '../../../common_widgets/empty_state.dart';
@@ -118,8 +119,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     final repository = widget.repository;
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('DelivTrack'),
+      appBar: appCurvedAppBar(
+        title: const Text(
+          'DelivTrack',
+          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 20),
+        ),
         actions: [
           ListenableBuilder(
             listenable: _parcels,
@@ -427,7 +431,7 @@ class _Recent extends StatelessWidget {
             ),
           )
         else
-          GroupedCard(
+          Column(
             children: [
               for (final parcel in stats.recent)
                 ParcelTile(

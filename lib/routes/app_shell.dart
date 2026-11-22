@@ -36,51 +36,54 @@ class AppShell extends StatelessWidget {
           ),
         ),
         ColoredBox(
-          color: scheme.surfaceContainer,
+          color: Colors.white,
           child: SafeArea(
             top: false,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
-                vertical: AppSpacing.sm,
-              ),
-              // Labels stop growing at 1.3x, as Material's own tab bar does, and the row shrinks
-              // to fit very narrow or very large settings rather than overflowing.
-              child: MediaQuery.withClampedTextScaling(
-                maxScaleFactor: 1.3,
-                child: LayoutBuilder(
-                  builder: (context, constraints) => FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minWidth: constraints.maxWidth,
-                      ),
-                      child: GNav(
-                        selectedIndex: navigationShell.currentIndex,
-                        onTabChange: (index) => navigationShell.goBranch(
-                          index,
-                          initialLocation:
-                              index == navigationShell.currentIndex,
+            child: SizedBox(
+              height: 64,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: AppSpacing.sm,
+                ),
+                // Labels stop growing at 1.3x, as Material's own tab bar does, and the row shrinks
+                // to fit very narrow or very large settings rather than overflowing.
+                child: MediaQuery.withClampedTextScaling(
+                  maxScaleFactor: 1.3,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) => FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minWidth: constraints.maxWidth,
                         ),
-                        gap: AppSpacing.xs,
-                        iconSize: AppSpacing.xxl,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.md,
-                          vertical: AppSpacing.md,
+                        child: GNav(
+                          selectedIndex: navigationShell.currentIndex,
+                          onTabChange: (index) => navigationShell.goBranch(
+                            index,
+                            initialLocation:
+                                index == navigationShell.currentIndex,
+                          ),
+                          gap: AppSpacing.xs,
+                          iconSize: AppSpacing.xxl,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.md,
+                            vertical: AppSpacing.md,
+                          ),
+                          tabBorderRadius: AppRadius.hero,
+                          color: const Color(0xFF667B71),
+                          activeColor: const Color(0xFF115E46),
+                          tabBackgroundColor: const Color(0xFFD8F3E5),
+                          textStyle: const TextStyle(
+                            color: Color(0xFF115E46),
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
+                          tabs: [
+                            for (final tab in _tabs)
+                              GButton(icon: tab.icon, text: tab.label),
+                          ],
                         ),
-                        tabBorderRadius: AppRadius.hero,
-                        color: scheme.onSurfaceVariant,
-                        activeColor: scheme.onSecondaryContainer,
-                        tabBackgroundColor: scheme.secondaryContainer,
-                        textStyle: TextStyle(
-                          color: scheme.onSecondaryContainer,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                        ),
-                        tabs: [
-                          for (final tab in _tabs)
-                            GButton(icon: tab.icon, text: tab.label),
-                        ],
                       ),
                     ),
                   ),

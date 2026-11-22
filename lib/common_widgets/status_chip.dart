@@ -14,20 +14,20 @@ class StatusChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(AppRadius.chip),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.28), width: 0.8),
       ),
       child: Padding(
-        padding: const EdgeInsetsDirectional.symmetric(
-          horizontal: AppSpacing.sm,
-          vertical: AppSpacing.xs,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm + 2,
+          vertical: 3,
         ),
         child: Text(
           label,
           style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w800,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
             color: color,
           ),
         ),

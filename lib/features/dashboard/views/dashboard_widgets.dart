@@ -99,6 +99,7 @@ class DashboardHero extends StatelessWidget {
   Widget build(BuildContext context) {
     final billed = outstandingPaisa + receivedPaisa;
     final receivedShare = billed <= 0 ? 0.0 : receivedPaisa / billed;
+    final percentage = billed <= 0 ? 0 : (receivedShare * 100).round();
     final owingText = owingParcels == 0
         ? 'Nothing is waiting for payment'
         : '$owingParcels ${owingParcels == 1 ? 'parcel' : 'parcels'} awaiting payment';
@@ -106,17 +107,27 @@ class DashboardHero extends StatelessWidget {
       button: true,
       label: 'Total outstanding: ${formatRupees(outstandingPaisa)}',
       excludeSemantics: true,
-      child: Material(
-        borderRadius: BorderRadius.circular(AppRadius.hero),
-        clipBehavior: Clip.antiAlias,
-        child: Ink(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [AppColors.primaryDark, AppColors.primary],
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          gradient: AppColors.heroGradient,
+          border: Border.all(color: const Color(0x991D7A5B), width: 1),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x6B073325),
+              blurRadius: 28,
+              offset: Offset(0, 14),
             ),
-          ),
+            BoxShadow(
+              color: Color(0xFF06291E),
+              offset: Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(24),
+          clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: onTap,
             child: Padding(
@@ -124,20 +135,35 @@ class DashboardHero extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Row(
+                  Row(
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.account_balance_wallet_outlined,
                         size: 20,
                         color: Colors.white,
                       ),
-                      SizedBox(width: AppSpacing.sm),
-                      Expanded(
+                      const SizedBox(width: AppSpacing.sm),
+                      const Expanded(
                         child: Text(
                           'Outstanding to collect',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.16),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '$percentage%',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
                             color: Colors.white,
                           ),
                         ),
@@ -164,17 +190,17 @@ class DashboardHero extends StatelessWidget {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(AppRadius.chip),
                       child: SizedBox(
-                        height: AppSpacing.sm,
+                        height: 6,
                         child: Stack(
                           children: [
                             ColoredBox(
-                              color: Colors.white.withValues(alpha: 0.28),
+                              color: Colors.white.withValues(alpha: 0.16),
                               child: const SizedBox.expand(),
                             ),
                             FractionallySizedBox(
-                              widthFactor: receivedShare,
+                              widthFactor: receivedShare.clamp(0.0, 1.0),
                               child: const ColoredBox(
-                                color: AppColors.accent,
+                                color: AppColors.mint,
                                 child: SizedBox.expand(),
                               ),
                             ),
@@ -185,7 +211,7 @@ class DashboardHero extends StatelessWidget {
                     const SizedBox(height: AppSpacing.sm),
                     Row(
                       children: [
-                        const _LegendDot(color: AppColors.accent),
+                        const _LegendDot(color: AppColors.mint),
                         const SizedBox(width: AppSpacing.xs),
                         Expanded(
                           child: Text(
@@ -234,16 +260,38 @@ class DashboardQuickActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final add = FilledButton.icon(
-      style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+      style: FilledButton.styleFrom(
+        minimumSize: const Size.fromHeight(52),
+        backgroundColor: AppColors.primary,
+        shadowColor: AppColors.btnBevel,
+        elevation: 4,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+      ),
       onPressed: onAddParcel,
       icon: const Icon(Icons.add_rounded),
-      label: const Text('Add Parcel'),
+      label: const Text(
+        'Add Parcel',
+        style: TextStyle(fontWeight: FontWeight.w700),
+      ),
     );
     final search = OutlinedButton.icon(
-      style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size.fromHeight(52),
+        backgroundColor: Colors.white,
+        foregroundColor: AppColors.primary,
+        side: const BorderSide(color: Color(0xFFDCE6E0)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+      ),
       onPressed: onSearch,
       icon: const Icon(Icons.search_rounded),
-      label: const Text('Search'),
+      label: const Text(
+        'Search',
+        style: TextStyle(fontWeight: FontWeight.w700),
+      ),
     );
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -291,7 +339,18 @@ class SectionTitle extends StatelessWidget {
           ),
         ),
       ),
-      if (action != null) TextButton(onPressed: onAction, child: Text(action!)),
+      if (action != null)
+        TextButton(
+          onPressed: onAction,
+          child: Text(
+            action!,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppColors.primary,
+            ),
+          ),
+        ),
     ],
   );
 }
@@ -325,42 +384,65 @@ class AttentionCard extends StatelessWidget {
       for (final item in items)
         if (item.count > 0) item,
     ];
-    return Material(
-      color: AppColors.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        side: const BorderSide(color: AppColors.border),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+        boxShadow: const [
+          BoxShadow(
+            color: AppColors.cardShadow,
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+          BoxShadow(
+            color: AppColors.cardBevel,
+            offset: Offset(0, 4),
+          ),
+        ],
       ),
-      clipBehavior: Clip.antiAlias,
-      child: shown.isEmpty
-          ? const Padding(
-              padding: EdgeInsetsDirectional.all(AppSpacing.lg),
-              child: Row(
-                children: [
-                  Icon(Icons.check_circle_rounded, color: AppColors.success),
-                  SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: Text(
-                      'All caught up. Nothing needs your attention.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.label,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(20),
+        clipBehavior: Clip.antiAlias,
+        child: shown.isEmpty
+            ? Padding(
+                padding: const EdgeInsetsDirectional.all(AppSpacing.lg),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: AppColors.brand50,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.check_circle_rounded, color: AppColors.brand800, size: 20),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    const Expanded(
+                      child: Text(
+                        'All caught up. Nothing needs your attention.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.label,
+                        ),
                       ),
                     ),
-                  ),
+                  ],
+                ),
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var i = 0; i < shown.length; i++) ...[
+                    if (i > 0) const Divider(height: 1, color: Color(0xFFEEF3F0)),
+                    _AttentionRow(item: shown[i]),
+                  ],
                 ],
               ),
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (var i = 0; i < shown.length; i++) ...[
-                  if (i > 0) const Divider(height: 1),
-                  _AttentionRow(item: shown[i]),
-                ],
-              ],
-            ),
+      ),
     );
   }
 }
@@ -509,6 +591,8 @@ class _StatTileView extends StatelessWidget {
       excludeSemantics: true,
       child: Material(
         color: AppColors.surface,
+        elevation: 2,
+        shadowColor: AppColors.cardBevel,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.card),
           side: const BorderSide(color: AppColors.border),
@@ -545,7 +629,7 @@ class _StatTileView extends StatelessWidget {
                           style: const TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w800,
-                            color: AppColors.primaryDark,
+                            color: AppColors.textPrimary,
                           ),
                         ),
                       ),

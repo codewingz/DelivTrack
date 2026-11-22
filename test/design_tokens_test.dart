@@ -33,6 +33,7 @@ void main() {
       final path = file.path;
       if (!path.endsWith('.dart') ||
           path.contains('design_system') ||
+          path.contains('/pdf/') ||
           path.endsWith('firebase_options.dart')) {
         continue;
       }

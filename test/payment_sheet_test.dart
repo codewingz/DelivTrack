@@ -54,30 +54,31 @@ Finder get _amountField => find.byType(TextFormField).first;
 
 void main() {
   testWidgets(
-    'opens with the outstanding balance filled in and no type chosen',
+    'opens with outstanding balance filled in and payment type auto-selected',
     (t) async {
       await _open(t, received: 200000);
       expect(find.text('ADT-000001 · Outstanding Rs. 3,000'), findsOneWidget);
       expect(find.text('3000'), findsOneWidget);
-      expect(find.text('Select payment type'), findsOneWidget);
+      expect(find.text('Post office remittance'), findsOneWidget);
       expect(find.byType(ChoiceChip), findsNothing);
       await t.tap(dropdownButton('Payment type'));
       await t.pumpAndSettle();
       for (final type in PaymentType.values) {
-        expect(find.text(type.label), findsOneWidget);
+        expect(find.text(type.label), findsAtLeastNWidgets(1));
       }
     },
   );
 
-  testWidgets('confirming without a type shows the error and records nothing', (
-    t,
-  ) async {
-    final env = await _open(t);
-    await t.tap(_confirm);
-    await t.pump();
-    expect(find.text('Select a payment type'), findsOneWidget);
-    expect(env.repo.paymentRecords, 0);
-  });
+  testWidgets(
+    'auto-selected payment type can be submitted immediately without manual selection',
+    (t) async {
+      final env = await _open(t);
+      await t.tap(_confirm);
+      await t.pumpAndSettle();
+      expect(env.repo.paymentRecords, 1);
+      expect(env.results, [true]);
+    },
+  );
 
   testWidgets(
     'amount: empty, zero and above the outstanding balance are refused',

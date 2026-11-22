@@ -10,6 +10,7 @@ import '../../../core/time/pakistan_time.dart';
 import '../../../utils/text.dart';
 import '../data/parcel_repository.dart';
 import '../domain/parcel.dart';
+import '../domain/parcel_enums.dart';
 import '../domain/payment.dart';
 import '../domain/payment_rules.dart';
 
@@ -38,12 +39,25 @@ class PaymentSheet extends StatefulWidget {
   State<PaymentSheet> createState() => _PaymentSheetState();
 }
 
+PaymentType defaultPaymentTypeFor(CollectionMethod method) {
+  switch (method) {
+    case CollectionMethod.postalCollection:
+      return PaymentType.postOfficeRemittance;
+    case CollectionMethod.payLater:
+      return PaymentType.customerPayment;
+    case CollectionMethod.advance:
+      return PaymentType.advance;
+    case CollectionMethod.giftFree:
+      return PaymentType.customerPayment;
+  }
+}
+
 class _PaymentSheetState extends State<PaymentSheet> {
   late final _amount = TextEditingController(
     text: plainRupees(widget.parcel.outstandingPaisa),
   );
   final _note = TextEditingController();
-  PaymentType? _type;
+  late PaymentType _type = defaultPaymentTypeFor(widget.parcel.method);
   bool _enteredLate = false;
   String? _receivedOn;
 
@@ -70,7 +84,7 @@ class _PaymentSheetState extends State<PaymentSheet> {
         return widget.repository.recordPayment(
           widget.parcel.id,
           amountPaisa: parseRupeesToPaisa(_amount.text)!,
-          type: _type!,
+          type: _type,
           note: _note.text,
           receivedOn: _enteredLate ? _receivedOn : null,
         );

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/auth/data/auth_repository.dart';
@@ -68,9 +69,62 @@ class AppRoutes {
   static const _public = {login, signUp, forgotPassword};
 }
 
-/// Each tab page gets its own snackbar host. The tabs stay alive side by side, and one shared host
-/// would show the same snackbar on every tab's Scaffold at once (duplicate animations, wrong place).
-Widget _tabPage(Widget page) => ScaffoldMessenger(child: page);
+DateTime? _lastShellBackPressTime;
+
+/// Reset shell back time (useful for test isolation).
+@visibleForTesting
+void resetShellBackPressTime() {
+  _lastShellBackPressTime = null;
+}
+
+/// Handles double back to exit on root shell tabs.
+void _handleShellBack(
+  BuildContext context,
+  GlobalKey<ScaffoldMessengerState>? messengerKey, {
+  VoidCallback? onExit,
+}) {
+  final now = DateTime.now();
+  if (_lastShellBackPressTime != null &&
+      now.difference(_lastShellBackPressTime!) < const Duration(seconds: 2)) {
+    if (onExit != null) {
+      onExit();
+    } else {
+      SystemNavigator.pop();
+    }
+  } else {
+    _lastShellBackPressTime = now;
+    final messenger =
+        messengerKey?.currentState ?? ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('Press back again to exit'),
+        duration: Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+}
+
+/// Each tab page gets its own snackbar host and back button interceptor.
+Widget _tabPage(
+  Widget page, [
+  GlobalKey<ScaffoldMessengerState>? key,
+  VoidCallback? onExit,
+]) =>
+    ScaffoldMessenger(
+      key: key,
+      child: Builder(
+        builder: (context) => PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, _) {
+            if (didPop) return;
+            _handleShellBack(context, key, onExit: onExit);
+          },
+          child: page,
+        ),
+      ),
+    );
 
 /// Signed-in users never see the auth screens; signed-out users never see the app.
 /// Re-evaluated on every sign-in / sign-out, including a remote password reset.
@@ -82,7 +136,12 @@ GoRouter createRouter(
   ReminderScheduler reminderScheduler = const NoReminderScheduler(),
   PhoneDialer dialer = const UrlLauncherDialer(),
   ContactPicker contactPicker = const SystemContactPicker(),
+  VoidCallback? onExit,
 }) {
+  final tabMessengerKeys = List.generate(
+    5,
+    (_) => GlobalKey<ScaffoldMessengerState>(),
+  );
   return GoRouter(
     initialLocation: AppRoutes.splash,
     refreshListenable: StreamListenable(repository.signedInChanges),
@@ -262,8 +321,9 @@ GoRouter createRouter(
         ),
       ),
       StatefulShellRoute.indexedStack(
-        builder: (context, state, navigationShell) =>
-            AppShell(navigationShell: navigationShell),
+        builder: (context, state, navigationShell) => AppShell(
+          navigationShell: navigationShell,
+        ),
         branches: [
           StatefulShellBranch(
             routes: [
@@ -292,6 +352,8 @@ GoRouter createRouter(
                       }
                     },
                   ),
+                  tabMessengerKeys[0],
+                  onExit,
                 ),
               ),
             ],
@@ -320,6 +382,8 @@ GoRouter createRouter(
                     onOpen: (parcel) =>
                         context.push(AppRoutes.parcelPath(parcel.id)),
                   ),
+                  tabMessengerKeys[1],
+                  onExit,
                 ),
               ),
             ],
@@ -335,6 +399,8 @@ GoRouter createRouter(
                     onOpen: (parcel) =>
                         context.push(AppRoutes.parcelPath(parcel.id)),
                   ),
+                  tabMessengerKeys[2],
+                  onExit,
                 ),
               ),
             ],
@@ -352,6 +418,8 @@ GoRouter createRouter(
                     onOpen: (customer) =>
                         context.push(AppRoutes.customerPath(customer.id)),
                   ),
+                  tabMessengerKeys[3],
+                  onExit,
                 ),
               ),
             ],
@@ -369,6 +437,8 @@ GoRouter createRouter(
                     onOpenArchived: () => context.push(AppRoutes.archived),
                     onOpenSettings: () => context.push(AppRoutes.settings),
                   ),
+                  tabMessengerKeys[4],
+                  onExit,
                 ),
               ),
             ],

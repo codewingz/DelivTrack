@@ -63,6 +63,7 @@ class DelivTrackApp extends StatefulWidget {
     this.reminderScheduler = const NoReminderScheduler(),
     this.dialer = const NoPhoneDialer(),
     this.contactPicker = const NoContactPicker(),
+    this.onExit,
   });
   final AuthRepository repository;
   final ProductRepository productRepository;
@@ -71,6 +72,7 @@ class DelivTrackApp extends StatefulWidget {
   final ReminderScheduler reminderScheduler;
   final PhoneDialer dialer;
   final ContactPicker contactPicker;
+  final VoidCallback? onExit;
 
   @override
   State<DelivTrackApp> createState() => _DelivTrackAppState();
@@ -86,6 +88,7 @@ class _DelivTrackAppState extends State<DelivTrackApp>
     reminderScheduler: widget.reminderScheduler,
     dialer: widget.dialer,
     contactPicker: widget.contactPicker,
+    onExit: widget.onExit,
   );
   StreamSubscription<bool>? _signedIn;
   StreamSubscription<String>? _notificationTaps;

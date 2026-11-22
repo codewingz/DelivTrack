@@ -1,4 +1,5 @@
 import 'package:deliv_track/main.dart';
+import 'package:deliv_track/routes/app_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -16,6 +17,7 @@ Future<void> _launch(
   FakeAuthRepository repo, {
   Size size = const Size(393, 852),
   double scale = 1,
+  VoidCallback? onExit,
 }) async {
   t.view.physicalSize = size;
   t.view.devicePixelRatio = 1;
@@ -28,6 +30,7 @@ Future<void> _launch(
       productRepository: FakeProductRepository(),
       customerRepository: FakeCustomerRepository(),
       parcelRepository: FakeParcelRepository(),
+      onExit: onExit,
     ),
   );
   await t.pump(const Duration(milliseconds: 2000));
@@ -129,6 +132,32 @@ void main() {
       await _launch(t, FakeAuthRepository());
       expect(find.byType(GNav), findsNothing);
       expect(find.text('Welcome back'), findsOneWidget);
+    });
+
+    testWidgets('first back press on shell shows snackbar prompt', (t) async {
+      resetShellBackPressTime();
+      await _launch(t, FakeAuthRepository(signedIn: true, name: 'Ali'));
+      final popped = await t.binding.handlePopRoute();
+      expect(popped, isTrue);
+      await t.pump();
+      expect(find.text('Press back again to exit'), findsOneWidget);
+    });
+
+    testWidgets('second back press within 2 seconds triggers exit', (t) async {
+      resetShellBackPressTime();
+      var exited = false;
+      await _launch(
+        t,
+        FakeAuthRepository(signedIn: true, name: 'Ali'),
+        onExit: () => exited = true,
+      );
+      await t.binding.handlePopRoute();
+      await t.pump();
+      expect(exited, isFalse);
+      expect(find.text('Press back again to exit'), findsOneWidget);
+
+      await t.binding.handlePopRoute();
+      expect(exited, isTrue);
     });
   });
 

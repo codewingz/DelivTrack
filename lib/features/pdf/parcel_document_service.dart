@@ -3,8 +3,10 @@ import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/money/money.dart';
+import '../../core/time/pakistan_time.dart';
 import '../../utils/phone.dart';
 import '../parcels/domain/parcel.dart';
+import '../parcels/domain/parcel_enums.dart';
 import '../settings/domain/sender_profile.dart';
 import 'invoice_pdf_builder.dart';
 import 'shipping_label_pdf_builder.dart';
@@ -48,24 +50,51 @@ class PrintingParcelDocumentService implements ParcelDocumentService {
 
   static const _channel = MethodChannel('com.codewingz.delivtrack/whatsapp');
 
+  static String buildPaymentLines(Parcel parcel) {
+    if (parcel.method == CollectionMethod.giftFree) {
+      return '🎁 Gift / Free Parcel (Nothing to pay)';
+    }
+
+    final totalExpected =
+        parcel.expectedPaisa + (parcel.deliveryChargePaisa ?? 0);
+
+    if (parcel.outstandingPaisa <= 0) {
+      return '💰 Total Amount: ${formatRupees(totalExpected)}\n'
+          '✅ Payment Status: Paid in full (Nothing to pay on delivery)';
+    }
+
+    if (parcel.method == CollectionMethod.payLater) {
+      final dueText = parcel.estimatedPaymentDate != null
+          ? ' (Due by ${formatDate(parcel.estimatedPaymentDate!)})'
+          : '';
+      return '💰 Total Amount: ${formatRupees(totalExpected)}\n'
+          '💳 Payment Method: Pay Later$dueText\n'
+          'ℹ️ Nothing to pay to the postman on delivery';
+    }
+
+    if (parcel.receivedPaisa > 0) {
+      return '💰 Total Amount: ${formatRupees(totalExpected)}\n'
+          '✅ Advance Paid: ${formatRupees(parcel.receivedPaisa)}\n'
+          '💵 Cash on Delivery (COD) to pay: ${formatRupees(parcel.outstandingPaisa)}';
+    }
+
+    return '💰 Total Amount: ${formatRupees(totalExpected)}\n'
+        '💵 Cash on Delivery (COD) to pay: ${formatRupees(parcel.outstandingPaisa)}';
+  }
+
   static String buildInvoiceMessage({
     required Parcel parcel,
     required SenderProfile sender,
   }) {
     final senderName = sender.name.isNotEmpty ? sender.name : 'our store';
-    final totalExpected = parcel.expectedPaisa + (parcel.deliveryChargePaisa ?? 0);
     final itemsSummary = parcel.items.map((i) => i.productName).join(', ');
-
-    final balanceLine = parcel.outstandingPaisa > 0
-        ? '💵 Cash on Delivery (COD) to pay: ${formatRupees(parcel.outstandingPaisa)}'
-        : '✅ Payment Status: Paid in full';
+    final paymentInfo = buildPaymentLines(parcel);
 
     return 'Assalam-o-Alaikum ${parcel.customerName},\n\n'
         'Thank you for your order with $senderName!\n\n'
         '📦 Order: #${parcel.orderNumber}\n'
         '📋 Items: $itemsSummary\n'
-        '💰 Total Amount: ${formatRupees(totalExpected)}\n'
-        '$balanceLine\n\n'
+        '$paymentInfo\n\n'
         'Please find your official invoice attached.';
   }
 
@@ -177,17 +206,13 @@ class PrintingParcelDocumentService implements ParcelDocumentService {
     final tracking = (trackingNumber != null && trackingNumber.isNotEmpty)
         ? trackingNumber
         : parcel.postalReference;
-    final totalExpected = parcel.expectedPaisa + (parcel.deliveryChargePaisa ?? 0);
-    final balanceLine = parcel.outstandingPaisa > 0
-        ? '💵 Cash on Delivery (COD) to pay: ${formatRupees(parcel.outstandingPaisa)}'
-        : '✅ Payment: Paid in full';
+    final paymentInfo = buildPaymentLines(parcel);
 
     return 'Assalam-o-Alaikum ${parcel.customerName},\n\n'
         'Your parcel for order #${parcel.orderNumber} has been dispatched via Pakistan Post!\n\n'
         '📦 Tracking Number: $tracking\n'
         '🌐 Track online: https://ep.gov.pk\n'
-        '💰 Total Amount: ${formatRupees(totalExpected)}\n'
-        '$balanceLine\n\n'
+        '$paymentInfo\n\n'
         'Thank you for ordering with $senderName!';
   }
 

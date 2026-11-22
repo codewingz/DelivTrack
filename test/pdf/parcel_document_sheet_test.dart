@@ -336,5 +336,84 @@ void main() {
       expect(msg, contains('Rs. 1,700'));
       expect(msg, contains('Cash on Delivery (COD) to pay: Rs. 1,500'));
     });
+
+    test('buildPaymentLines formats full advance, pay later, and free gift accurately', () {
+      Parcel makeParcel({
+        required CollectionMethod method,
+        required int expected,
+        required int received,
+        required int outstanding,
+        int delivery = 25000,
+        String? payDate,
+        PaymentStatus payment = PaymentStatus.pending,
+      }) {
+        return Parcel(
+          id: 'p1',
+          orderNumber: 'DT-5001',
+          orderSequence: 5001,
+          customerId: 'c1',
+          customerName: 'Kashif Ali',
+          customerPhone: '0300 5556677',
+          customerAddress: 'F-8/2, Islamabad',
+          items: [
+            ParcelItem.pieces(
+              productId: 'prod1',
+              productName: 'Watch',
+              quantity: 1,
+              unitPricePaisa: expected,
+            ),
+          ],
+          method: method,
+          postalReference: 'TRK123',
+          deliveryChargePaisa: delivery,
+          packedWeightGrams: 300,
+          sendingDate: '2026-11-22',
+          estimatedPaymentDate: payDate,
+          expectedPaisa: expected,
+          receivedPaisa: received,
+          outstandingPaisa: outstanding,
+          paymentStatus: payment,
+          status: ParcelStatus.sent,
+        );
+      }
+
+      // 1. Full advance paid
+      final paidParcel = makeParcel(
+        method: CollectionMethod.postalCollection,
+        expected: 500000,
+        received: 525000,
+        outstanding: 0,
+        payment: PaymentStatus.received,
+      );
+      final paidMsg = PrintingParcelDocumentService.buildPaymentLines(paidParcel);
+      expect(paidMsg, contains('Paid in full (Nothing to pay on delivery)'));
+      expect(paidMsg, isNot(contains('Cash on Delivery')));
+
+      // 2. Pay Later
+      final payLaterParcel = makeParcel(
+        method: CollectionMethod.payLater,
+        expected: 500000,
+        received: 0,
+        outstanding: 525000,
+        payDate: '2026-12-05',
+      );
+      final payLaterMsg = PrintingParcelDocumentService.buildPaymentLines(payLaterParcel);
+      expect(payLaterMsg, contains('Payment Method: Pay Later (Due by 5 Dec 2026)'));
+      expect(payLaterMsg, contains('Nothing to pay to the postman on delivery'));
+      expect(payLaterMsg, isNot(contains('Cash on Delivery')));
+
+      // 3. Free Gift
+      final freeParcel = makeParcel(
+        method: CollectionMethod.giftFree,
+        expected: 0,
+        received: 0,
+        outstanding: 0,
+        delivery: 0,
+        payment: PaymentStatus.notRequired,
+      );
+      final freeMsg = PrintingParcelDocumentService.buildPaymentLines(freeParcel);
+      expect(freeMsg, contains('Gift / Free Parcel (Nothing to pay)'));
+      expect(freeMsg, isNot(contains('Cash on Delivery')));
+    });
   });
 }

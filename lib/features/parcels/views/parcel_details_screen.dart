@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../common_widgets/app_3d_decorations.dart';
 import '../../../common_widgets/confirm_dialog.dart';
 import '../../../core/errors/app_failure.dart';
 import '../../../common_widgets/empty_state.dart';
@@ -9,7 +10,6 @@ import '../../../common_widgets/primary_button.dart';
 import '../../../constants/app_colors.dart';
 import '../../../core/money/money.dart';
 import '../../../core/time/pakistan_time.dart';
-import '../../../design_system/foundations/radius/app_radius.dart';
 import '../../../design_system/foundations/spacing/app_spacing.dart';
 import '../data/parcel_repository.dart';
 import '../domain/parcel.dart';
@@ -213,7 +213,7 @@ class _ParcelDetailsScreenState extends State<ParcelDetailsScreen> {
       builder: (context, snapshot) {
         final parcel = snapshot.data;
         return Scaffold(
-          appBar: AppBar(
+          appBar: appCurvedAppBar(
             title: Text(parcel?.orderNumber ?? 'Parcel'),
             actions: [
               if (parcel != null && !parcel.isArchived)
@@ -401,10 +401,11 @@ class _ParcelView extends StatelessWidget {
                 final printBtn = OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size.fromHeight(48),
+                    backgroundColor: AppColors.surface,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.control),
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                    side: const BorderSide(color: AppColors.border, width: 1.5),
+                    side: const BorderSide(color: AppColors.border, width: 1.2),
                   ),
                   icon: const Icon(Icons.print_outlined, size: 20),
                   label: const Text('Print'),
@@ -415,8 +416,10 @@ class _ParcelView extends StatelessWidget {
                     minimumSize: const Size.fromHeight(48),
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
+                    elevation: 3,
+                    shadowColor: AppColors.btnBevel,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.control),
+                      borderRadius: BorderRadius.circular(16),
                     ),
                   ),
                   icon: const Icon(Icons.chat_outlined, size: 20),
@@ -681,34 +684,25 @@ class _Section extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsetsDirectional.only(bottom: AppSpacing.lg),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          border: Border.all(color: AppColors.border),
-          borderRadius: BorderRadius.circular(AppRadius.control),
-        ),
-        child: Padding(
-          padding: const EdgeInsetsDirectional.all(AppSpacing.lg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.primaryDark,
-                ),
-              ),
-              for (final child in children) ...[
-                const SizedBox(height: AppSpacing.md),
-                child,
-              ],
-            ],
+    return App3DCard(
+      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: AppColors.primaryDark,
+            ),
           ),
-        ),
+          for (final child in children) ...[
+            const SizedBox(height: AppSpacing.md),
+            child,
+          ],
+        ],
       ),
     );
   }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../design_system/foundations/radius/app_radius.dart';
 import '../design_system/foundations/spacing/app_spacing.dart';
 
 /// Small colored label for a status (Draft, Sent, Pending ...). The word carries the meaning;

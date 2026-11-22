@@ -23,8 +23,6 @@ class AppShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Same colours the Material tab bar used: bar surface, pill, active and inactive content.
-    final scheme = Theme.of(context).colorScheme;
     return Column(
       children: [
         // The tab bar below already handles the bottom system inset.

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../constants/app_colors.dart';
 import '../core/view_models/live_list_view_model.dart';
 import '../design_system/foundations/spacing/app_spacing.dart';
+import 'app_3d_decorations.dart';
 import 'app_text_field.dart';
 import 'empty_state.dart';
 import 'list_skeleton.dart';
@@ -25,6 +27,7 @@ class SearchableListPage<T> extends StatelessWidget {
     this.onAdd,
     this.header,
     this.footer,
+    this.actions,
   });
 
   final String title;
@@ -52,10 +55,16 @@ class SearchableListPage<T> extends StatelessWidget {
   /// Shown after the list when there are items (e.g. a "Load more" button).
   final Widget? footer;
 
+  /// Optional actions for the curved app bar.
+  final List<Widget>? actions;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: appCurvedAppBar(
+        title: Text(title),
+        actions: actions,
+      ),
       floatingActionButton: addLabel == null || onAdd == null
           ? null
           // No hero animation: the tabs stay alive side by side, and two buttons with the default hero tag
@@ -63,8 +72,14 @@ class SearchableListPage<T> extends StatelessWidget {
           : FloatingActionButton.extended(
               heroTag: null,
               onPressed: onAdd,
+              backgroundColor: AppColors.mint,
+              foregroundColor: AppColors.primaryDark,
+              elevation: 4,
               icon: const Icon(Icons.add),
-              label: Text(addLabel!),
+              label: Text(
+                addLabel!,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
       body: SafeArea(
         child: Align(
@@ -133,15 +148,17 @@ class SearchableListPage<T> extends StatelessWidget {
     }
     return [
       SliverPadding(
-        padding: EdgeInsetsDirectional.only(
-          top: AppSpacing.sm,
-          bottom: footer == null
+        padding: EdgeInsetsDirectional.fromSTEB(
+          AppSpacing.lg,
+          AppSpacing.sm,
+          AppSpacing.lg,
+          footer == null
               ? AppSpacing.x6l + AppSpacing.lg
               : AppSpacing.xs,
         ),
         sliver: SliverList.separated(
           itemCount: visible.length,
-          separatorBuilder: (_, _) => const Divider(height: 1),
+          separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.xs),
           itemBuilder: (context, index) => itemBuilder(context, visible[index]),
         ),
       ),

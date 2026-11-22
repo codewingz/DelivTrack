@@ -219,6 +219,13 @@ class _FilterBar extends StatelessWidget {
         Row(
           children: [
             OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                side: const BorderSide(color: AppColors.border, width: 1.2),
+                backgroundColor: AppColors.surface,
+              ),
               onPressed: onOpenFilters,
               icon: CountBadge(
                 count: filters.activeCount,
@@ -244,9 +251,11 @@ class _FilterBar extends StatelessWidget {
               ),
           ],
         ),
-        if (chips.isNotEmpty)
+        if (chips.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.xs),
           Wrap(
             spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.xs,
             children: [
               for (final chip in chips)
                 InputChip(
@@ -255,10 +264,16 @@ class _FilterBar extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  backgroundColor: AppColors.brand50,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(999),
+                    side: const BorderSide(color: Color(0xFFCDE5D8)),
+                  ),
                   onDeleted: () => viewModel.setFilters(chip.without),
                 ),
             ],
           ),
+        ],
       ],
     );
   }

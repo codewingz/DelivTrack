@@ -1031,6 +1031,21 @@ void main() {
       await t.pumpAndSettle();
       expect(find.text('Network failure.'), findsOneWidget);
     });
+
+    testWidgets('Customer Invoice & Shipping Slips button opens the document sheet', (t) async {
+      final repo = FakeParcelRepository(initial: [testParcel(id: 'p1')]);
+      await _open(t, repo, 'p1');
+
+      final btn = find.text('Customer Invoice & Shipping Slips');
+      await t.ensureVisible(btn);
+      await t.pump();
+      await t.tap(btn);
+      await t.pumpAndSettle();
+
+      expect(find.text('Invoice & Slips'), findsOneWidget);
+      expect(find.text('Send Invoice via WhatsApp'), findsOneWidget);
+      expect(find.text('Open WhatsApp Chat'), findsOneWidget);
+    });
   });
 }
 

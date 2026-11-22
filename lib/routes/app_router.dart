@@ -24,6 +24,7 @@ import '../features/parcels/views/parcel_details_screen.dart';
 import '../features/parcels/views/parcel_form_screen.dart';
 import '../features/parcels/views/parcels_screen.dart';
 import '../features/payments/views/payments_screen.dart';
+import '../features/pdf/parcel_document_service.dart';
 import '../features/reminders/data/reminder_scheduler.dart';
 import '../features/reports/domain/reports.dart';
 import '../features/settings/data/sender_profile_repository.dart';
@@ -297,6 +298,8 @@ GoRouter createRouter(
         name: 'parcelDetails',
         builder: (context, state) => ParcelDetailsScreen(
           repository: parcelRepository,
+          senderProfileRepository: senderRepo,
+          documentService: const PrintingParcelDocumentService(),
           parcelId: state.pathParameters['id']!,
           onEdit: (parcel) =>
               context.push<String>(AppRoutes.parcelEdit, extra: parcel),

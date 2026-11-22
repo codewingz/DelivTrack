@@ -15,6 +15,9 @@ import '../data/parcel_repository.dart';
 import '../domain/parcel.dart';
 import '../domain/parcel_enums.dart';
 import '../domain/payment.dart';
+import '../../pdf/parcel_document_service.dart';
+import '../../pdf/parcel_document_sheet.dart';
+import '../../settings/data/sender_profile_repository.dart';
 import 'parcel_action_sheets.dart';
 import 'payment_sheet.dart';
 import 'parcel_status_chips.dart';
@@ -26,12 +29,16 @@ class ParcelDetailsScreen extends StatefulWidget {
     required this.repository,
     required this.parcelId,
     required this.onEdit,
+    this.senderProfileRepository = const NoSenderProfileRepository(),
+    this.documentService = const PrintingParcelDocumentService(),
   });
   final ParcelRepository repository;
   final String parcelId;
 
   /// Opens the edit form; completes with the parcel id once saved, or null if cancelled.
   final Future<String?> Function(Parcel parcel) onEdit;
+  final SenderProfileRepository senderProfileRepository;
+  final ParcelDocumentService documentService;
 
   @override
   State<ParcelDetailsScreen> createState() => _ParcelDetailsScreenState();
@@ -97,6 +104,17 @@ class _ParcelDetailsScreenState extends State<ParcelDetailsScreen> {
           appBar: AppBar(
             title: Text(parcel?.orderNumber ?? 'Parcel'),
             actions: [
+              if (parcel != null && !parcel.isArchived)
+                IconButton(
+                  tooltip: 'Customer invoice & slips',
+                  icon: const Icon(Icons.receipt_long_outlined),
+                  onPressed: () => showParcelDocumentSheet(
+                    context: context,
+                    parcel: parcel,
+                    senderRepo: widget.senderProfileRepository,
+                    service: widget.documentService,
+                  ),
+                ),
               if (parcel != null &&
                   parcel.status == ParcelStatus.draft &&
                   !parcel.isArchived)
@@ -156,6 +174,8 @@ class _ParcelDetailsScreenState extends State<ParcelDetailsScreen> {
     return _ParcelView(
       parcel: parcel,
       repository: widget.repository,
+      senderProfileRepository: widget.senderProfileRepository,
+      documentService: widget.documentService,
       onAction: _act,
     );
   }
@@ -165,10 +185,14 @@ class _ParcelView extends StatelessWidget {
   const _ParcelView({
     required this.parcel,
     required this.repository,
+    required this.senderProfileRepository,
+    required this.documentService,
     required this.onAction,
   });
   final Parcel parcel;
   final ParcelRepository repository;
+  final SenderProfileRepository senderProfileRepository;
+  final ParcelDocumentService documentService;
   final Future<void> Function(Future<bool> Function() open, String done)
   onAction;
 
@@ -357,6 +381,16 @@ class _ParcelView extends StatelessWidget {
             _Section(
               title: 'Actions',
               children: [
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.receipt_long_rounded),
+                  label: const Text('Customer Invoice & Shipping Slips'),
+                  onPressed: () => showParcelDocumentSheet(
+                    context: context,
+                    parcel: parcel,
+                    senderRepo: senderProfileRepository,
+                    service: documentService,
+                  ),
+                ),
                 OutlinedButton(
                   onPressed: () => onAction(
                     () => showNotesSheet(context, repository, parcel),

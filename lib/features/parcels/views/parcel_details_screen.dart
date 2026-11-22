@@ -14,10 +14,12 @@ import '../../../design_system/foundations/spacing/app_spacing.dart';
 import '../data/parcel_repository.dart';
 import '../domain/parcel.dart';
 import '../domain/parcel_enums.dart';
+import '../domain/parcel_handover.dart';
 import '../domain/payment.dart';
 import '../../pdf/parcel_document_service.dart';
 import '../../pdf/parcel_document_sheet.dart';
 import '../../settings/data/sender_profile_repository.dart';
+import '../../settings/domain/sender_profile.dart';
 import 'parcel_action_sheets.dart';
 import 'payment_sheet.dart';
 import 'parcel_status_chips.dart';
@@ -73,6 +75,73 @@ class _ParcelDetailsScreenState extends State<ParcelDetailsScreen> {
       );
       if (mounted && Navigator.of(context).canPop()) {
         Navigator.of(context).pop();
+      }
+    } on AppFailure catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    }
+  }
+
+  Future<void> _sendTrackingWhatsApp(Parcel parcel, {String? trackingNumber}) async {
+    final sender = await widget.senderProfileRepository.getProfile() ??
+        const SenderProfile(name: '', phone: '', address: '');
+    final ok = await widget.documentService.openTrackingWhatsApp(
+      parcel: parcel,
+      sender: sender,
+      trackingNumber: trackingNumber,
+    );
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not open WhatsApp. Please check the phone number.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  Future<void> _handover(Parcel parcel) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final isDraft = parcel.status == ParcelStatus.draft;
+    ParcelHandover? savedHandover;
+
+    try {
+      final done = await showHandoverSheet(
+        context,
+        widget.repository,
+        parcel,
+        onHandoverSaved: (h) => savedHandover = h,
+      );
+      if (!done || !mounted) return;
+
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(isDraft ? 'Parcel handed over.' : 'Handover saved.'),
+          duration: const Duration(seconds: 4),
+          behavior: SnackBarBehavior.floating,
+          action: SnackBarAction(
+            label: 'WhatsApp',
+            onPressed: () => _sendTrackingWhatsApp(
+              parcel,
+              trackingNumber: savedHandover?.postalReference,
+            ),
+          ),
+        ),
+      );
+
+      final sendNow = await showConfirmDialog(
+        context,
+        title: 'Send tracking update?',
+        message:
+            'Open WhatsApp with ${parcel.customerName} (${parcel.customerPhone}) to send Pakistan Post tracking details?',
+        confirmLabel: 'Open WhatsApp',
+      );
+      if (sendNow && mounted) {
+        await _sendTrackingWhatsApp(
+          parcel,
+          trackingNumber: savedHandover?.postalReference,
+        );
       }
     } on AppFailure catch (e) {
       if (mounted) {
@@ -177,6 +246,8 @@ class _ParcelDetailsScreenState extends State<ParcelDetailsScreen> {
       senderProfileRepository: widget.senderProfileRepository,
       documentService: widget.documentService,
       onAction: _act,
+      onHandover: _handover,
+      onSendTrackingWhatsApp: _sendTrackingWhatsApp,
     );
   }
 }
@@ -188,6 +259,8 @@ class _ParcelView extends StatelessWidget {
     required this.senderProfileRepository,
     required this.documentService,
     required this.onAction,
+    required this.onHandover,
+    required this.onSendTrackingWhatsApp,
   });
   final Parcel parcel;
   final ParcelRepository repository;
@@ -195,6 +268,9 @@ class _ParcelView extends StatelessWidget {
   final ParcelDocumentService documentService;
   final Future<void> Function(Future<bool> Function() open, String done)
   onAction;
+  final Future<void> Function(Parcel parcel) onHandover;
+  final Future<void> Function(Parcel parcel, {String? trackingNumber})
+  onSendTrackingWhatsApp;
 
   @override
   Widget build(BuildContext context) {
@@ -275,20 +351,30 @@ class _ParcelView extends StatelessWidget {
                     : parcel.postalReference,
                 trailing: parcel.postalReference.isEmpty
                     ? null
-                    : IconButton(
-                        tooltip: 'Copy tracking number',
-                        icon: const Icon(Icons.copy_rounded),
-                        onPressed: () async {
-                          final messenger = ScaffoldMessenger.of(context);
-                          await Clipboard.setData(
-                            ClipboardData(text: parcel.postalReference),
-                          );
-                          messenger.showSnackBar(
-                            const SnackBar(
-                              content: Text('Tracking number copied.'),
-                            ),
-                          );
-                        },
+                    : Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            tooltip: 'Send tracking via WhatsApp',
+                            icon: const Icon(Icons.share_rounded),
+                            onPressed: () => onSendTrackingWhatsApp(parcel),
+                          ),
+                          IconButton(
+                            tooltip: 'Copy tracking number',
+                            icon: const Icon(Icons.copy_rounded),
+                            onPressed: () async {
+                              final messenger = ScaffoldMessenger.of(context);
+                              await Clipboard.setData(
+                                ClipboardData(text: parcel.postalReference),
+                              );
+                              messenger.showSnackBar(
+                                const SnackBar(
+                                  content: Text('Tracking number copied.'),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
                       ),
               ),
               _Info(
@@ -305,17 +391,11 @@ class _ParcelView extends StatelessWidget {
               if (!parcel.isArchived && parcel.status == ParcelStatus.draft)
                 PrimaryButton(
                   label: 'Hand over parcel',
-                  onPressed: () => onAction(
-                    () => showHandoverSheet(context, repository, parcel),
-                    'Parcel handed over.',
-                  ),
+                  onPressed: () => onHandover(parcel),
                 ),
               if (!parcel.isArchived && parcel.status == ParcelStatus.sent)
                 OutlinedButton(
-                  onPressed: () => onAction(
-                    () => showHandoverSheet(context, repository, parcel),
-                    'Handover saved.',
-                  ),
+                  onPressed: () => onHandover(parcel),
                   child: const Text('Edit handover'),
                 ),
             ],

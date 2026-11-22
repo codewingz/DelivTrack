@@ -28,6 +28,12 @@ abstract class ParcelDocumentService {
     required Parcel parcel,
     required SenderProfile sender,
   });
+
+  Future<bool> openTrackingWhatsApp({
+    required Parcel parcel,
+    required SenderProfile sender,
+    String? trackingNumber,
+  });
 }
 
 class PrintingParcelDocumentService implements ParcelDocumentService {
@@ -123,6 +129,55 @@ class PrintingParcelDocumentService implements ParcelDocumentService {
       ),
     );
   }
+
+  static String buildTrackingMessage({
+    required Parcel parcel,
+    required SenderProfile sender,
+    String? trackingNumber,
+  }) {
+    final senderName = sender.name.isNotEmpty ? sender.name : 'our store';
+    final tracking = (trackingNumber != null && trackingNumber.isNotEmpty)
+        ? trackingNumber
+        : parcel.postalReference;
+    final totalExpected = parcel.expectedPaisa + (parcel.deliveryChargePaisa ?? 0);
+    final balanceLine = parcel.outstandingPaisa > 0
+        ? '💵 Cash on Delivery (COD) to pay: ${formatRupees(parcel.outstandingPaisa)}'
+        : '✅ Payment: Paid in full';
+
+    return 'Assalam-o-Alaikum ${parcel.customerName},\n\n'
+        'Your parcel for order #${parcel.orderNumber} has been dispatched via Pakistan Post!\n\n'
+        '📦 Tracking Number: $tracking\n'
+        '🌐 Track online: https://ep.gov.pk\n'
+        '💰 Total Amount: ${formatRupees(totalExpected)}\n'
+        '$balanceLine\n\n'
+        'Thank you for shopping with $senderName!';
+  }
+
+  @override
+  Future<bool> openTrackingWhatsApp({
+    required Parcel parcel,
+    required SenderProfile sender,
+    String? trackingNumber,
+  }) async {
+    final rawPhone = parcel.customerPhone;
+    final digits = normalizePhone(rawPhone);
+    final waPhone = digits.startsWith('03') && digits.length == 11
+        ? '92${digits.substring(1)}'
+        : digits;
+    final message = buildTrackingMessage(
+      parcel: parcel,
+      sender: sender,
+      trackingNumber: trackingNumber,
+    );
+    final url = Uri.parse(
+      'https://wa.me/$waPhone?text=${Uri.encodeComponent(message)}',
+    );
+    try {
+      return await launchUrl(url, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      return false;
+    }
+  }
 }
 
 /// Fallback / mock implementation for unit and widget tests.
@@ -151,5 +206,12 @@ class NoParcelDocumentService implements ParcelDocumentService {
   Future<bool> printShippingLabel({
     required Parcel parcel,
     required SenderProfile sender,
+  }) async => true;
+
+  @override
+  Future<bool> openTrackingWhatsApp({
+    required Parcel parcel,
+    required SenderProfile sender,
+    String? trackingNumber,
   }) async => true;
 }

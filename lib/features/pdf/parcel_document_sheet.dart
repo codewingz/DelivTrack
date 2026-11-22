@@ -199,6 +199,22 @@ class _ParcelDocumentSheetState extends State<_ParcelDocumentSheet> {
               'Opening shipping label print preview...',
             ),
           ),
+          if (widget.parcel.postalReference.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.sm),
+            _ActionTile(
+              icon: Icons.mark_email_read_outlined,
+              title: 'Send Post Office Tracking',
+              subtitle: 'Sends tracking # & https://ep.gov.pk link to ${widget.parcel.customerPhone}',
+              enabled: !_busy,
+              onTap: () => _handleAction(
+                (sender) => widget.service.openTrackingWhatsApp(
+                  parcel: widget.parcel,
+                  sender: sender,
+                ),
+                'Opening WhatsApp with tracking details...',
+              ),
+            ),
+          ],
         ],
       ),
     );

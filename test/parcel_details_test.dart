@@ -10,6 +10,8 @@ import 'package:deliv_track/features/parcels/domain/parcel_item.dart';
 import 'package:deliv_track/features/parcels/domain/parcel_input.dart';
 import 'package:deliv_track/features/parcels/domain/payment.dart';
 import 'package:deliv_track/features/parcels/views/parcel_details_screen.dart';
+import 'package:deliv_track/features/pdf/parcel_document_service.dart';
+import 'package:deliv_track/features/settings/domain/sender_profile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -23,6 +25,7 @@ Future<void> _open(
   Size size = const Size(393, 852),
   double scale = 1,
   Future<String?> Function(Parcel)? onEdit,
+  ParcelDocumentService? documentService,
 }) async {
   t.view.physicalSize = size;
   t.view.devicePixelRatio = 1;
@@ -35,6 +38,7 @@ Future<void> _open(
         repository: repo,
         parcelId: id,
         onEdit: onEdit ?? (_) async => null,
+        documentService: documentService ?? const NoParcelDocumentService(),
       ),
     ),
   );
@@ -479,6 +483,44 @@ void main() {
         await t.ensureVisible(outlined('Edit handover'));
         expect(outlined('Edit handover'), findsOneWidget);
         expect(repo.handovers.single.handover.deliveryChargePaisa, 12000);
+      },
+    );
+
+    testWidgets(
+      'handing over parcel prompts to send tracking via WhatsApp and calls openTrackingWhatsApp',
+      (t) async {
+        final docService = _MockTrackingDocumentService();
+        final repo = FakeParcelRepository(
+          initial: [
+            testParcel(
+              id: 'a',
+              status: ParcelStatus.draft,
+              reference: '',
+              charge: null,
+            ),
+          ],
+        );
+        await _open(t, repo, 'a', documentService: docService);
+        await t.ensureVisible(primary('Hand over parcel'));
+        await t.pump();
+        await t.tap(primary('Hand over parcel'));
+        await t.pumpAndSettle();
+        await t.enterText(
+          find.widgetWithText(TextFormField, 'Enter tracking number'),
+          'PK-999999',
+        );
+        await t.enterText(
+          find.widgetWithText(TextFormField, 'Enter delivery charges'),
+          '250',
+        );
+        await t.tap(primary('Hand Over'));
+        await t.pumpAndSettle();
+
+        expect(find.text('Send tracking update?'), findsOneWidget);
+        await t.tap(find.text('Open WhatsApp'));
+        await t.pumpAndSettle();
+
+        expect(docService.openedTracking, 'PK-999999');
       },
     );
 
@@ -1062,5 +1104,19 @@ class _FlakyRepository extends FakeParcelRepository {
       return Stream<Parcel?>.error(const AppFailure('No internet connection.'));
     }
     return Stream.value(_parcel);
+  }
+}
+
+class _MockTrackingDocumentService extends NoParcelDocumentService {
+  String? openedTracking;
+
+  @override
+  Future<bool> openTrackingWhatsApp({
+    required Parcel parcel,
+    required SenderProfile sender,
+    String? trackingNumber,
+  }) async {
+    openedTracking = trackingNumber ?? parcel.postalReference;
+    return true;
   }
 }

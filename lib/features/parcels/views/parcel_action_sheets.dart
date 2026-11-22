@@ -436,16 +436,26 @@ class _CorrectPaymentSheetState extends State<_CorrectPaymentSheet> {
 Future<bool> showHandoverSheet(
   BuildContext context,
   ParcelRepository repository,
-  Parcel parcel,
-) => showFormSheet(
+  Parcel parcel, {
+  ValueChanged<ParcelHandover>? onHandoverSaved,
+}) => showFormSheet(
   context,
-  (_) => _HandoverSheet(repository: repository, parcel: parcel),
+  (_) => _HandoverSheet(
+    repository: repository,
+    parcel: parcel,
+    onHandoverSaved: onHandoverSaved,
+  ),
 );
 
 class _HandoverSheet extends StatefulWidget {
-  const _HandoverSheet({required this.repository, required this.parcel});
+  const _HandoverSheet({
+    required this.repository,
+    required this.parcel,
+    this.onHandoverSaved,
+  });
   final ParcelRepository repository;
   final Parcel parcel;
+  final ValueChanged<ParcelHandover>? onHandoverSaved;
 
   @override
   State<_HandoverSheet> createState() => _HandoverSheetState();
@@ -485,14 +495,15 @@ class _HandoverSheetState extends State<_HandoverSheet> {
           ? '${parcel.orderNumber} · ${parcel.customerName}. Enter the tracking number and the delivery charge from the slip; the parcel then becomes Sent.'
           : '${parcel.orderNumber} · ${parcel.customerName}',
       submitLabel: _isDraft ? 'Hand Over' : 'Save Handover',
-      onSubmit: () => widget.repository.saveHandover(
-        parcel.id,
-        ParcelHandover(
+      onSubmit: () async {
+        final handover = ParcelHandover(
           postalReference: _reference.text,
           deliveryChargePaisa: parseRupeesToPaisa(_charge.text),
           packedWeightGrams: parseKgToGrams(_weight.text),
-        ),
-      ),
+        );
+        await widget.repository.saveHandover(parcel.id, handover);
+        widget.onHandoverSaved?.call(handover);
+      },
       fields: (busy) => [
         AppTextField.reference(
           controller: _reference,

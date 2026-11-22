@@ -12,6 +12,7 @@ import '../helpers/fake_sender_profile_repository.dart';
 class _FakeDocumentService implements ParcelDocumentService {
   int shareCount = 0;
   int whatsAppCount = 0;
+  int trackingCount = 0;
   int printInvoiceCount = 0;
   int printLabelCount = 0;
 
@@ -30,6 +31,16 @@ class _FakeDocumentService implements ParcelDocumentService {
     required SenderProfile sender,
   }) async {
     whatsAppCount++;
+    return true;
+  }
+
+  @override
+  Future<bool> openTrackingWhatsApp({
+    required Parcel parcel,
+    required SenderProfile sender,
+    String? trackingNumber,
+  }) async {
+    trackingCount++;
     return true;
   }
 
@@ -192,6 +203,38 @@ void main() {
       expect(fakeService.printLabelCount, 1);
       expect(find.text('Opening shipping label print preview...'), findsOneWidget);
     });
+
+    testWidgets('triggers send post office tracking via WhatsApp', (t) async {
+      final fakeService = _FakeDocumentService();
+      final senderRepo = FakeSenderProfileRepository(initial: sender);
+
+      await t.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () => showParcelDocumentSheet(
+                  context: context,
+                  parcel: parcel,
+                  senderRepo: senderRepo,
+                  service: fakeService,
+                ),
+                child: const Text('Open Sheet'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await t.tap(find.text('Open Sheet'));
+      await t.pumpAndSettle();
+
+      await t.tap(find.text('Send Post Office Tracking'));
+      await t.pumpAndSettle();
+
+      expect(fakeService.trackingCount, 1);
+      expect(find.text('Opening WhatsApp with tracking details...'), findsOneWidget);
+    });
   });
 
   group('PrintingParcelDocumentService', () {
@@ -242,6 +285,56 @@ void main() {
       expect(msg, contains('Cotton Kurta'));
       expect(msg, contains('Rs. 4,250'));
       expect(msg, contains('Cash on Delivery (COD) to pay: Rs. 3,000'));
+    });
+
+    test('buildTrackingMessage generates dispatch message with ep.gov.pk link', () {
+      final parcel = Parcel(
+        id: 'p1',
+        orderNumber: 'DT-4001',
+        orderSequence: 4001,
+        customerId: 'c1',
+        customerName: 'Zainab Bibi',
+        customerPhone: '0311 9988776',
+        customerAddress: 'Gulberg 3, Lahore',
+        items: [
+          ParcelItem.pieces(
+            productId: 'prod1',
+            productName: 'Chiffon Dupatta',
+            quantity: 1,
+            unitPricePaisa: 150000,
+          ),
+        ],
+        method: CollectionMethod.postalCollection,
+        postalReference: 'PK987654321',
+        deliveryChargePaisa: 20000,
+        packedWeightGrams: 300,
+        sendingDate: '2026-11-22',
+        estimatedPaymentDate: null,
+        expectedPaisa: 150000,
+        receivedPaisa: 0,
+        outstandingPaisa: 150000,
+        paymentStatus: PaymentStatus.pending,
+        status: ParcelStatus.sent,
+      );
+
+      const sender = SenderProfile(
+        name: 'Eastern Threads',
+        phone: '0321 0001122',
+        address: 'Mall Road, Lahore',
+      );
+
+      final msg = PrintingParcelDocumentService.buildTrackingMessage(
+        parcel: parcel,
+        sender: sender,
+      );
+
+      expect(msg, contains('Assalam-o-Alaikum Zainab Bibi'));
+      expect(msg, contains('#DT-4001'));
+      expect(msg, contains('PK987654321'));
+      expect(msg, contains('https://ep.gov.pk'));
+      expect(msg, contains('Eastern Threads'));
+      expect(msg, contains('Rs. 1,700'));
+      expect(msg, contains('Cash on Delivery (COD) to pay: Rs. 1,500'));
     });
   });
 }

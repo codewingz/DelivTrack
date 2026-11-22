@@ -34,6 +34,10 @@ abstract class ParcelRepository {
   /// nothing). Its order number stays reserved; [restore] brings it back. Throws [AppFailure].
   Future<void> archive(String parcelId);
 
+  /// Permanently deletes a draft parcel (e.g. cancelled or rejected before handover).
+  /// Sent and returned parcels cannot be deleted. Throws [AppFailure].
+  Future<void> deleteDraft(String parcelId);
+
   /// Brings an archived parcel back to the lists.
   Future<void> restore(String parcelId);
 
@@ -697,6 +701,30 @@ class FirestoreParcelRepository implements ParcelRepository {
   @override
   Future<void> restore(String parcelId) =>
       _setArchived(parcelId, archived: false);
+
+  @override
+  Future<void> deleteDraft(String parcelId) async {
+    final parcelRef = _parcels.doc(parcelId);
+    try {
+      final doc = await parcelRef.get();
+      if (!doc.exists) return;
+      final data = doc.data()!;
+      if (data['parcelStatus'] != ParcelStatus.draft.value) {
+        throw const AppFailure('Only draft parcels can be deleted.');
+      }
+      final paymentsSnap = await parcelRef.collection('payments').get();
+      final batch = _firestore.batch();
+      for (final p in paymentsSnap.docs) {
+        batch.delete(p.reference);
+      }
+      batch.delete(parcelRef);
+      await batch.commit();
+      _paymentSignatures.remove(parcelId);
+      _paymentCache.remove(parcelId);
+    } on FirebaseException catch (e) {
+      throw firestoreFailure(e);
+    }
+  }
 
   Future<void> _setArchived(String parcelId, {required bool archived}) async {
     final parcelRef = _parcels.doc(parcelId);

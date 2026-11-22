@@ -976,6 +976,62 @@ void main() {
       expect(find.text('No internet connection.'), findsOneWidget);
     });
   });
+
+  group('delete draft parcel', () {
+    testWidgets('draft parcel offers delete in Actions and AppBar; cancel keeps it; confirm deletes it', (t) async {
+      final repo = FakeParcelRepository(
+        initial: [testParcel(id: 'd1', status: ParcelStatus.draft)],
+      );
+      await _open(t, repo, 'd1');
+      expect(find.byTooltip('Delete draft'), findsOneWidget);
+      await t.ensureVisible(find.widgetWithText(OutlinedButton, 'Delete Draft Parcel'));
+      expect(find.text('Delete Draft Parcel'), findsOneWidget);
+
+      // Tap Cancel in confirm dialog
+      await t.tap(find.widgetWithText(OutlinedButton, 'Delete Draft Parcel'));
+      await t.pumpAndSettle();
+      expect(find.text('Delete this draft parcel?'), findsOneWidget);
+      await t.tap(find.text('Cancel'));
+      await t.pumpAndSettle();
+      expect(repo.watch('d1'), emits(isNotNull));
+
+      // Tap Delete in confirm dialog
+      await t.tap(find.widgetWithText(OutlinedButton, 'Delete Draft Parcel'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Delete'));
+      await t.pumpAndSettle();
+      expect(repo.watch('d1'), emits(isNull));
+      expect(find.text('Draft parcel deleted.'), findsOneWidget);
+    });
+
+    testWidgets('sent and returned parcels do not offer delete draft', (t) async {
+      final repo = FakeParcelRepository(
+        initial: [
+          testParcel(id: 's1', status: ParcelStatus.sent),
+          testParcel(id: 'r1', status: ParcelStatus.returned),
+        ],
+      );
+      await _open(t, repo, 's1');
+      expect(find.text('Delete Draft Parcel'), findsNothing);
+      expect(find.byTooltip('Delete draft'), findsNothing);
+
+      await _open(t, repo, 'r1');
+      expect(find.text('Delete Draft Parcel'), findsNothing);
+      expect(find.byTooltip('Delete draft'), findsNothing);
+    });
+
+    testWidgets('delete failure shows error message', (t) async {
+      final repo = FakeParcelRepository(
+        initial: [testParcel(id: 'd1', status: ParcelStatus.draft)],
+      )..failure = const AppFailure('Network failure.');
+      await _open(t, repo, 'd1');
+      await t.tap(find.byTooltip('Delete draft'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Delete'));
+      await t.pumpAndSettle();
+      expect(find.text('Network failure.'), findsOneWidget);
+    });
+  });
 }
 
 /// First load fails, the next one works.

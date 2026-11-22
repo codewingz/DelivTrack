@@ -654,6 +654,20 @@ class FakeParcelRepository implements ParcelRepository {
   }
 
   @override
+  Future<void> deleteDraft(String parcelId) async {
+    await gate?.future;
+    if (failure != null) throw failure!;
+    final index = _parcels.indexWhere((p) => p.id == parcelId);
+    if (index == -1) return;
+    if (_parcels[index].status != ParcelStatus.draft) {
+      throw const AppFailure('Only draft parcels can be deleted.');
+    }
+    _parcels.removeAt(index);
+    payments.remove(parcelId);
+    _changes.add(null);
+  }
+
+  @override
   Stream<Parcel?> watch(String id) async* {
     Parcel? find() => _parcels.where((p) => p.id == id).firstOrNull;
     yield find();

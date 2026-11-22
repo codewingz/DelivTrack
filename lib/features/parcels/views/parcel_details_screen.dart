@@ -48,6 +48,32 @@ class _ParcelDetailsScreenState extends State<ParcelDetailsScreen> {
     }
   }
 
+  Future<void> _deleteDraft(Parcel parcel) async {
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Delete this draft parcel?',
+      message:
+          'This will permanently delete this draft order. This action cannot be undone.',
+      confirmLabel: 'Delete',
+      destructive: true,
+    );
+    if (!confirmed || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await widget.repository.deleteDraft(parcel.id);
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Draft parcel deleted.')),
+      );
+      if (mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+    } on AppFailure catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    }
+  }
+
   /// Opens one of the action sheets; a snackbar confirms when it was submitted.
   Future<void> _act(Future<bool> Function() open, String done) async {
     final messenger = ScaffoldMessenger.of(context);
@@ -71,6 +97,17 @@ class _ParcelDetailsScreenState extends State<ParcelDetailsScreen> {
           appBar: AppBar(
             title: Text(parcel?.orderNumber ?? 'Parcel'),
             actions: [
+              if (parcel != null &&
+                  parcel.status == ParcelStatus.draft &&
+                  !parcel.isArchived)
+                IconButton(
+                  tooltip: 'Delete draft',
+                  icon: const Icon(
+                    Icons.delete_outline_rounded,
+                    color: AppColors.error,
+                  ),
+                  onPressed: () => _deleteDraft(parcel),
+                ),
               if (parcel != null &&
                   parcel.status != ParcelStatus.returned &&
                   !parcel.isArchived)
@@ -372,6 +409,48 @@ class _ParcelView extends StatelessWidget {
                       return true;
                     }, 'Parcel archived.'),
                     child: const Text('Archive Parcel'),
+                  ),
+                if (parcel.status == ParcelStatus.draft)
+                  OutlinedButton.icon(
+                    icon: const Icon(
+                      Icons.delete_outline_rounded,
+                      color: AppColors.error,
+                    ),
+                    label: const Text(
+                      'Delete Draft Parcel',
+                      style: TextStyle(color: AppColors.error),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: AppColors.error),
+                    ),
+                    onPressed: () async {
+                      final messenger = ScaffoldMessenger.of(context);
+                      final confirmed = await showConfirmDialog(
+                        context,
+                        title: 'Delete this draft parcel?',
+                        message:
+                            'This will permanently delete this draft order. This action cannot be undone.',
+                        confirmLabel: 'Delete',
+                        destructive: true,
+                      );
+                      if (!confirmed) return;
+                      try {
+                        await repository.deleteDraft(parcel.id);
+                        messenger.showSnackBar(
+                          const SnackBar(
+                            content: Text('Draft parcel deleted.'),
+                          ),
+                        );
+                        if (context.mounted &&
+                            Navigator.of(context).canPop()) {
+                          Navigator.of(context).pop();
+                        }
+                      } on AppFailure catch (e) {
+                        messenger.showSnackBar(
+                          SnackBar(content: Text(e.message)),
+                        );
+                      }
+                    },
                   ),
               ],
             ),

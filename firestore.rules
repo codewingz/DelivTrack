@@ -307,7 +307,10 @@ service cloud.firestore {
         && (!('estimatedPaymentDateLocal' in request.resource.data)
             || ('estimatedPaymentDateLocal' in resource.data && resource.data.estimatedPaymentDateLocal == request.resource.data.estimatedPaymentDateLocal)
             || request.resource.data.estimatedPaymentDateLocal >= pakistanDate(request.time));
-      allow delete: if false;
+      // A draft parcel (not yet handed over) can be deleted by its owner. Sent and returned parcels are
+      // locked audit records and can never be deleted.
+      allow delete: if isOwner(uid)
+        && resource.data.parcelStatus == 'draft';
     }
 
     // Payments: append-only, written in the same commit that moves the parcel's received amount.
@@ -383,7 +386,10 @@ service cloud.firestore {
           && getAfter(paymentAt(uid, parcelId, 'rev_' + paymentId[4:])).data.replacementPaisa == request.resource.data.amountPaisa
           && getAfter(paymentAt(uid, parcelId, 'rev_' + paymentId[4:])).data.paymentType == request.resource.data.paymentType)
       );
-      allow update, delete: if false;
+      allow update: if false;
+      allow delete: if isOwner(uid)
+        && (!exists(parcelAt(uid, parcelId))
+            || get(parcelAt(uid, parcelId)).data.parcelStatus == 'draft');
     }
 
     // Audit log: one entry per edit of a parcel. Written in the SAME commit as the edit it describes and

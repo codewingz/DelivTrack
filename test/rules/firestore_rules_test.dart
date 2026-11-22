@@ -1222,6 +1222,54 @@ void main() {
       );
       expect(await emu.delete(u.token, ppath(u.uid, pid)), 403);
     }, skip: skip);
+
+    test('draft parcels can be deleted by their owner before handover; other user blocked', () async {
+      final alice = await emu.signUp(
+        'alice_del${DateTime.now().microsecondsSinceEpoch}@x.com',
+      );
+      final bob = await emu.signUp(
+        'bob_del${DateTime.now().microsecondsSinceEpoch}@x.com',
+      );
+      final draftId = id();
+      expect(
+        await createParcel(
+          alice,
+          draftId,
+          _parcel(
+            seq: 1,
+            overrides: {
+              'parcelStatus': 'draft',
+              'postalReference': '',
+              'postalReferenceNormalized': '',
+            },
+            remove: ['deliveryChargePaisa'],
+          ),
+        ),
+        200,
+        reason: 'draft parcel created',
+      );
+
+      // Bob cannot delete Alice draft
+      expect(
+        await emu.delete(bob.token, ppath(alice.uid, draftId)),
+        403,
+        reason: 'data isolation: bob cannot delete alice draft',
+      );
+
+      // Alice can delete her own draft
+      expect(
+        await emu.delete(alice.token, ppath(alice.uid, draftId)),
+        200,
+        reason: 'owner can delete draft parcel',
+      );
+
+      // Verify it no longer exists
+      expect(
+        await emu.get(alice.token, ppath(alice.uid, draftId)),
+        404,
+        reason: 'deleted draft no longer exists',
+      );
+    }, skip: skip);
   });
 
   group('postal reference guards (DT-006)', () {

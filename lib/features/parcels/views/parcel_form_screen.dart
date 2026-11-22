@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../common_widgets/app_3d_decorations.dart';
 import '../../../common_widgets/app_dropdown_field.dart';
 import '../../../common_widgets/app_date_field.dart';
 import '../../../common_widgets/app_select_field.dart';
@@ -10,7 +11,6 @@ import '../../../constants/app_colors.dart';
 import '../../../core/money/money.dart';
 import '../../../core/time/pakistan_time.dart';
 import '../../../core/view_models/action_view_model.dart';
-import '../../../design_system/foundations/radius/app_radius.dart';
 import '../../../design_system/foundations/spacing/app_spacing.dart';
 import '../../customers/data/customer_repository.dart';
 import '../../customers/domain/customer.dart';
@@ -129,7 +129,7 @@ class _ParcelFormScreenState extends State<ParcelFormScreen> {
             if (!didPop) _confirmDiscard();
           },
           child: Scaffold(
-            appBar: AppBar(
+            appBar: appCurvedAppBar(
               title: Text(widget.parcel == null ? 'Add parcel' : 'Edit parcel'),
             ),
             body: SafeArea(
@@ -195,6 +195,14 @@ class _ParcelFormScreenState extends State<ParcelFormScreen> {
                             OutlinedButton.icon(
                               style: OutlinedButton.styleFrom(
                                 minimumSize: const Size.fromHeight(48),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                side: const BorderSide(
+                                  color: AppColors.border,
+                                  width: 1.2,
+                                ),
+                                backgroundColor: AppColors.surface,
                               ),
                               onPressed: busy ? null : _form.addItem,
                               icon: const Icon(Icons.add),
@@ -397,29 +405,23 @@ class _ItemCardState extends State<_ItemCard> {
     final form = widget.form;
     final number = widget.index + 1;
     final lineTotal = form.lineTotalPaisa(item);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border.all(color: AppColors.border),
-        borderRadius: BorderRadius.circular(AppRadius.control),
-      ),
-      child: Padding(
-        padding: const EdgeInsetsDirectional.all(AppSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Product $number',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.label,
-                    ),
+    return App3DCard(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Product $number',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.label,
                   ),
                 ),
+              ),
                 if (form.items.length > 1)
                   IconButton(
                     tooltip: 'Remove product $number',
@@ -503,7 +505,6 @@ class _ItemCardState extends State<_ItemCard> {
             ],
           ],
         ),
-      ),
-    );
+      );
   }
 }

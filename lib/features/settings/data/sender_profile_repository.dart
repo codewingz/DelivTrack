@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../core/errors/app_failure.dart';
+import '../../../core/errors/firestore_failure.dart';
 import '../../../utils/text.dart';
 import '../domain/sender_profile.dart';
 
@@ -52,7 +53,13 @@ class FirestoreSenderProfileRepository implements SenderProfileRepository {
       if (!snap.exists || snap.data() == null) return null;
       return SenderProfile.fromMap(snap.data()!);
     } on FirebaseException catch (e) {
-      throw AppFailure(e.message ?? 'Failed to load sender details.');
+      if (e.code == 'unavailable') {
+        // Device is offline / DNS unresolvable and document not in local cache yet.
+        return null;
+      }
+      throw firestoreFailure(e);
+    } catch (_) {
+      return null;
     }
   }
 

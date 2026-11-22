@@ -1,3 +1,4 @@
+import 'package:deliv_track/common_widgets/brand_loading_indicator.dart';
 import 'package:deliv_track/features/settings/domain/sender_profile.dart';
 import 'package:deliv_track/features/settings/views/sender_profile_screen.dart';
 import 'package:flutter/material.dart';
@@ -86,6 +87,17 @@ void main() {
       expect(saved?.phone, '0321 9876543');
       expect(saved?.address, 'Plot 45, Sector F, Islamabad');
       expect(find.text('Sender details saved.'), findsOneWidget);
+    });
+
+    testWidgets('gracefully stops loading and shows form if repository throws error', (t) async {
+      final repo = FailingSenderProfileRepository();
+
+      await t.pumpWidget(_wrap(SenderProfileScreen(repository: repo)));
+      await t.pumpAndSettle();
+
+      expect(find.byType(BrandLoadingIndicator), findsNothing);
+      expect(find.textContaining('Sender / Business name'), findsOneWidget);
+      expect(find.text('Could not load profile. You can enter details below.'), findsOneWidget);
     });
 
     for (final size in [

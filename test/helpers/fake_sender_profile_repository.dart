@@ -29,3 +29,14 @@ class FakeSenderProfileRepository implements SenderProfileRepository {
     _controller.close();
   }
 }
+
+class FailingSenderProfileRepository implements SenderProfileRepository {
+  @override
+  Future<SenderProfile?> getProfile() async => throw Exception('Network error');
+
+  @override
+  Stream<SenderProfile?> watchProfile() => Stream.error(Exception('Network error'));
+
+  @override
+  Future<void> saveProfile(SenderProfile profile) async => throw Exception('Network error');
+}

@@ -4,6 +4,7 @@ import '../../../common_widgets/app_text_field.dart';
 import '../../../common_widgets/brand_loading_indicator.dart';
 import '../../../common_widgets/primary_button.dart';
 import '../../../constants/app_colors.dart';
+import '../../../core/errors/app_failure.dart';
 import '../../../core/view_models/action_view_model.dart';
 import '../../../design_system/foundations/spacing/app_spacing.dart';
 import '../../../utils/app_validators.dart';
@@ -37,14 +38,21 @@ class _SenderProfileScreenState extends State<SenderProfileScreen> {
   }
 
   Future<void> _loadProfile() async {
-    final profile = await widget.repository.getProfile();
-    if (mounted) {
-      if (profile != null) {
+    try {
+      final profile = await widget.repository.getProfile();
+      if (mounted && profile != null) {
         _name.text = profile.name;
         _phone.text = profile.phone;
         _address.text = profile.address;
       }
-      setState(() => _loading = false);
+    } on AppFailure catch (e) {
+      if (mounted) _viewModel.fail(e.message);
+    } catch (_) {
+      if (mounted) _viewModel.fail('Could not load profile. You can enter details below.');
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 

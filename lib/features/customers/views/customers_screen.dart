@@ -1,7 +1,8 @@
-import '../../../common_widgets/app_snack_bar.dart';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../common_widgets/app_snack_bar.dart';
 import '../../../common_widgets/app_3d_decorations.dart';
 import '../../../common_widgets/empty_state.dart';
 import '../../../common_widgets/initial_avatar.dart';
@@ -17,18 +18,31 @@ import '../viewmodel/customer_list_view_model.dart';
 
 /// Customers list. Add opens its own full screen (the callback returns the saved customer's id, or
 /// null when the user left without saving); a row opens that customer's details.
+///
+/// [CustomersScreen.choose] is the same list used to pick a customer for a parcel: a row (or a newly
+/// added customer) pops the page with that [Customer].
 class CustomersScreen extends StatefulWidget {
   const CustomersScreen({
     super.key,
     required this.repository,
     required this.parcelRepository,
     required this.onAdd,
-    required this.onOpen,
+    required void Function(Customer customer) this.onOpen,
   });
+
+  const CustomersScreen.choose({
+    super.key,
+    required this.repository,
+    required this.parcelRepository,
+    required this.onAdd,
+  }) : onOpen = null;
+
   final CustomerRepository repository;
   final ParcelRepository parcelRepository;
   final Future<String?> Function() onAdd;
-  final void Function(Customer customer) onOpen;
+
+  /// Null when the page is used to choose a customer.
+  final void Function(Customer customer)? onOpen;
 
   @override
   State<CustomersScreen> createState() => _CustomersScreenState();
@@ -54,7 +68,20 @@ class _CustomersScreenState extends State<CustomersScreen> {
   Future<void> _add() async {
     final savedId = await widget.onAdd();
     if (!mounted || savedId == null) return;
-    _showMessage('Customer added.');
+    if (widget.onOpen != null) return _showMessage('Customer added.');
+    // Choosing: the new customer is the choice, once the live list has it.
+    final customers = await widget.repository
+        .watchAll()
+        .firstWhere((list) => list.any((c) => c.id == savedId))
+        .timeout(const Duration(seconds: 10), onTimeout: () => const []);
+    if (!mounted) return;
+    final created = customers.where((c) => c.id == savedId);
+    if (created.isNotEmpty) Navigator.of(context).pop(created.first);
+  }
+
+  void _open(Customer customer) {
+    final onOpen = widget.onOpen;
+    onOpen == null ? Navigator.of(context).pop(customer) : onOpen(customer);
   }
 
   @override
@@ -71,13 +98,14 @@ class _CustomersScreenState extends State<CustomersScreen> {
                 MediaQuery.textScalerOf(context).scale(1) >=
             360;
         return SearchableListPage<Customer>(
-          title: 'Customers',
+          title: widget.onOpen == null ? 'Select customer' : 'Customers',
           titleIcon: Icons.people_outline_rounded,
           subtitle: ready
               ? '$count ${count == 1 ? 'customer' : 'customers'}'
               : null,
           actions: [
-            if (ready && roomy)
+            // Not while choosing: the title needs the room.
+            if (ready && roomy && widget.onOpen != null)
               AppBarStatPill(
                 label: 'Total due',
                 value: formatRupees(_viewModel.totalOutstandingPaisa),
@@ -95,7 +123,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
             customer: customer,
             figures: _viewModel.figuresOf(customer.id),
             roomy: roomy,
-            onTap: () => widget.onOpen(customer),
+            onTap: () => _open(customer),
           ),
         );
       },

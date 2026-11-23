@@ -82,7 +82,7 @@ void main() {
   );
 
   testWidgets(
-    '/parcels/new opens the full-screen Add parcel form; New Customer from the picker opens the customer form',
+    '/parcels/new opens the full-screen Add parcel form; Add Customer from the customer list opens the customer form',
     (t) async {
       final router = await _launch(t);
       router.push(AppRoutes.parcelNew);
@@ -94,7 +94,7 @@ void main() {
         find.widgetWithText(TextFormField, 'Select a customer').first,
       );
       await t.pumpAndSettle();
-      await t.tap(find.widgetWithText(FloatingActionButton, 'New Customer'));
+      await t.tap(find.widgetWithText(FloatingActionButton, 'Add Customer'));
       await t.pumpAndSettle();
       expect(
         find.widgetWithText(AppBar, 'Add customer'),

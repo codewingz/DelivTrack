@@ -14,13 +14,11 @@ typedef CustomerFigures = ({int parcels, int outstandingPaisa});
 /// Customers list state: live data, search by name or phone number, and each customer's parcel count
 /// and outstanding balance (from the live parcels).
 class CustomerListViewModel extends LiveListViewModel<Customer> {
-  /// [parcelRepository] is only needed where the figures are shown (the Customers tab); the customer
-  /// picker leaves it out.
   CustomerListViewModel(
-    CustomerRepository repository, [
-    ParcelRepository? parcelRepository,
-  ]) : super(repository.watchAll) {
-    _parcels = parcelRepository?.watchAll().listen(
+    CustomerRepository repository,
+    ParcelRepository parcelRepository,
+  ) : super(repository.watchAll) {
+    _parcels = parcelRepository.watchAll().listen(
       (parcels) {
         _figures = _figuresFor(parcels);
         notifyListeners();
@@ -30,7 +28,7 @@ class CustomerListViewModel extends LiveListViewModel<Customer> {
     );
   }
 
-  late final StreamSubscription<List<Parcel>>? _parcels;
+  late final StreamSubscription<List<Parcel>> _parcels;
   Map<String, CustomerFigures> _figures = const {};
 
   static Map<String, CustomerFigures> _figuresFor(List<Parcel> parcels) {
@@ -57,7 +55,7 @@ class CustomerListViewModel extends LiveListViewModel<Customer> {
 
   @override
   void dispose() {
-    _parcels?.cancel();
+    _parcels.cancel();
     super.dispose();
   }
 

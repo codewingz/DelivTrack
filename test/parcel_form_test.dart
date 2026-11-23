@@ -194,10 +194,7 @@ void main() {
       (t) async {
         await _open(t);
         expect(find.widgetWithText(AppBar, 'Add parcel'), findsOneWidget);
-        expect(
-          find.text('Order # auto-assigned on save'),
-          findsOneWidget,
-        );
+        expect(find.text('Order # auto-assigned on save'), findsOneWidget);
         expect(find.textContaining('Sending date'), findsNothing);
         expect(find.textContaining('Notes'), findsNothing);
         expect(find.textContaining('Expected'), findsNothing);
@@ -706,14 +703,14 @@ void main() {
     );
 
     testWidgets(
-      'New Customer returns to the parcel with the new customer selected',
+      'Add Customer returns to the parcel with the new customer selected',
       (t) async {
         await _open(t);
         final f = find.widgetWithText(TextFormField, 'Select a customer').first;
         await _scrollTo(t, f);
         await t.tap(f);
         await t.pumpAndSettle();
-        await t.tap(find.widgetWithText(FloatingActionButton, 'New Customer'));
+        await t.tap(find.widgetWithText(FloatingActionButton, 'Add Customer'));
         await t.pumpAndSettle();
         expect(find.byType(ParcelFormScreen), findsOneWidget);
         expect(find.widgetWithText(TextFormField, 'Brand New'), findsOneWidget);

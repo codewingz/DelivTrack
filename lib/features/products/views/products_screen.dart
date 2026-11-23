@@ -1,7 +1,6 @@
-import '../../../common_widgets/app_snack_bar.dart';
-
 import 'package:flutter/material.dart';
 
+import '../../../common_widgets/app_snack_bar.dart';
 import '../../../common_widgets/app_3d_decorations.dart';
 import '../../../common_widgets/app_segment_tabs.dart';
 import '../../../common_widgets/confirm_dialog.dart';
@@ -16,9 +15,18 @@ import '../domain/product.dart';
 import '../viewmodel/product_list_view_model.dart';
 import 'product_form_sheet.dart';
 
+/// Products list: a card edits the product and Archive/Restore moves it between the tabs.
+///
+/// [ProductsScreen.choose] is the same list used to pick a product for a parcel: only active
+/// products, and a card pops the page with that [Product].
 class ProductsScreen extends StatefulWidget {
-  const ProductsScreen({super.key, required this.repository});
+  const ProductsScreen({super.key, required this.repository})
+    : choosing = false;
+  const ProductsScreen.choose({super.key, required this.repository})
+    : choosing = true;
+
   final ProductRepository repository;
+  final bool choosing;
 
   @override
   State<ProductsScreen> createState() => _ProductsScreenState();
@@ -76,7 +84,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
         final ready = !_viewModel.isLoading && _viewModel.errorMessage == null;
         final active = _viewModel.activeCount;
         return SearchableListPage<Product>(
-          title: 'Products',
+          title: widget.choosing ? 'Select product' : 'Products',
           subtitle: ready
               ? '$active active ${active == 1 ? 'product' : 'products'}'
               : null,
@@ -87,25 +95,31 @@ class _ProductsScreenState extends State<ProductsScreen> {
           onQueryChanged: _viewModel.setQuery,
           addLabel: 'Add Product',
           onAdd: _openForm,
-          header: AppSegmentTabs(
-            tabs: [
-              for (final (label, segment) in const [
-                ('Active', ProductSegment.active),
-                ('Archived', ProductSegment.archived),
-              ])
-                (
-                  label: label,
-                  count: _viewModel.countIn(segment),
-                  selected: _viewModel.segment == segment,
-                  onTap: () => _viewModel.setSegment(segment),
+          header: widget.choosing
+              ? null
+              : AppSegmentTabs(
+                  tabs: [
+                    for (final (label, segment) in const [
+                      ('Active', ProductSegment.active),
+                      ('Archived', ProductSegment.archived),
+                    ])
+                      (
+                        label: label,
+                        count: _viewModel.countIn(segment),
+                        selected: _viewModel.segment == segment,
+                        onTap: () => _viewModel.setSegment(segment),
+                      ),
+                  ],
                 ),
-            ],
-          ),
           emptyBuilder: _emptyState,
           itemBuilder: (context, product) => _ProductTile(
             product: product,
-            onEdit: () => _openForm(product: product),
-            onToggleActive: () => _toggleActive(product),
+            onTap: widget.choosing
+                ? () => Navigator.of(context).pop(product)
+                : () => _openForm(product: product),
+            onToggleActive: widget.choosing
+                ? null
+                : () => _toggleActive(product),
           ),
         );
       },
@@ -138,16 +152,16 @@ class _ProductsScreenState extends State<ProductsScreen> {
 }
 
 /// One product: icon, name and selling unit, with Archive (or Restore) at the
-/// end. Tapping the card edits the product.
+/// end when [onToggleActive] is given.
 class _ProductTile extends StatelessWidget {
   const _ProductTile({
     required this.product,
-    required this.onEdit,
+    required this.onTap,
     required this.onToggleActive,
   });
   final Product product;
-  final VoidCallback onEdit;
-  final VoidCallback onToggleActive;
+  final VoidCallback onTap;
+  final VoidCallback? onToggleActive;
 
   @override
   Widget build(BuildContext context) {
@@ -157,23 +171,25 @@ class _ProductTile extends StatelessWidget {
         MediaQuery.widthOf(context) /
             MediaQuery.textScalerOf(context).scale(1) >=
         360;
-    final toggle = OutlinedButton(
-      style: OutlinedButton.styleFrom(
-        minimumSize: const Size(48, 48),
-        foregroundColor: AppColors.label,
-        backgroundColor: AppColors.closeButton,
-        side: BorderSide.none,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.control),
-        ),
-      ),
-      onPressed: onToggleActive,
-      child: Text(
-        product.isActive ? 'Archive' : 'Restore',
-        style: const TextStyle(fontWeight: FontWeight.w700),
-      ),
-    );
+    final toggle = onToggleActive == null
+        ? null
+        : OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(48, 48),
+              foregroundColor: AppColors.label,
+              backgroundColor: AppColors.closeButton,
+              side: BorderSide.none,
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.control),
+              ),
+            ),
+            onPressed: onToggleActive,
+            child: Text(
+              product.isActive ? 'Archive' : 'Restore',
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          );
     final details = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -191,7 +207,10 @@ class _ProductTile extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.xs),
         StatusChip(label: product.saleUnit.label, color: AppColors.primary),
-        if (!roomy) ...[const SizedBox(height: AppSpacing.sm), toggle],
+        if (!roomy && toggle != null) ...[
+          const SizedBox(height: AppSpacing.sm),
+          toggle,
+        ],
       ],
     );
     return App3DCard(
@@ -204,7 +223,7 @@ class _ProductTile extends StatelessWidget {
         AppSpacing.md,
         AppSpacing.md,
       ),
-      onTap: onEdit,
+      onTap: onTap,
       child: Row(
         children: [
           DecoratedBox(
@@ -227,7 +246,10 @@ class _ProductTile extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(child: details),
-          if (roomy) ...[const SizedBox(width: AppSpacing.sm), toggle],
+          if (roomy && toggle != null) ...[
+            const SizedBox(width: AppSpacing.sm),
+            toggle,
+          ],
         ],
       ),
     );

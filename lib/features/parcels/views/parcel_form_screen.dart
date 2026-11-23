@@ -15,11 +15,11 @@ import '../../../design_system/foundations/radius/app_radius.dart';
 import '../../../design_system/foundations/spacing/app_spacing.dart';
 import '../../customers/data/customer_repository.dart';
 import '../../customers/domain/customer.dart';
-import '../../customers/views/customer_picker_screen.dart';
+import '../../customers/views/customers_screen.dart';
 import '../../products/data/product_repository.dart';
 import '../../settings/domain/app_settings.dart';
 import '../../products/domain/product.dart';
-import '../../products/views/product_picker_screen.dart';
+import '../../products/views/products_screen.dart';
 import '../data/parcel_repository.dart';
 import '../domain/parcel.dart';
 import '../domain/parcel_enums.dart';
@@ -75,8 +75,9 @@ class _ParcelFormScreenState extends State<ParcelFormScreen> {
   Future<void> _pickCustomer() async {
     final picked = await Navigator.of(context).push<Customer>(
       MaterialPageRoute(
-        builder: (_) => CustomerPickerScreen(
+        builder: (_) => CustomersScreen.choose(
           repository: widget.customerRepository,
+          parcelRepository: widget.parcelRepository,
           onAdd: widget.onAddCustomer,
         ),
       ),
@@ -387,7 +388,7 @@ class _ItemCardState extends State<_ItemCard> {
     final picked = await Navigator.of(context).push<Product>(
       MaterialPageRoute(
         builder: (_) =>
-            ProductPickerScreen(repository: widget.productRepository),
+            ProductsScreen.choose(repository: widget.productRepository),
       ),
     );
     if (!mounted || picked == null) return;

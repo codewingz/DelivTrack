@@ -721,6 +721,8 @@ InputDecoration appInputDecoration({
       vertical: _fieldVerticalPadding,
     ),
     prefixIcon: prefixIcon,
+    // Narrower than Material's 48 so the text starts close to the icon.
+    prefixIconConstraints: const BoxConstraints(minWidth: 44, minHeight: 48),
     prefixText: prefixText,
     prefixStyle: const TextStyle(
       fontSize: 14,
@@ -746,9 +748,10 @@ InputDecoration appInputDecoration({
       borderRadius: BorderRadius.circular(AppRadius.control),
       borderSide: const BorderSide(color: AppColors.primary, width: 1.8),
     ),
+    // Same width focused or not, so fields with errors all look alike.
     errorBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(AppRadius.control),
-      borderSide: const BorderSide(color: AppColors.error),
+      borderSide: const BorderSide(color: AppColors.error, width: 1.8),
     ),
     focusedErrorBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(AppRadius.control),

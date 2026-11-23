@@ -169,4 +169,49 @@ void main() {
       expect(find.text('No archived parcels'), findsOneWidget);
     },
   );
+
+  testWidgets(
+    'the archived list shows the count, searches, and Restore brings a parcel back',
+    (t) async {
+      t.view.physicalSize = const Size(393, 1400);
+      t.view.devicePixelRatio = 1;
+      addTearDown(t.view.reset);
+      final repo = FakeParcelRepository(
+        initial: [
+          for (final (id, seq, name) in [
+            ('a', 1, 'Old Customer'),
+            ('b', 2, 'Sara Khan'),
+          ])
+            testParcel(
+              id: id,
+              sequence: seq,
+              customerName: name,
+              status: ParcelStatus.draft,
+              reference: '',
+              charge: null,
+              isArchived: true,
+            ),
+        ],
+      );
+      await t.pumpWidget(
+        MaterialApp(
+          home: ArchivedParcelsScreen(repository: repo, onOpen: (_) {}),
+        ),
+      );
+      await t.pump();
+      await t.pump();
+      expect(find.text('2 archived parcels'), findsOneWidget);
+      expect(find.text('Archived'), findsNWidgets(2));
+
+      await t.enterText(find.byType(TextFormField), 'sara');
+      await t.pump();
+      expect(find.text('Sara Khan'), findsOneWidget);
+      expect(find.text('Old Customer'), findsNothing);
+
+      await t.tap(find.widgetWithText(OutlinedButton, 'Restore'));
+      await t.pumpAndSettle();
+      expect(find.text('ADT-000002 restored.'), findsOneWidget);
+      expect((await repo.watchArchived().first).map((p) => p.id), ['a']);
+    },
+  );
 }

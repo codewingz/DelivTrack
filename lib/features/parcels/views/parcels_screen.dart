@@ -365,9 +365,18 @@ class _PaymentTabs extends StatelessWidget {
 }
 
 class ParcelTile extends StatelessWidget {
-  const ParcelTile({super.key, required this.parcel, required this.onTap});
+  const ParcelTile({
+    super.key,
+    required this.parcel,
+    required this.onTap,
+    this.onRestore,
+  });
   final Parcel parcel;
   final VoidCallback onTap;
+
+  /// Adds a footer with the parcel type and a Restore button (the archived
+  /// list).
+  final VoidCallback? onRestore;
 
   static Color _statusColor(ParcelStatus s) => switch (s) {
     ParcelStatus.draft => AppColors.freeGift,
@@ -392,7 +401,9 @@ class ParcelTile extends StatelessWidget {
 
     return App3DCard(
       glass: true,
-      stripeColor: parcel.status == ParcelStatus.draft || owes
+      stripeColor: parcel.isArchived
+          ? AppColors.freeGift
+          : parcel.status == ParcelStatus.draft || owes
           ? AppColors.stripeDue
           : AppColors.primary,
       onTap: onTap,
@@ -403,103 +414,154 @@ class ParcelTile extends StatelessWidget {
         AppSpacing.md,
       ),
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            flex: 3,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  spacing: AppSpacing.sm,
-                  runSpacing: AppSpacing.xs,
-                  crossAxisAlignment: WrapCrossAlignment.center,
+          Row(
+            children: [
+              Expanded(
+                flex: 3,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      parcel.orderNumber,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.primary,
-                      ),
+                    Wrap(
+                      spacing: AppSpacing.sm,
+                      runSpacing: AppSpacing.xs,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          parcel.orderNumber,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        if (parcel.isArchived)
+                          const StatusChip(
+                            label: 'Archived',
+                            color: AppColors.freeGift,
+                          )
+                        else
+                          StatusChip(
+                            label: parcel.status.label,
+                            color: _statusColor(parcel.status),
+                          ),
+                      ],
                     ),
-                    StatusChip(
-                      label: parcel.status.label,
-                      color: _statusColor(parcel.status),
+                    const SizedBox(height: AppSpacing.xs),
+                    Wrap(
+                      spacing: AppSpacing.xs,
+                      children: [
+                        Text(
+                          parcel.customerName,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        if (products != null)
+                          Text(
+                            '· $products',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: AppColors.label,
+                            ),
+                          ),
+                      ],
                     ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Wrap(
-                  spacing: AppSpacing.xs,
-                  children: [
                     Text(
-                      parcel.customerName,
+                      '$reference · ${parcel.sendingDateLabel}',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
                       ),
                     ),
-                    if (products != null)
-                      Text(
-                        '· $products',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: AppColors.label,
-                        ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                flex: 2,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      isGift
+                          ? 'Gift / Free'
+                          : formatRupees(parcel.expectedPaisa),
+                      textAlign: TextAlign.end,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: !isGift && !owes
+                            ? AppColors.primary
+                            : AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    if (owes)
+                      StatusChip(
+                        label: 'Due ${formatRupees(parcel.outstandingPaisa)}',
+                        color: AppColors.pending,
+                      )
+                    else if (parcel.paymentStatus == PaymentStatus.received)
+                      const StatusChip(label: 'Paid', color: AppColors.success)
+                    else
+                      StatusChip(
+                        label: parcel.paymentStatus.label,
+                        color: AppColors.freeGift,
                       ),
                   ],
                 ),
+              ),
+            ],
+          ),
+          if (onRestore != null) ...[
+            const Divider(height: AppSpacing.xxl, color: AppColors.border),
+            // The button moves under the parcel type when both do not fit.
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: AppSpacing.md,
+              runSpacing: AppSpacing.sm,
+              children: [
                 Text(
-                  '$reference · ${parcel.sendingDateLabel}',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  parcel.method.label,
                   style: const TextStyle(
                     fontSize: 13,
                     color: AppColors.textSecondary,
                   ),
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            flex: 2,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  isGift ? 'Gift / Free' : formatRupees(parcel.expectedPaisa),
-                  textAlign: TextAlign.end,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: !isGift && !owes
-                        ? AppColors.primary
-                        : AppColors.textPrimary,
+                OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(48, 48),
+                    foregroundColor: AppColors.primary,
+                    backgroundColor: AppColors.brand50,
+                    side: const BorderSide(color: AppColors.brand100),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.lg,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.control),
+                    ),
+                  ),
+                  onPressed: onRestore,
+                  child: const Text(
+                    'Restore',
+                    style: TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xs),
-                if (owes)
-                  StatusChip(
-                    label: 'Due ${formatRupees(parcel.outstandingPaisa)}',
-                    color: AppColors.pending,
-                  )
-                else if (parcel.paymentStatus == PaymentStatus.received)
-                  const StatusChip(label: 'Paid', color: AppColors.success)
-                else
-                  StatusChip(
-                    label: parcel.paymentStatus.label,
-                    color: AppColors.freeGift,
-                  ),
               ],
             ),
-          ),
+          ],
         ],
       ),
     );

@@ -4,9 +4,17 @@ import '../constants/app_colors.dart';
 
 /// A round mint badge with the first letter of [name] (a person's avatar).
 class InitialAvatar extends StatelessWidget {
-  const InitialAvatar({super.key, required this.name, this.size = 48});
+  const InitialAvatar({
+    super.key,
+    required this.name,
+    this.size = 48,
+    this.filled = false,
+  });
   final String name;
   final double size;
+
+  /// Solid green with a white letter (the signed-in user) instead of mint.
+  final bool filled;
 
   @override
   Widget build(BuildContext context) {
@@ -17,9 +25,9 @@ class InitialAvatar extends StatelessWidget {
         height: size,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: AppColors.brand50,
+          color: filled ? AppColors.primary : AppColors.brand50,
           shape: BoxShape.circle,
-          border: Border.all(color: AppColors.brand100),
+          border: filled ? null : Border.all(color: AppColors.brand100),
         ),
         child: Text(
           trimmed.isEmpty ? '?' : trimmed.characters.first.toUpperCase(),
@@ -29,7 +37,7 @@ class InitialAvatar extends StatelessWidget {
           style: TextStyle(
             fontSize: size * 0.4,
             fontWeight: FontWeight.w800,
-            color: AppColors.primary,
+            color: filled ? Colors.white : AppColors.primary,
           ),
         ),
       ),

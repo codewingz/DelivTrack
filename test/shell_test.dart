@@ -242,6 +242,9 @@ void main() {
         await t.tap(_moreTab);
         await t.pumpAndSettle();
 
+        // The row is at the end of the page: scroll to it first.
+        await t.ensureVisible(find.widgetWithText(ListTile, 'Log out'));
+        await t.pumpAndSettle();
         await t.tap(find.widgetWithText(ListTile, 'Log out'));
         await t.pumpAndSettle();
         expect(find.text('Log out?'), findsOneWidget);
@@ -251,6 +254,8 @@ void main() {
         expect(repo.isSignedIn, isTrue);
         expect(find.widgetWithText(ListTile, 'Log out'), findsOneWidget);
 
+        await t.ensureVisible(find.widgetWithText(ListTile, 'Log out'));
+        await t.pumpAndSettle();
         await t.tap(find.widgetWithText(ListTile, 'Log out'));
         await t.pumpAndSettle();
         await t.tap(find.widgetWithText(TextButton, 'Log out'));

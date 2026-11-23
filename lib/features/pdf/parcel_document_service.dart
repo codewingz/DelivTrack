@@ -76,7 +76,10 @@ class PrintingParcelDocumentService implements ParcelDocumentService {
     required Parcel parcel,
     required SenderProfile sender,
   }) {
-    final senderName = sender.name.isNotEmpty ? sender.name : 'our store';
+    // The name the owner chose to show customers (business or sender).
+    final senderName = sender.customerFacingName.isNotEmpty
+        ? sender.customerFacingName
+        : 'our store';
     final itemsSummary = parcel.items.map((i) => i.productName).join(', ');
     final paymentInfo = buildPaymentLines(parcel);
 
@@ -138,7 +141,10 @@ class PrintingParcelDocumentService implements ParcelDocumentService {
     required SenderProfile sender,
     String? trackingNumber,
   }) {
-    final senderName = sender.name.isNotEmpty ? sender.name : 'our store';
+    // The name the owner chose to show customers (business or sender).
+    final senderName = sender.customerFacingName.isNotEmpty
+        ? sender.customerFacingName
+        : 'our store';
     final tracking = (trackingNumber != null && trackingNumber.isNotEmpty)
         ? trackingNumber
         : parcel.postalReference;

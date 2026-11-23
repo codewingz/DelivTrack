@@ -42,7 +42,8 @@ void main() {
         await t.pumpAndSettle();
 
         expect(find.byType(TextFormField), findsNothing);
-        expect(find.text('Ali Collection'), findsOneWidget);
+        // the title, and again as the name shown to customers
+        expect(find.text('Ali Collection'), findsNWidgets(2));
         expect(find.text('Sender: Ali Raza'), findsOneWidget);
         expect(find.text('0300 1234567'), findsOneWidget);
         expect(find.text('Shop 12, Main Bazaar, Lahore'), findsOneWidget);
@@ -71,8 +72,36 @@ void main() {
       );
       await t.pumpWidget(_wrap(SenderProfileScreen(repository: repo)));
       await t.pumpAndSettle();
-      expect(find.text('Ali Raza'), findsOneWidget);
+      expect(find.text('Ali Raza'), findsNWidgets(2));
       expect(find.textContaining('Sender:'), findsNothing);
+    });
+
+    testWidgets('the owner can choose the sender name for customers', (
+      t,
+    ) async {
+      final repo = FakeSenderProfileRepository(
+        initial: const SenderProfile(
+          name: 'Ali Raza',
+          businessName: 'Ali Collection',
+          phone: '0300 1234567',
+          address: 'Shop 12, Main Bazaar, Lahore',
+        ),
+      );
+      await t.pumpWidget(_wrap(SenderProfileScreen(repository: repo)));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Edit'));
+      await t.pumpAndSettle();
+      await t.ensureVisible(find.text('Sender name'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Sender name'));
+      await t.pumpAndSettle();
+      await t.ensureVisible(find.text('Save details'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Save details'));
+      await t.pumpAndSettle();
+      final saved = await repo.getProfile();
+      expect(saved?.preferSenderName, isTrue);
+      expect(saved?.customerFacingName, 'Ali Raza');
     });
 
     testWidgets('validation prevents saving empty or invalid fields', (
@@ -135,7 +164,7 @@ void main() {
       expect(find.text('Sender details saved.'), findsOneWidget);
       // back to the read-only view of what was saved
       expect(find.byType(TextFormField), findsNothing);
-      expect(find.text('Zara Collections'), findsOneWidget);
+      expect(find.text('Zara Collections'), findsNWidgets(2));
       expect(find.text('Edit'), findsOneWidget);
     });
 
@@ -148,7 +177,7 @@ void main() {
         await t.pumpAndSettle();
 
         expect(find.byType(BrandLoadingIndicator), findsNothing);
-        expect(find.textContaining('Sender name'), findsOneWidget);
+        expect(find.text('Name shown to customers'), findsOneWidget);
         expect(
           find.text('Could not load profile. You can enter details below.'),
           findsOneWidget,

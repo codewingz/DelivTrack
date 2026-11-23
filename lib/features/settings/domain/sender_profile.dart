@@ -7,13 +7,15 @@ class SenderProfile {
     required this.phone,
     required this.address,
     this.businessName = '',
+    this.preferSenderName = false,
   });
 
   const SenderProfile.empty()
     : name = '',
       phone = '',
       address = '',
-      businessName = '';
+      businessName = '',
+      preferSenderName = false;
 
   final String name;
   final String phone;
@@ -22,12 +24,22 @@ class SenderProfile {
   /// Optional shop or company name; empty when not given.
   final String businessName;
 
+  /// The owner's choice of the name customers see in WhatsApp messages: the
+  /// business name by default, the sender name when true.
+  final bool preferSenderName;
+
+  /// The name shown to customers: the business name, unless the owner chose
+  /// the sender name or gave no business name. Empty when nothing is saved.
+  String get customerFacingName =>
+      !preferSenderName && businessName.isNotEmpty ? businessName : name;
+
   Map<String, dynamic> toMap() => {
     'name': collapseSpaces(name),
     'phone': collapseSpaces(phone),
     'address': collapseSpaces(address),
     if (collapseSpaces(businessName).isNotEmpty)
       'businessName': collapseSpaces(businessName),
+    if (preferSenderName) 'preferSenderName': true,
   };
 
   factory SenderProfile.fromMap(Map<String, dynamic> map) {
@@ -36,6 +48,7 @@ class SenderProfile {
       phone: (map['phone'] as String?)?.trim() ?? '',
       address: (map['address'] as String?)?.trim() ?? '',
       businessName: (map['businessName'] as String?)?.trim() ?? '',
+      preferSenderName: map['preferSenderName'] == true,
     );
   }
 
@@ -44,11 +57,13 @@ class SenderProfile {
     String? phone,
     String? address,
     String? businessName,
+    bool? preferSenderName,
   }) => SenderProfile(
     name: name ?? this.name,
     phone: phone ?? this.phone,
     address: address ?? this.address,
     businessName: businessName ?? this.businessName,
+    preferSenderName: preferSenderName ?? this.preferSenderName,
   );
 
   @override
@@ -59,8 +74,10 @@ class SenderProfile {
           name == other.name &&
           phone == other.phone &&
           address == other.address &&
-          businessName == other.businessName;
+          businessName == other.businessName &&
+          preferSenderName == other.preferSenderName;
 
   @override
-  int get hashCode => Object.hash(name, phone, address, businessName);
+  int get hashCode =>
+      Object.hash(name, phone, address, businessName, preferSenderName);
 }

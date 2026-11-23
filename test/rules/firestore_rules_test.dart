@@ -4489,6 +4489,15 @@ void main() {
         expect(await save(' Ali Traders'), 403, reason: 'not trimmed');
         expect(await save('x' * 61), 403, reason: 'too long');
         expect(await save(5), 403, reason: 'not text');
+        Future<int> prefer(Object? value) => emu.set(
+          alice.token,
+          path,
+          {...validProfile(), 'preferSenderName': ?value},
+          serverTimes: const ['updatedAt'],
+        );
+        expect(await prefer(true), 200);
+        expect(await prefer(false), 403, reason: 'only true is stored');
+        expect(await prefer('yes'), 403, reason: 'not a yes/no value');
         expect(
           await emu.set(
             bob.token,

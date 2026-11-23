@@ -3,6 +3,7 @@ import '../../../common_widgets/app_snack_bar.dart';
 import 'package:flutter/material.dart';
 
 import '../../../common_widgets/app_3d_decorations.dart';
+import '../../../common_widgets/app_choice_field.dart';
 import '../../../common_widgets/app_text_field.dart';
 import '../../../common_widgets/brand_loading_indicator.dart';
 import '../../../common_widgets/liquid_glass.dart';
@@ -41,6 +42,7 @@ class _SenderProfileScreenState extends State<SenderProfileScreen> {
   /// The saved details, shown read-only until Edit is tapped; null when
   /// nothing is saved yet (the form is shown).
   SenderProfile? _saved;
+  bool _preferSenderName = false;
   bool _editing = false;
 
   @override
@@ -72,6 +74,7 @@ class _SenderProfileScreenState extends State<SenderProfileScreen> {
   void _fill(SenderProfile profile) {
     _name.text = profile.name;
     _business.text = profile.businessName;
+    _preferSenderName = profile.preferSenderName;
     _phone.text = profile.phone;
     _address.text = profile.address;
   }
@@ -91,6 +94,7 @@ class _SenderProfileScreenState extends State<SenderProfileScreen> {
     final profile = SenderProfile(
       name: collapseSpaces(_name.text),
       businessName: collapseSpaces(_business.text),
+      preferSenderName: _preferSenderName,
       phone: collapseSpaces(_phone.text),
       address: collapseSpaces(_address.text),
     );
@@ -195,6 +199,18 @@ class _SenderProfileScreenState extends State<SenderProfileScreen> {
               hint: 'Enter business name',
               icon: Icons.storefront_outlined,
               isRequired: false,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            // Which name customers see in WhatsApp messages. Without a
+            // business name the sender name is used either way.
+            AppChoiceField<bool>(
+              label: 'Name shown to customers',
+              initialValue: _preferSenderName,
+              options: const [
+                (value: false, label: 'Business name'),
+                (value: true, label: 'Sender name'),
+              ],
+              onChanged: (value) => _preferSenderName = value,
             ),
             const SizedBox(height: AppSpacing.lg),
             AppTextField.phone(
@@ -352,6 +368,12 @@ class _SavedDetails extends StatelessWidget {
           const _FieldLabel('Return address'),
           Text(
             profile.address,
+            style: const TextStyle(fontSize: 15, color: AppColors.textPrimary),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          const _FieldLabel('Name shown to customers'),
+          Text(
+            profile.customerFacingName,
             style: const TextStyle(fontSize: 15, color: AppColors.textPrimary),
           ),
         ],

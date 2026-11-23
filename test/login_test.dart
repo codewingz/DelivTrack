@@ -44,7 +44,7 @@ Future<void> _fill(
   await t.enterText(fields.at(1), pw);
 }
 
-Finder get _logIn => find.widgetWithText(FilledButton, 'Log In');
+Finder get _logIn => find.widgetWithText(FilledButton, 'Sign In');
 
 void main() {
   group('LoginScreen (real user flows)', () {
@@ -142,8 +142,8 @@ void main() {
     testWidgets('"Sign up" link calls onSignUp', (t) async {
       var tapped = false;
       await _pump(t, FakeAuthRepository(), onSignUp: () => tapped = true);
-      await t.ensureVisible(find.text('Sign up'));
-      await t.tap(find.text('Sign up'));
+      await t.ensureVisible(find.text('Create account'));
+      await t.tap(find.text('Create account'));
       expect(tapped, isTrue);
     });
   });

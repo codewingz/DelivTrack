@@ -53,7 +53,7 @@ void main() {
     final fields = find.byType(TextFormField);
     await t.enterText(fields.at(0), 'owner@codewingz.com');
     await t.enterText(fields.at(1), 'secret123');
-    await t.tap(find.widgetWithText(FilledButton, 'Log In'));
+    await t.tap(find.widgetWithText(FilledButton, 'Sign In'));
     await t.pump();
     await t.pump();
     await t.pump();
@@ -66,8 +66,8 @@ void main() {
     (t) async {
       final repo = FakeAuthRepository();
       await _launch(t, repo);
-      await t.ensureVisible(find.text('Sign up'));
-      await t.tap(find.text('Sign up'));
+      await t.ensureVisible(find.text('Create account'));
+      await t.tap(find.text('Create account'));
       await t.pumpAndSettle();
       final fields = find.byType(TextFormField);
       await t.enterText(fields.at(0), 'Muhammad Afzaal');

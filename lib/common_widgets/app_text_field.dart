@@ -25,6 +25,9 @@ import '../utils/app_validators.dart';
 class AppTextField extends StatefulWidget {
   final TextEditingController? controller;
   final String? label;
+
+  /// Shown at the end of the label row (e.g. "Forgot password?").
+  final Widget? labelAction;
   final String? hint;
   final String? helperText;
   final String? initialValue;
@@ -56,6 +59,7 @@ class AppTextField extends StatefulWidget {
     super.key,
     this.controller,
     this.label,
+    this.labelAction,
     this.hint,
     this.helperText,
     this.initialValue,
@@ -255,6 +259,7 @@ class AppTextField extends StatefulWidget {
     Key? key,
     TextEditingController? controller,
     String label = 'Password',
+    Widget? labelAction,
     String hint = 'Enter password',
     String? helperText,
     bool isRequired = true,
@@ -271,6 +276,7 @@ class AppTextField extends StatefulWidget {
       key: key,
       controller: controller,
       label: label,
+      labelAction: labelAction,
       hint: hint,
       helperText: helperText,
       isRequired: isRequired,
@@ -589,7 +595,21 @@ class _AppTextFieldState extends State<AppTextField> {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (widget.label != null) ...[
-          AppFieldLabel(widget.label!, isRequired: widget.isRequired),
+          if (widget.labelAction == null)
+            AppFieldLabel(widget.label!, isRequired: widget.isRequired)
+          else
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Flexible(
+                  child: AppFieldLabel(
+                    widget.label!,
+                    isRequired: widget.isRequired,
+                  ),
+                ),
+                Flexible(child: widget.labelAction!),
+              ],
+            ),
           const SizedBox(height: AppSpacing.sm),
         ],
         TextFormField(

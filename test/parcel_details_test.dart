@@ -78,15 +78,16 @@ void main() {
     for (final text in [
       'Sent',
       'Pending',
-      '7 Nov 2026',
-      'Post office collection',
+      '7 Nov 2026 · Post office collection',
       'Ali Raza',
       '0300 1111111',
       'House 5, Street 2, Sahiwal',
       'Mango Box',
-      '2 pieces × Rs. 2,500 each = Rs. 5,000',
+      '2 pieces × Rs. 2,500 each',
+      'Rs. 5,000',
       'Dry Fruits',
-      '1.25 kg × Rs. 800 per kg = Rs. 1,000',
+      '1.25 kg × Rs. 800 per kg',
+      'Rs. 1,000',
       'VPP 12345',
       'Rs. 150.50',
       '3.2 kg',
@@ -163,7 +164,7 @@ void main() {
         ],
       );
       await _open(t, repo, 'p');
-      expect(find.text('Pay Later'), findsOneWidget);
+      expect(find.textContaining('· Pay Later'), findsOneWidget);
       expect(find.text('25 Dec 2026'), findsOneWidget);
       expect(find.text('ABC 12345'), findsOneWidget);
     },
@@ -330,7 +331,7 @@ void main() {
           'a',
         );
         expect(receive, findsOneWidget);
-        expect(find.text('Payment history'), findsOneWidget);
+        expect(find.text('PAYMENT HISTORY'), findsOneWidget);
         expect(find.text('No payments received yet'), findsOneWidget);
       },
     );
@@ -350,7 +351,7 @@ void main() {
             reason: '${parcel.method} ${parcel.status} ${parcel.receivedPaisa}',
           );
           if (parcel.method == CollectionMethod.giftFree) {
-            expect(find.text('Payment history'), findsNothing);
+            expect(find.text('PAYMENT HISTORY'), findsNothing);
           }
           await t.pumpWidget(const SizedBox());
         }
@@ -959,7 +960,7 @@ void main() {
         await t.pumpAndSettle();
         expect(repo.archivedIds, ['a']);
         expect(find.text('Parcel archived.'), findsOneWidget);
-        expect(find.text('Archived'), findsWidgets);
+        expect(find.text('ARCHIVED'), findsWidgets);
         expect(
           find.widgetWithText(FilledButton, 'Restore Parcel'),
           findsOneWidget,
@@ -1021,33 +1022,40 @@ void main() {
   });
 
   group('delete draft parcel', () {
-    testWidgets('draft parcel offers delete in Actions and AppBar; cancel keeps it; confirm deletes it', (t) async {
-      final repo = FakeParcelRepository(
-        initial: [testParcel(id: 'd1', status: ParcelStatus.draft)],
-      );
-      await _open(t, repo, 'd1');
-      expect(find.byTooltip('Delete draft'), findsOneWidget);
-      await t.ensureVisible(find.widgetWithText(OutlinedButton, 'Delete Draft Parcel'));
-      expect(find.text('Delete Draft Parcel'), findsOneWidget);
+    testWidgets(
+      'draft parcel offers delete in Actions and AppBar; cancel keeps it; confirm deletes it',
+      (t) async {
+        final repo = FakeParcelRepository(
+          initial: [testParcel(id: 'd1', status: ParcelStatus.draft)],
+        );
+        await _open(t, repo, 'd1');
+        expect(find.byTooltip('Delete draft'), findsOneWidget);
+        await t.ensureVisible(
+          find.widgetWithText(OutlinedButton, 'Delete Draft Parcel'),
+        );
+        expect(find.text('Delete Draft Parcel'), findsOneWidget);
 
-      // Tap Cancel in confirm dialog
-      await t.tap(find.widgetWithText(OutlinedButton, 'Delete Draft Parcel'));
-      await t.pumpAndSettle();
-      expect(find.text('Delete this draft parcel?'), findsOneWidget);
-      await t.tap(find.text('Cancel'));
-      await t.pumpAndSettle();
-      expect(repo.watch('d1'), emits(isNotNull));
+        // Tap Cancel in confirm dialog
+        await t.tap(find.widgetWithText(OutlinedButton, 'Delete Draft Parcel'));
+        await t.pumpAndSettle();
+        expect(find.text('Delete this draft parcel?'), findsOneWidget);
+        await t.tap(find.text('Cancel'));
+        await t.pumpAndSettle();
+        expect(repo.watch('d1'), emits(isNotNull));
 
-      // Tap Delete in confirm dialog
-      await t.tap(find.widgetWithText(OutlinedButton, 'Delete Draft Parcel'));
-      await t.pumpAndSettle();
-      await t.tap(find.text('Delete'));
-      await t.pumpAndSettle();
-      expect(repo.watch('d1'), emits(isNull));
-      expect(find.text('Draft parcel deleted.'), findsOneWidget);
-    });
+        // Tap Delete in confirm dialog
+        await t.tap(find.widgetWithText(OutlinedButton, 'Delete Draft Parcel'));
+        await t.pumpAndSettle();
+        await t.tap(find.text('Delete'));
+        await t.pumpAndSettle();
+        expect(repo.watch('d1'), emits(isNull));
+        expect(find.text('Draft parcel deleted.'), findsOneWidget);
+      },
+    );
 
-    testWidgets('sent and returned parcels do not offer delete draft', (t) async {
+    testWidgets('sent and returned parcels do not offer delete draft', (
+      t,
+    ) async {
       final repo = FakeParcelRepository(
         initial: [
           testParcel(id: 's1', status: ParcelStatus.sent),
@@ -1089,46 +1097,58 @@ void main() {
       expect(find.text('Open WhatsApp Chat'), findsOneWidget);
     });
 
-    testWidgets('Print and Share Invoice buttons trigger document service directly', (t) async {
-      final docService = _MockTrackingDocumentService();
-      final repo = FakeParcelRepository(initial: [testParcel(id: 'p1')]);
-      await _open(t, repo, 'p1', documentService: docService);
+    testWidgets(
+      'Print and Share Invoice buttons trigger document service directly',
+      (t) async {
+        final docService = _MockTrackingDocumentService();
+        final repo = FakeParcelRepository(initial: [testParcel(id: 'p1')]);
+        await _open(t, repo, 'p1', documentService: docService);
 
-      expect(find.widgetWithText(OutlinedButton, 'Print'), findsOneWidget);
-      expect(find.widgetWithText(FilledButton, 'Share Invoice'), findsOneWidget);
+        expect(find.widgetWithText(OutlinedButton, 'Print'), findsOneWidget);
+        expect(
+          find.widgetWithText(FilledButton, 'Share Invoice'),
+          findsOneWidget,
+        );
 
-      await t.tap(find.widgetWithText(OutlinedButton, 'Print'));
-      await t.pumpAndSettle();
-      expect(docService.printedLabel, isTrue);
+        await t.tap(find.widgetWithText(OutlinedButton, 'Print'));
+        await t.pumpAndSettle();
+        expect(docService.printedLabel, isTrue);
 
-      await t.tap(find.widgetWithText(FilledButton, 'Share Invoice'));
-      await t.pumpAndSettle();
-      expect(docService.sharedInvoice, isTrue);
-    });
+        await t.tap(find.widgetWithText(FilledButton, 'Share Invoice'));
+        await t.pumpAndSettle();
+        expect(docService.sharedInvoice, isTrue);
+      },
+    );
 
-    testWidgets('sent parcel shows Send Tracking button which triggers WhatsApp tracking', (t) async {
-      final docService = _MockTrackingDocumentService();
-      final repo = FakeParcelRepository(
-        initial: [
-          testParcel(
-            id: 's1',
-            status: ParcelStatus.sent,
-            reference: 'CP999PK',
-          ),
-        ],
-      );
-      await _open(t, repo, 's1', documentService: docService);
+    testWidgets(
+      'sent parcel shows Send Tracking button which triggers WhatsApp tracking',
+      (t) async {
+        final docService = _MockTrackingDocumentService();
+        final repo = FakeParcelRepository(
+          initial: [
+            testParcel(
+              id: 's1',
+              status: ParcelStatus.sent,
+              reference: 'CP999PK',
+            ),
+          ],
+        );
+        await _open(t, repo, 's1', documentService: docService);
 
-      final sendTrackingBtn = find.widgetWithText(PrimaryButton, 'Send Tracking');
-      expect(sendTrackingBtn, findsOneWidget);
-      expect(find.text('Edit handover'), findsOneWidget);
+        final sendTrackingBtn = find.widgetWithText(
+          PrimaryButton,
+          'Send Tracking',
+        );
+        expect(sendTrackingBtn, findsOneWidget);
+        expect(find.text('Edit handover'), findsOneWidget);
 
-      await t.ensureVisible(sendTrackingBtn);
-      await t.pumpAndSettle();
-      await t.tap(sendTrackingBtn);
-      await t.pumpAndSettle();
-      expect(docService.openedTracking, 'CP999PK');
-    });
+        await t.ensureVisible(sendTrackingBtn);
+        await t.pumpAndSettle();
+        await t.tap(sendTrackingBtn);
+        await t.pumpAndSettle();
+        expect(docService.openedTracking, 'CP999PK');
+      },
+    );
   });
 }
 

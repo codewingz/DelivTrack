@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
 import '../../../common_widgets/app_3d_decorations.dart';
+import '../../../common_widgets/liquid_glass.dart';
 
 import '../../../constants/app_colors.dart';
 import '../../../core/money/money.dart';
@@ -416,20 +417,8 @@ class AttentionCard extends StatelessWidget {
       for (final item in items)
         if (item.count > 0) item,
     ];
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.hero),
-        border: Border.all(color: AppColors.border),
-        boxShadow: const [
-          BoxShadow(
-            color: AppColors.cardShadow,
-            blurRadius: 18,
-            offset: Offset(0, 8),
-          ),
-          BoxShadow(color: AppColors.cardBevel, offset: Offset(0, 4)),
-        ],
-      ),
+    return GlassSurface(
+      radius: AppRadius.hero,
       child: Material(
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(AppRadius.hero),
@@ -632,45 +621,38 @@ class _StatTileView extends StatelessWidget {
       button: true,
       label: '${tile.label}: ${tile.value}',
       excludeSemantics: true,
-      child: Material(
-        color: AppColors.surface,
-        elevation: 2,
-        shadowColor: AppColors.cardBevel,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.card),
-          side: const BorderSide(color: AppColors.border),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: tile.onTap,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 112),
-            child: Padding(
-              padding: const EdgeInsetsDirectional.all(AppSpacing.md),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _IconChip(icon: tile.icon, color: tile.color),
-                  const SizedBox(height: AppSpacing.sm),
-                  Text(
-                    tile.value,
-                    style: TextStyle(
-                      fontSize: 22,
-                      height: 1.2,
-                      fontWeight: FontWeight.w800,
-                      color: tile.valueColor,
-                    ),
+      child: App3DCard(
+        glass: true,
+        radius: AppRadius.card,
+        padding: EdgeInsets.zero,
+        onTap: tile.onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 112),
+          child: Padding(
+            padding: const EdgeInsetsDirectional.all(AppSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _IconChip(icon: tile.icon, color: tile.color),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  tile.value,
+                  style: TextStyle(
+                    fontSize: 22,
+                    height: 1.2,
+                    fontWeight: FontWeight.w800,
+                    color: tile.valueColor,
                   ),
-                  Text(
-                    tile.caption ?? tile.label,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.label,
-                    ),
+                ),
+                Text(
+                  tile.caption ?? tile.label,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.label,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
@@ -709,6 +691,7 @@ class MoneyCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return App3DCard(
+      glass: true,
       padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

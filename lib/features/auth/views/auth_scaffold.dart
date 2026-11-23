@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../common_widgets/app_3d_decorations.dart';
 import '../../../common_widgets/app_hero_header.dart';
 import '../../../common_widgets/app_logo.dart';
+import '../../../common_widgets/liquid_glass.dart';
 import '../../../constants/app_colors.dart';
 import '../../../design_system/foundations/radius/app_radius.dart';
 import '../../../design_system/foundations/spacing/app_spacing.dart';
@@ -39,40 +40,43 @@ class AuthScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final header = AppHeroHeader(title: title, subtitle: subtitle);
-          final content = _content();
-          // Too short to keep the header fixed (a landscape phone, or the
-          // keyboard with large text): let it scroll away with the content.
-          if (constraints.maxHeight <
-              _minHeightForFixedHeader *
-                  MediaQuery.textScalerOf(context).scale(1)) {
-            return SingleChildScrollView(
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [header, content],
-              ),
-            );
-          }
-          // The header stays put; only the content under it scrolls. Drawn
-          // bottom-up so the header (and its shadow) paints over the content.
-          return Column(
-            verticalDirection: VerticalDirection.up,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  keyboardDismissBehavior:
-                      ScrollViewKeyboardDismissBehavior.onDrag,
-                  child: content,
+      body: LiquidBackground(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final header = AppHeroHeader(title: title, subtitle: subtitle);
+            final content = _content();
+            // Too short to keep the header fixed (a landscape phone, or the
+            // keyboard with large text): let it scroll away with the content.
+            if (constraints.maxHeight <
+                _minHeightForFixedHeader *
+                    MediaQuery.textScalerOf(context).scale(1)) {
+              return SingleChildScrollView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [header, content],
                 ),
-              ),
-              header,
-            ],
-          );
-        },
+              );
+            }
+            // The header stays put; only the content under it scrolls. Drawn
+            // bottom-up so the header (and its shadow) paints over the content.
+            return Column(
+              verticalDirection: VerticalDirection.up,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    child: content,
+                  ),
+                ),
+                header,
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -100,6 +104,7 @@ class AuthScaffold extends StatelessWidget {
                   const Align(child: AppLogo(width: 144)),
                   const SizedBox(height: AppSpacing.md),
                   App3DCard(
+                    glass: true,
                     radius: AppRadius.cardLarge,
                     padding: const EdgeInsets.all(AppSpacing.xl),
                     child: Column(

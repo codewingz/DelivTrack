@@ -481,6 +481,7 @@ class ParcelTile extends StatelessWidget {
         : '${parcel.items.first.productName} +${parcel.items.length - 1}';
 
     return App3DCard(
+      glass: true,
       stripeColor: parcel.status == ParcelStatus.draft || owes
           ? AppColors.stripeDue
           : AppColors.primary,

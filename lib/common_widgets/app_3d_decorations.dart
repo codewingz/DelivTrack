@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import '../design_system/foundations/radius/app_radius.dart';
 import '../design_system/foundations/spacing/app_spacing.dart';
+import 'liquid_glass.dart';
 
 /// Standard 3D tactile card decoration matching the V2 3D Liquid Glass design system.
 BoxDecoration app3DCardDecoration({
@@ -42,6 +43,7 @@ class App3DCard extends StatelessWidget {
     this.radius = 20.0,
     this.backgroundColor = AppColors.surface,
     this.borderColor = AppColors.border,
+    this.glass = false,
   });
 
   final Widget child;
@@ -53,6 +55,9 @@ class App3DCard extends StatelessWidget {
   final double radius;
   final Color backgroundColor;
   final Color borderColor;
+
+  /// See-through white (Liquid Glass) for pages with a [LiquidBackground].
+  final bool glass;
 
   @override
   Widget build(BuildContext context) {
@@ -80,22 +85,27 @@ class App3DCard extends StatelessWidget {
       );
     }
 
-    final card = Container(
+    final surface = Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(radius),
+      clipBehavior: Clip.antiAlias,
+      child: onTap == null ? content : InkWell(onTap: onTap, child: content),
+    );
+    if (glass) {
+      return Padding(
+        padding: margin ?? EdgeInsets.zero,
+        child: GlassSurface(radius: radius, child: surface),
+      );
+    }
+    return Container(
       margin: margin,
       decoration: app3DCardDecoration(
         backgroundColor: backgroundColor,
         borderColor: borderColor,
         radius: radius,
       ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(radius),
-        clipBehavior: Clip.antiAlias,
-        child: onTap == null ? content : InkWell(onTap: onTap, child: content),
-      ),
+      child: surface,
     );
-
-    return card;
   }
 }
 

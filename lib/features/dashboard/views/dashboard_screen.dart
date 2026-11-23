@@ -6,6 +6,7 @@ import '../../../common_widgets/app_hero_header.dart';
 import '../../../common_widgets/confirm_dialog.dart';
 import '../../../common_widgets/count_badge.dart';
 import '../../../common_widgets/empty_state.dart';
+import '../../../common_widgets/liquid_glass.dart';
 import '../../../common_widgets/list_skeleton.dart';
 import '../../../constants/app_colors.dart';
 import '../../../core/money/money.dart';
@@ -124,46 +125,48 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: ListenableBuilder(
-        listenable: _parcels,
-        builder: (context, _) => LayoutBuilder(
-          builder: (context, constraints) {
-            final failed = _parcels.errorMessage != null;
-            final stats = failed || _parcels.isLoading
-                ? null
-                : DashboardStats.from(_parcels.all, _parcels.today);
-            final top = _top(stats);
-            if (failed) {
-              return Column(
-                children: [
-                  top,
-                  Expanded(
-                    child: EmptyState(
-                      icon: Icons.error_outline_rounded,
-                      title: "Couldn't load your figures",
-                      message: _parcels.errorMessage,
-                      actionLabel: 'Retry',
-                      onAction: _parcels.retry,
+      body: LiquidBackground(
+        child: ListenableBuilder(
+          listenable: _parcels,
+          builder: (context, _) => LayoutBuilder(
+            builder: (context, constraints) {
+              final failed = _parcels.errorMessage != null;
+              final stats = failed || _parcels.isLoading
+                  ? null
+                  : DashboardStats.from(_parcels.all, _parcels.today);
+              final top = _top(stats);
+              if (failed) {
+                return Column(
+                  children: [
+                    top,
+                    Expanded(
+                      child: EmptyState(
+                        icon: Icons.error_outline_rounded,
+                        title: "Couldn't load your figures",
+                        message: _parcels.errorMessage,
+                        actionLabel: 'Retry',
+                        onAction: _parcels.retry,
+                      ),
                     ),
-                  ),
+                  ],
+                );
+              }
+              final content = _content(stats);
+              // Larger text makes the fixed top taller, so it needs more room.
+              final textScale = MediaQuery.textScalerOf(context).scale(1);
+              if (constraints.maxHeight < _minHeightForFixedTop * textScale) {
+                return _scroll(Column(children: [top, content]));
+              }
+              // Drawn bottom-up so the fixed top paints over the content.
+              return Column(
+                verticalDirection: VerticalDirection.up,
+                children: [
+                  Expanded(child: _scroll(content)),
+                  top,
                 ],
               );
-            }
-            final content = _content(stats);
-            // Larger text makes the fixed top taller, so it needs more room.
-            final textScale = MediaQuery.textScalerOf(context).scale(1);
-            if (constraints.maxHeight < _minHeightForFixedTop * textScale) {
-              return _scroll(Column(children: [top, content]));
-            }
-            // Drawn bottom-up so the fixed top paints over the content.
-            return Column(
-              verticalDirection: VerticalDirection.up,
-              children: [
-                Expanded(child: _scroll(content)),
-                top,
-              ],
-            );
-          },
+            },
+          ),
         ),
       ),
     );

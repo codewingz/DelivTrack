@@ -27,6 +27,7 @@ class PrimaryButton extends StatelessWidget {
       width: double.infinity,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(AppRadius.card),
+        gradient: enabled ? AppColors.primaryBtnGradient : null,
         // Solid 3D ledge under the button, like the cards.
         boxShadow: enabled
             ? const [BoxShadow(color: AppColors.btnBevel, offset: Offset(0, 4))]
@@ -36,7 +37,10 @@ class PrimaryButton extends StatelessWidget {
         onPressed: isLoading ? null : onPressed,
         style: FilledButton.styleFrom(
           minimumSize: const Size.fromHeight(56),
-          backgroundColor: AppColors.primary,
+          // The gradient behind shows through; a disabled button keeps the
+          // theme's grey.
+          backgroundColor: Colors.transparent,
+          disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.5),
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.card),

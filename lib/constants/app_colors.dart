@@ -32,6 +32,12 @@ class AppColors {
   static const fabBevel = Color(0xFF5CC5A2);
   static const stripeDue = Color(0xFFD97706);
 
+  // 3D Liquid Glass
+  static const liquidBase = Color(0xFFEDF4EF);
+  static const glassFill = Color(0xA8FFFFFF);
+  static const glassEdge = Color(0xE0FFFFFF);
+  static const dockLedge = Color(0xFFCEDED5);
+
   // Status & Financial indicators
   static const success = Color(0xFF15803D);
   static const pending = Color(0xFFB45309);

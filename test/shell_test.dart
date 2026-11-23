@@ -49,12 +49,8 @@ void main() {
         t.view.viewPadding = const FakeViewPadding(top: 40);
         addTearDown(t.view.reset);
         await _launch(t, FakeAuthRepository(signedIn: true, name: 'Ali'));
-        // 48 pill + 8 padding above and below; the top inset must not be added on top of it.
-        final bar = find.ancestor(
-          of: find.byType(GNav),
-          matching: find.byType(ColoredBox),
-        );
-        expect(t.getSize(bar.first).height, 64);
+        // The floating bar is 60 tall; the top inset must not be added on top of it.
+        expect(t.getSize(find.byKey(const Key('app-dock'))).height, 60);
       },
     );
 
@@ -155,7 +151,9 @@ void main() {
       },
     );
 
-    testWidgets('first back press on home shell shows snackbar prompt', (t) async {
+    testWidgets('first back press on home shell shows snackbar prompt', (
+      t,
+    ) async {
       resetShellBackPressTime();
       await _launch(t, FakeAuthRepository(signedIn: true, name: 'Ali'));
       final popped = await t.binding.handlePopRoute();
@@ -164,22 +162,25 @@ void main() {
       expect(find.text('Press back again to exit'), findsOneWidget);
     });
 
-    testWidgets('second back press on home shell within 2 seconds triggers exit', (t) async {
-      resetShellBackPressTime();
-      var exited = false;
-      await _launch(
-        t,
-        FakeAuthRepository(signedIn: true, name: 'Ali'),
-        onExit: () => exited = true,
-      );
-      await t.binding.handlePopRoute();
-      await t.pump();
-      expect(exited, isFalse);
-      expect(find.text('Press back again to exit'), findsOneWidget);
+    testWidgets(
+      'second back press on home shell within 2 seconds triggers exit',
+      (t) async {
+        resetShellBackPressTime();
+        var exited = false;
+        await _launch(
+          t,
+          FakeAuthRepository(signedIn: true, name: 'Ali'),
+          onExit: () => exited = true,
+        );
+        await t.binding.handlePopRoute();
+        await t.pump();
+        expect(exited, isFalse);
+        expect(find.text('Press back again to exit'), findsOneWidget);
 
-      await t.binding.handlePopRoute();
-      expect(exited, isTrue);
-    });
+        await t.binding.handlePopRoute();
+        expect(exited, isTrue);
+      },
+    );
   });
 
   group('sender profile entry', () {

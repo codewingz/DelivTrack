@@ -7,6 +7,7 @@ import '../design_system/foundations/spacing/app_spacing.dart';
 import 'app_3d_decorations.dart';
 import 'app_text_field.dart';
 import 'empty_state.dart';
+import 'liquid_glass.dart';
 import 'list_skeleton.dart';
 
 /// Full page for a live list (searchable when a search controller is given): app bar, search box, optional [header],
@@ -83,6 +84,8 @@ class SearchableListPage<T> extends StatelessWidget {
         MediaQuery.heightOf(context) >= 480;
     final searchHeight = 36 + 20 * textScale;
     return Scaffold(
+      // The backdrop continues behind the header's curve and the search box.
+      extendBodyBehindAppBar: true,
       appBar: appCurvedAppBar(
         bottomOverhang: pinSearch ? searchHeight / 2 + AppSpacing.sm : 0,
         bottom: pinSearch
@@ -118,6 +121,7 @@ class SearchableListPage<T> extends StatelessWidget {
           : DecoratedBox(
               decoration: const ShapeDecoration(
                 shape: StadiumBorder(),
+                gradient: AppColors.mintFabGradient,
                 shadows: [
                   BoxShadow(color: AppColors.fabBevel, offset: Offset(0, 4)),
                 ],
@@ -127,9 +131,12 @@ class SearchableListPage<T> extends StatelessWidget {
               child: FloatingActionButton.extended(
                 heroTag: null,
                 onPressed: onAdd,
-                backgroundColor: AppColors.mint,
+                backgroundColor: Colors.transparent,
                 foregroundColor: AppColors.primaryDark,
-                elevation: 4,
+                elevation: 0,
+                focusElevation: 0,
+                hoverElevation: 0,
+                highlightElevation: 0,
                 shape: const StadiumBorder(),
                 icon: const Icon(Icons.add),
                 label: Text(
@@ -138,39 +145,41 @@ class SearchableListPage<T> extends StatelessWidget {
                 ),
               ),
             ),
-      body: SafeArea(
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: _maxWidth),
-            child: CustomScrollView(
-              slivers: [
-                if (searchController != null && !pinSearch)
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsetsDirectional.fromSTEB(
-                        AppSpacing.lg,
-                        AppSpacing.lg,
-                        AppSpacing.lg,
-                        AppSpacing.sm,
+      body: LiquidBackground(
+        child: SafeArea(
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: _maxWidth),
+              child: CustomScrollView(
+                slivers: [
+                  if (searchController != null && !pinSearch)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsetsDirectional.fromSTEB(
+                          AppSpacing.lg,
+                          AppSpacing.lg,
+                          AppSpacing.lg,
+                          AppSpacing.sm,
+                        ),
+                        child: _searchRow(context),
                       ),
-                      child: _searchRow(context),
                     ),
-                  ),
-                if (header != null)
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsetsDirectional.fromSTEB(
-                        AppSpacing.lg,
-                        pinSearch ? AppSpacing.sm : 0,
-                        AppSpacing.lg,
-                        0,
+                  if (header != null)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsetsDirectional.fromSTEB(
+                          AppSpacing.lg,
+                          pinSearch ? AppSpacing.sm : 0,
+                          AppSpacing.lg,
+                          0,
+                        ),
+                        child: header,
                       ),
-                      child: header,
                     ),
-                  ),
-                ..._content(),
-              ],
+                  ..._content(),
+                ],
+              ),
             ),
           ),
         ),

@@ -157,7 +157,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                   AppSpacing.lg,
                   0,
                 ),
-                child: _Totals(totals: _viewModel.totals),
+                child: _Totals(totals: _viewModel.totals, stacked: true),
               ),
             ),
           SliverToBoxAdapter(
@@ -254,30 +254,72 @@ class _PendingPill extends StatelessWidget {
   }
 }
 
-/// The three figures side by side in one glass strip.
+/// The three figures in one glass strip: side by side, or one under another
+/// ([stacked]) when large text or a narrow screen leaves no room for columns.
 class _Totals extends StatelessWidget {
-  const _Totals({required this.totals});
+  const _Totals({required this.totals, this.stacked = false});
   final PaymentTotals totals;
+  final bool stacked;
+
+  static const _labelStyle = TextStyle(
+    fontSize: 12,
+    height: 1.2,
+    color: AppColors.textSecondary,
+  );
 
   @override
   Widget build(BuildContext context) {
     final stats = [
-      _Stat(
+      (
         label: 'Outstanding',
         value: formatRupees(totals.outstandingPaisa),
         color: AppColors.pending,
       ),
-      _Stat(
+      (
         label: 'Pay Later balance',
         value: formatRupees(totals.payLaterPaisa),
         color: AppColors.textPrimary,
       ),
-      _Stat(
+      (
         label: 'Advance received',
         value: formatRupees(totals.advancePaisa),
         color: AppColors.primary,
       ),
     ];
+    Text amount(String value, Color color) => Text(
+      value,
+      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: color),
+    );
+    if (stacked) {
+      return GlassSurface(
+        radius: AppRadius.card,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.sm,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final stat in stats)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+                  // The amount moves under its label when both do not fit.
+                  child: Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: AppSpacing.md,
+                    children: [
+                      Text(stat.label, style: _labelStyle),
+                      amount(stat.value, stat.color),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
+    }
     return GlassSurface(
       radius: AppRadius.card,
       blurSigma: 12,
@@ -289,54 +331,36 @@ class _Totals extends StatelessWidget {
               for (final (index, stat) in stats.indexed) ...[
                 if (index > 0)
                   const VerticalDivider(width: 1, color: AppColors.border),
-                Expanded(child: stat),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          stat.label,
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: _labelStyle,
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        // An amount is never wrapped or cut: a long one
+                        // shrinks to fit.
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: amount(stat.value, stat.color),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _Stat extends StatelessWidget {
-  const _Stat({required this.label, required this.value, required this.color});
-  final String label;
-  final String value;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 12,
-              height: 1.2,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          // An amount is never wrapped or cut: a long one shrinks to fit.
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              value,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-                color: color,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -402,6 +426,64 @@ class _PaymentTile extends StatelessWidget {
         parcel.status != ParcelStatus.returned && parcel.outstandingPaisa > 0;
     final date = parcel.estimatedPaymentDate;
     final isUnpaid = parcel.outstandingPaisa > 0;
+    // Room for the balance beside the order number and the button beside the
+    // details: not with large text or on a narrow screen.
+    final roomy =
+        MediaQuery.widthOf(context) /
+            MediaQuery.textScalerOf(context).scale(1) >=
+        360;
+    final orderNumber = Text(
+      parcel.orderNumber,
+      style: const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w800,
+        color: AppColors.primary,
+      ),
+    );
+    final chips = ParcelStatusChips(
+      status: parcel.status,
+      payment: parcel.paymentStatus,
+      reviewRequired: parcel.paymentReviewRequired,
+    );
+    final balance = Text(
+      'Balance ${formatRupees(parcel.outstandingPaisa)}',
+      textAlign: roomy ? TextAlign.end : TextAlign.start,
+      style: TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w800,
+        color: isUnpaid ? AppColors.pending : AppColors.primary,
+      ),
+    );
+    final details = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          parcel.customerName,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        Text(
+          'Expected ${formatRupees(parcel.expectedPaisa)} · Received ${formatRupees(parcel.receivedPaisa)}',
+          style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+        ),
+        if (parcel.method == CollectionMethod.payLater)
+          Text(
+            date == null ? 'No date set' : 'Pay Later date ${formatDate(date)}',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: tab == PaymentTab.overdue
+                  ? AppColors.error
+                  : AppColors.textSecondary,
+            ),
+          ),
+      ],
+    );
 
     return Padding(
       padding: const EdgeInsetsDirectional.symmetric(
@@ -421,97 +503,62 @@ class _PaymentTile extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Wrap(
-                    spacing: AppSpacing.sm,
-                    runSpacing: AppSpacing.xs,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      Text(
-                        parcel.orderNumber,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      ParcelStatusChips(
-                        status: parcel.status,
-                        payment: parcel.paymentStatus,
-                        reviewRequired: parcel.paymentReviewRequired,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                // As wide as its text (so it sits at the edge), up to a little
-                // under half the screen; beyond that it wraps.
-                ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxWidth: MediaQuery.widthOf(context) * 0.45,
-                  ),
-                  child: Text(
-                    'Balance ${formatRupees(parcel.outstandingPaisa)}',
-                    textAlign: TextAlign.end,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                      color: isUnpaid ? AppColors.pending : AppColors.primary,
+            if (roomy)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Wrap(
+                      spacing: AppSpacing.sm,
+                      runSpacing: AppSpacing.xs,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [orderNumber, chips],
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        parcel.customerName,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      Text(
-                        'Expected ${formatRupees(parcel.expectedPaisa)} · Received ${formatRupees(parcel.receivedPaisa)}',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                      if (parcel.method == CollectionMethod.payLater)
-                        Text(
-                          date == null
-                              ? 'No date set'
-                              : 'Pay Later date ${formatDate(date)}',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: tab == PaymentTab.overdue
-                                ? AppColors.error
-                                : AppColors.textSecondary,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                if (canReceive) ...[
                   const SizedBox(width: AppSpacing.sm),
-                  _ReceiveButton(onPressed: onReceive),
+                  // As wide as its text (so it sits at the edge), up to a
+                  // little under half the screen; beyond that it wraps.
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: MediaQuery.widthOf(context) * 0.45,
+                    ),
+                    child: balance,
+                  ),
                 ],
+              )
+            else ...[
+              // One under another; a line too long for the card shrinks to
+              // fit, so a number is never broken in two.
+              for (final line in [orderNumber, balance])
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: FittedBox(fit: BoxFit.scaleDown, child: line),
+                ),
+              const SizedBox(height: AppSpacing.xs),
+              chips,
+            ],
+            const SizedBox(height: AppSpacing.sm),
+            if (roomy)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(child: details),
+                  if (canReceive) ...[
+                    const SizedBox(width: AppSpacing.sm),
+                    _ReceiveButton(onPressed: onReceive),
+                  ],
+                ],
+              )
+            else ...[
+              details,
+              if (canReceive) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: _ReceiveButton(onPressed: onReceive),
+                ),
               ],
-            ),
+            ],
           ],
         ),
       ),

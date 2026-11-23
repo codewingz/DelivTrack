@@ -82,7 +82,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
             ),
             actions: [
               if (ready && MediaQuery.widthOf(context) / textScale >= 360)
-                _PendingPill(count: pending),
+                AppBarPill('$pending pending'),
             ],
             bottomOverhang: pinTotals ? totalsHeight / 2 + AppSpacing.sm : 0,
             bottom: pinTotals
@@ -225,37 +225,6 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
     PaymentTab.review =>
       'Returned parcels that received or owe money appear here for review.',
   };
-}
-
-/// "3 pending" in the header.
-class _PendingPill extends StatelessWidget {
-  const _PendingPill({required this.count});
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsetsDirectional.only(end: AppSpacing.lg),
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.xs,
-        ),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(AppRadius.pill),
-        ),
-        child: Text(
-          '$count pending',
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: AppColors.mint,
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 /// The three figures in one glass strip: side by side, or one under another

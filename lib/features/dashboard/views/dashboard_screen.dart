@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../common_widgets/app_section_title.dart';
 import '../../../common_widgets/app_hero_header.dart';
 import '../../../common_widgets/confirm_dialog.dart';
 import '../../../common_widgets/count_badge.dart';
@@ -328,7 +329,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         onSearch: () => widget.onOpenParcels(ParcelFilters.none),
       ),
       const SizedBox(height: AppSpacing.xl),
-      const SectionTitle('Needs attention'),
+      const AppSectionTitle('Needs attention'),
       const SizedBox(height: AppSpacing.sm),
       AttentionCard(
         items: [
@@ -421,7 +422,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ],
       ),
       const SizedBox(height: AppSpacing.xl),
-      const SectionTitle('Money'),
+      const AppSectionTitle('Money'),
       const SizedBox(height: AppSpacing.sm),
       MoneyCard(
         top: [
@@ -535,7 +536,7 @@ class _Recent extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SectionTitle(
+        AppSectionTitle(
           'Recent parcels',
           action: 'View all',
           onAction: () => widget.onOpenParcels(ParcelFilters.none),

@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../../../common_widgets/app_form_page.dart';
 import '../../../common_widgets/app_3d_decorations.dart';
 import '../../../common_widgets/app_dropdown_field.dart';
 import '../../../common_widgets/app_date_field.dart';
 import '../../../common_widgets/app_select_field.dart';
 import '../../../common_widgets/app_text_field.dart';
-import '../../../common_widgets/confirm_dialog.dart';
-import '../../../common_widgets/liquid_glass.dart';
 import '../../../common_widgets/primary_button.dart';
 import '../../../constants/app_colors.dart';
 import '../../../core/money/money.dart';
@@ -107,22 +106,6 @@ class _ParcelFormScreenState extends State<ParcelFormScreen> {
     Navigator.of(context).pop(savedId);
   }
 
-  Future<void> _confirmDiscard() async {
-    final discard = await showConfirmDialog(
-      context,
-      title: widget.parcel == null
-          ? 'Discard this parcel?'
-          : 'Discard your changes?',
-      message: widget.parcel == null
-          ? 'What you entered will be lost.'
-          : 'Your changes to this parcel will be lost.',
-      confirmLabel: 'Discard',
-      destructive: true,
-    );
-    if (!mounted || !discard) return;
-    Navigator.of(context).pop();
-  }
-
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -130,216 +113,149 @@ class _ParcelFormScreenState extends State<ParcelFormScreen> {
       builder: (context, _) {
         final busy = _action.isLoading;
         final today = pakistanDate(widget.clock.nowUtc());
-        return PopScope(
-          canPop: _saved || !_form.isDirty,
-          onPopInvokedWithResult: (didPop, _) {
-            if (!didPop) _confirmDiscard();
-          },
-          child: Scaffold(
-            // The backdrop continues behind the header's curve.
-            extendBodyBehindAppBar: true,
-            appBar: appCurvedAppBar(
-              toolbarHeight: AppBarTitle.heightFor(context),
-              title: AppBarTitle(
-                widget.parcel == null ? 'Add parcel' : 'Edit parcel',
-                subtitle: widget.parcel == null
-                    ? 'Order # auto-assigned on save'
-                    : 'Order ${widget.parcel!.orderNumber}',
+        return AppFormPage(
+          title: widget.parcel == null ? 'Add parcel' : 'Edit parcel',
+          subtitle: widget.parcel == null
+              ? 'Order # auto-assigned on save'
+              : 'Order ${widget.parcel!.orderNumber}',
+          actions: [
+            AppBarPill((widget.parcel?.status ?? ParcelStatus.draft).label),
+          ],
+          formKey: _formKey,
+          canLeave: _saved || !_form.isDirty,
+          discardTitle: widget.parcel == null
+              ? 'Discard this parcel?'
+              : 'Discard your changes?',
+          discardMessage: widget.parcel == null
+              ? 'What you entered will be lost.'
+              : 'Your changes to this parcel will be lost.',
+          children: [
+            App3DCard(
+              glass: true,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  AppSelectField(
+                    label: 'Customer',
+                    hint: 'Select a customer',
+                    displayText: _form.customer?.name,
+                    isRequired: true,
+                    enabled: !busy,
+                    icon: Icons.person_search_outlined,
+                    onTap: _pickCustomer,
+                    validator: () =>
+                        _form.customer == null ? 'Select a customer' : null,
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  AppDropdownField<CollectionMethod>(
+                    label: 'Parcel type',
+                    hint: 'Select parcel type',
+                    isRequired: true,
+                    enabled: !busy,
+                    value: _form.method,
+                    options: [
+                      for (final m in CollectionMethod.values)
+                        (value: m, label: m.label),
+                    ],
+                    onChanged: _form.setMethod,
+                    validator: (value) =>
+                        value == null ? 'Select a parcel type' : null,
+                  ),
+                  if (_form.method == CollectionMethod.payLater) ...[
+                    const SizedBox(height: AppSpacing.lg),
+                    AppDateField(
+                      label: 'Estimated payment date (optional)',
+                      hint: 'Leave empty if the customer gave no date',
+                      value: _form.payDate,
+                      enabled: !busy,
+                      firstDate: today,
+                      lastDate:
+                          '${int.parse(today.substring(0, 4)) + 5}${today.substring(4)}',
+                      onChanged: _form.setPayDate,
+                    ),
+                  ],
+                ],
               ),
-              actions: [
-                _StatusPill(widget.parcel?.status ?? ParcelStatus.draft),
-              ],
             ),
-            body: LiquidBackground(
-              child: SafeArea(
-                child: Align(
-                  alignment: Alignment.topCenter,
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 560),
-                    child: SingleChildScrollView(
-                      keyboardDismissBehavior:
-                          ScrollViewKeyboardDismissBehavior.onDrag,
-                      padding: const EdgeInsetsDirectional.all(AppSpacing.lg),
-                      child: Form(
-                        key: _formKey,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            App3DCard(
-                              glass: true,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  AppSelectField(
-                                    label: 'Customer',
-                                    hint: 'Select a customer',
-                                    displayText: _form.customer?.name,
-                                    isRequired: true,
-                                    enabled: !busy,
-                                    icon: Icons.person_search_outlined,
-                                    onTap: _pickCustomer,
-                                    validator: () => _form.customer == null
-                                        ? 'Select a customer'
-                                        : null,
-                                  ),
-                                  const SizedBox(height: AppSpacing.lg),
-                                  AppDropdownField<CollectionMethod>(
-                                    label: 'Parcel type',
-                                    hint: 'Select parcel type',
-                                    isRequired: true,
-                                    enabled: !busy,
-                                    value: _form.method,
-                                    options: [
-                                      for (final m in CollectionMethod.values)
-                                        (value: m, label: m.label),
-                                    ],
-                                    onChanged: _form.setMethod,
-                                    validator: (value) => value == null
-                                        ? 'Select a parcel type'
-                                        : null,
-                                  ),
-                                  if (_form.method ==
-                                      CollectionMethod.payLater) ...[
-                                    const SizedBox(height: AppSpacing.lg),
-                                    AppDateField(
-                                      label:
-                                          'Estimated payment date (optional)',
-                                      hint: 'Leave empty if the customer gave no date',
-                                      value: _form.payDate,
-                                      enabled: !busy,
-                                      firstDate: today,
-                                      lastDate:
-                                          '${int.parse(today.substring(0, 4)) + 5}${today.substring(4)}',
-                                      onChanged: _form.setPayDate,
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: AppSpacing.xl),
-                            _ProductsHeading(count: _form.items.length),
-                            const SizedBox(height: AppSpacing.sm),
-                            for (var i = 0; i < _form.items.length; i++) ...[
-                              _ItemCard(
-                                key: ValueKey(_form.items[i].key),
-                                index: i,
-                                item: _form.items[i],
-                                form: _form,
-                                productRepository: widget.productRepository,
-                                enabled: !busy,
-                              ),
-                              const SizedBox(height: AppSpacing.md),
-                            ],
-                            if (_form.canAddItem)
-                              OutlinedButton.icon(
-                                style: OutlinedButton.styleFrom(
-                                  minimumSize: const Size.fromHeight(52),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(
-                                      AppRadius.card,
-                                    ),
-                                  ),
-                                  side: const BorderSide(
-                                    color: AppColors.glassEdge,
-                                  ),
-                                  backgroundColor: AppColors.glassFill,
-                                ),
-                                onPressed: busy ? null : _form.addItem,
-                                icon: const Icon(Icons.add),
-                                label: const Text(
-                                  'Add another product',
-                                  style: TextStyle(fontWeight: FontWeight.w700),
-                                ),
-                              ),
-                            const SizedBox(height: AppSpacing.lg),
-                            App3DCard(
-                              glass: true,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  _TotalLine(form: _form),
-                                  if (_action.errorMessage != null) ...[
-                                    const SizedBox(height: AppSpacing.md),
-                                    Semantics(
-                                      liveRegion: true,
-                                      child: Text(
-                                        _action.errorMessage!,
-                                        style: const TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColors.error,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                  const SizedBox(height: AppSpacing.lg),
-                                  PrimaryButton(
-                                    label: widget.parcel != null
-                                        ? 'Save Changes'
-                                        : 'Save Parcel',
-                                    isLoading: busy,
-                                    onPressed: _save,
-                                  ),
-                                  const SizedBox(height: AppSpacing.md),
-                                  Text(
-                                    widget.parcel == null
-                                        ? 'The parcel is saved as a Draft. Open it and tap "Hand over parcel" once you have the slip.'
-                                        : widget.parcel!.status ==
-                                              ParcelStatus.draft
-                                        ? 'This parcel is still a Draft. Hand it over from its details once you have the slip.'
-                                        : 'Handover details are changed with "Edit handover" on the parcel details.',
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: AppColors.label,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
+            const SizedBox(height: AppSpacing.xl),
+            _ProductsHeading(count: _form.items.length),
+            const SizedBox(height: AppSpacing.sm),
+            for (var i = 0; i < _form.items.length; i++) ...[
+              _ItemCard(
+                key: ValueKey(_form.items[i].key),
+                index: i,
+                item: _form.items[i],
+                form: _form,
+                productRepository: widget.productRepository,
+                enabled: !busy,
+              ),
+              const SizedBox(height: AppSpacing.md),
+            ],
+            if (_form.canAddItem)
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(52),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.card),
+                  ),
+                  side: const BorderSide(color: AppColors.glassEdge),
+                  backgroundColor: AppColors.glassFill,
+                ),
+                onPressed: busy ? null : _form.addItem,
+                icon: const Icon(Icons.add),
+                label: const Text(
+                  'Add another product',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+            const SizedBox(height: AppSpacing.lg),
+            App3DCard(
+              glass: true,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _TotalLine(form: _form),
+                  if (_action.errorMessage != null) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    Semantics(
+                      liveRegion: true,
+                      child: Text(
+                        _action.errorMessage!,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.error,
                         ),
                       ),
                     ),
+                  ],
+                  const SizedBox(height: AppSpacing.lg),
+                  PrimaryButton(
+                    label: widget.parcel != null
+                        ? 'Save Changes'
+                        : 'Save Parcel',
+                    isLoading: busy,
+                    onPressed: _save,
                   ),
-                ),
+                  const SizedBox(height: AppSpacing.md),
+                  Text(
+                    widget.parcel == null
+                        ? 'The parcel is saved as a Draft. Open it and tap "Hand over parcel" once you have the slip.'
+                        : widget.parcel!.status == ParcelStatus.draft
+                        ? 'This parcel is still a Draft. Hand it over from its details once you have the slip.'
+                        : 'Handover details are changed with "Edit handover" on the parcel details.',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.label,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
+          ],
         );
       },
-    );
-  }
-}
-
-/// The parcel's status in the header ("Draft" while adding).
-class _StatusPill extends StatelessWidget {
-  const _StatusPill(this.status);
-  final ParcelStatus status;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsetsDirectional.only(end: AppSpacing.lg),
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.xs,
-        ),
-        decoration: BoxDecoration(
-          color: AppColors.mint.withValues(alpha: 0.2),
-          borderRadius: BorderRadius.circular(AppRadius.pill),
-          border: Border.all(color: AppColors.mint.withValues(alpha: 0.3)),
-        ),
-        child: Text(
-          status.label,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: AppColors.mint,
-          ),
-        ),
-      ),
     );
   }
 }

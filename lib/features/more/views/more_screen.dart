@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../common_widgets/app_section_title.dart';
 import '../../../common_widgets/app_3d_decorations.dart';
 import '../../../common_widgets/confirm_dialog.dart';
 import '../../../common_widgets/initial_avatar.dart';
@@ -88,7 +89,10 @@ class MoreScreen extends StatelessWidget {
                 ),
                 children: [
                   if (!pinAccount) _Account(repository: repository),
-                  const _SectionLabel('Business & catalog'),
+                  const AppSectionTitle(
+                    'Business & catalog',
+                    padding: AppSectionTitle.betweenGroups,
+                  ),
                   _Group(
                     tiles: [
                       _Tile(
@@ -117,7 +121,10 @@ class MoreScreen extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const _SectionLabel('Preferences & account'),
+                  const AppSectionTitle(
+                    'Preferences & account',
+                    padding: AppSectionTitle.betweenGroups,
+                  ),
                   _Group(
                     tiles: [
                       _Tile(
@@ -216,34 +223,6 @@ class _Account extends StatelessWidget {
 }
 
 /// Small uppercase heading above a group of rows.
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.text);
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsetsDirectional.fromSTEB(
-        AppSpacing.xs,
-        AppSpacing.xl,
-        AppSpacing.xs,
-        AppSpacing.sm,
-      ),
-      child: Semantics(
-        header: true,
-        child: Text(
-          text.toUpperCase(),
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1,
-            color: AppColors.label,
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 /// One row of the More screen.
 class _Tile {

@@ -1,3 +1,4 @@
+import '../../../common_widgets/labeled_value.dart';
 import '../../../common_widgets/app_snack_bar.dart';
 
 import 'package:flutter/material.dart';
@@ -358,7 +359,7 @@ class _ParcelView extends StatelessWidget {
             _Section(
               title: 'Archived',
               children: [
-                const _Info(
+                const LabeledValue(
                   'Status',
                   'This parcel is archived. It is hidden from the lists and totals, and its order number stays reserved.',
                 ),
@@ -411,18 +412,22 @@ class _ParcelView extends StatelessWidget {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(child: _Info('Customer', parcel.customerName)),
+                      Expanded(
+                        child: LabeledValue('Customer', parcel.customerName),
+                      ),
                       const SizedBox(width: AppSpacing.md),
-                      Expanded(child: _Info('Phone', parcel.customerPhone)),
+                      Expanded(
+                        child: LabeledValue('Phone', parcel.customerPhone),
+                      ),
                     ],
                   )
                 else ...[
-                  _Info('Customer', parcel.customerName),
+                  LabeledValue('Customer', parcel.customerName),
                   const SizedBox(height: AppSpacing.md),
-                  _Info('Phone', parcel.customerPhone),
+                  LabeledValue('Phone', parcel.customerPhone),
                 ],
                 const SizedBox(height: AppSpacing.md),
-                _Info('Address', parcel.customerAddress),
+                LabeledValue('Address', parcel.customerAddress),
               ],
             ),
           ),
@@ -659,7 +664,7 @@ class _ParcelView extends StatelessWidget {
                 ],
               ),
               if (parcel.estimatedPaymentDate != null)
-                _Info(
+                LabeledValue(
                   'Estimated payment date',
                   formatDate(parcel.estimatedPaymentDate!),
                 ),
@@ -684,25 +689,25 @@ class _ParcelView extends StatelessWidget {
               title: 'Return',
               children: [
                 if (parcel.returnedDate != null)
-                  _Info('Returned on', formatDate(parcel.returnedDate!)),
-                _Info('Reason', parcel.returnReason ?? 'Not given'),
+                  LabeledValue('Returned on', formatDate(parcel.returnedDate!)),
+                LabeledValue('Reason', parcel.returnReason ?? 'Not given'),
                 if (parcel.paymentReviewRequired)
-                  const _Info(
+                  const LabeledValue(
                     'Payment review',
                     'Requires payment review: money was received or is still owed. Nothing is refunded automatically.',
                   ),
                 if (parcel.reviewResolution != null) ...[
-                  _Info(
+                  LabeledValue(
                     'Payment review',
                     'Completed on ${formatDate(parcel.reviewDate!)}: ${parcel.reviewResolution!.label}',
                   ),
-                  _Info('Review note', parcel.reviewNote ?? ''),
+                  LabeledValue('Review note', parcel.reviewNote ?? ''),
                 ],
               ],
             ),
           _Section(
             title: 'Notes',
-            children: [_Info('Notes', parcel.notes ?? 'No notes yet')],
+            children: [LabeledValue('Notes', parcel.notes ?? 'No notes yet')],
           ),
           if (!parcel.isArchived)
             _Section(
@@ -772,7 +777,7 @@ class _ParcelView extends StatelessWidget {
                   ],
                 ),
                 if (parcel.paymentReviewRequired)
-                  const _Info(
+                  const LabeledValue(
                     'Archive',
                     "This parcel can't be archived until its payment review is completed.",
                   ),
@@ -942,33 +947,6 @@ class _StatBox extends StatelessWidget {
   }
 }
 
-class _Info extends StatelessWidget {
-  const _Info(this.label, this.value);
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-        ),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _PaymentHistory extends StatefulWidget {
   const _PaymentHistory({
     required this.repository,
@@ -1001,9 +979,9 @@ class _PaymentHistoryState extends State<_PaymentHistory> {
           title: 'Payment history',
           children: [
             if (snapshot.hasError)
-              const _Info('Payments', "Couldn't load the payments.")
+              const LabeledValue('Payments', "Couldn't load the payments.")
             else if (payments.isEmpty)
-              const _Info('Payments', 'No payments received yet')
+              const LabeledValue('Payments', 'No payments received yet')
             else
               for (final payment in payments)
                 Row(
@@ -1052,7 +1030,7 @@ class _PaymentRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final date = formatDate(pakistanDate(payment.receivedAt));
     if (payment.isReversal) {
-      return _Info(
+      return LabeledValue(
         '$date · Reversal',
         '${formatRupees(payment.amountPaisa.abs())} cancelled — ${payment.correctionReason}',
       );
@@ -1061,7 +1039,7 @@ class _PaymentRow extends StatelessWidget {
         ? ' · Correction'
         : '';
     final note = payment.note == null ? '' : ' — ${payment.note}';
-    return _Info(
+    return LabeledValue(
       '$date · ${payment.type.label}$replacement${corrected ? ' · Corrected' : ''}',
       '${formatRupees(payment.amountPaisa)}$note',
     );

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
+import '../../../common_widgets/app_section_title.dart';
 import '../../../common_widgets/app_3d_decorations.dart';
 import '../../../common_widgets/liquid_glass.dart';
 
@@ -349,45 +350,6 @@ class DashboardQuickActions extends StatelessWidget {
   }
 }
 
-class SectionTitle extends StatelessWidget {
-  const SectionTitle(this.text, {super.key, this.action, this.onAction});
-  final String text;
-  final String? action;
-  final VoidCallback? onAction;
-
-  @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      Expanded(
-        child: Semantics(
-          header: true,
-          child: Text(
-            text.toUpperCase(),
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1,
-              color: AppColors.label,
-            ),
-          ),
-        ),
-      ),
-      if (action != null)
-        TextButton(
-          onPressed: onAction,
-          child: Text(
-            action!,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: AppColors.primary,
-            ),
-          ),
-        ),
-    ],
-  );
-}
-
 /// One line of the "Needs attention" list.
 class AttentionItem {
   const AttentionItem({
@@ -581,7 +543,7 @@ class StatSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SectionTitle(title),
+        AppSectionTitle(title),
         const SizedBox(height: AppSpacing.sm),
         LayoutBuilder(
           builder: (context, constraints) {
@@ -783,29 +745,4 @@ class _MoneyItem extends StatelessWidget {
       ),
     );
   }
-}
-
-/// A white card that groups rows (the recent parcels), matching the attention list.
-class GroupedCard extends StatelessWidget {
-  const GroupedCard({super.key, required this.children});
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) => Material(
-    color: AppColors.surface,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(AppRadius.card),
-      side: const BorderSide(color: AppColors.border),
-    ),
-    clipBehavior: Clip.antiAlias,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (var i = 0; i < children.length; i++) ...[
-          if (i > 0) const Divider(height: 1),
-          children[i],
-        ],
-      ],
-    ),
-  );
 }

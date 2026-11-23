@@ -296,12 +296,7 @@ class FirestoreParcelRepository implements ParcelRepository {
           : _guard(normalizedReference);
 
       await _firestore.runTransaction((tx) async {
-        final snapshot = await tx.get(parcelRef);
-        if (!snapshot.exists) {
-          throw const AppFailure('This parcel no longer exists.');
-        }
-        final before = snapshot.data()!;
-        _requireNotArchived(before);
+        final before = await _readParcel(tx, parcelRef);
 
         if (before['parcelStatus'] == ParcelStatus.returned.value) {
           throw const AppFailure("A returned parcel can't be edited.");
@@ -408,12 +403,7 @@ class FirestoreParcelRepository implements ParcelRepository {
     try {
       await retryWhenDenied(
         () => _firestore.runTransaction((tx) async {
-          final snapshot = await tx.get(parcelRef);
-          if (!snapshot.exists) {
-            throw const AppFailure('This parcel no longer exists.');
-          }
-          final before = snapshot.data()!;
-          _requireNotArchived(before);
+          final before = await _readParcel(tx, parcelRef);
           if (before['parcelStatus'] == ParcelStatus.returned.value) {
             throw const AppFailure("A returned parcel can't be handed over.");
           }
@@ -605,12 +595,7 @@ class FirestoreParcelRepository implements ParcelRepository {
     try {
       await retryWhenDenied(
         () => _firestore.runTransaction((tx) async {
-          final snapshot = await tx.get(parcelRef);
-          if (!snapshot.exists) {
-            throw const AppFailure('This parcel no longer exists.');
-          }
-          final parcel = snapshot.data()!;
-          _requireNotArchived(parcel);
+          final parcel = await _readParcel(tx, parcelRef);
           if (parcel['parcelStatus'] == ParcelStatus.returned.value) {
             throw const AppFailure("A returned parcel can't take payments.");
           }
@@ -712,6 +697,22 @@ class FirestoreParcelRepository implements ParcelRepository {
     });
   }
 
+  /// The saved parcel, read inside a transaction. Fails when it was deleted,
+  /// and when it is archived unless [archivedToo].
+  static Future<Map<String, dynamic>> _readParcel(
+    Transaction tx,
+    DocumentReference<Map<String, dynamic>> parcelRef, {
+    bool archivedToo = false,
+  }) async {
+    final snapshot = await tx.get(parcelRef);
+    if (!snapshot.exists) {
+      throw const AppFailure('This parcel no longer exists.');
+    }
+    final parcel = snapshot.data()!;
+    if (!archivedToo) _requireNotArchived(parcel);
+    return parcel;
+  }
+
   static void _requireNotArchived(Map<String, dynamic> parcel) {
     if (parcel['isArchived'] == true) {
       throw const AppFailure('This parcel is archived. Restore it first.');
@@ -759,11 +760,7 @@ class FirestoreParcelRepository implements ParcelRepository {
     final parcelRef = _parcels.doc(parcelId);
     try {
       await _firestore.runTransaction((tx) async {
-        final snapshot = await tx.get(parcelRef);
-        if (!snapshot.exists) {
-          throw const AppFailure('This parcel no longer exists.');
-        }
-        final parcel = snapshot.data()!;
+        final parcel = await _readParcel(tx, parcelRef, archivedToo: true);
         final isArchived = parcel['isArchived'] == true;
         if (isArchived == archived) return;
         // Owner's rule (also in the Firestore rules): never once handed over
@@ -816,12 +813,7 @@ class FirestoreParcelRepository implements ParcelRepository {
     final parcelRef = _parcels.doc(parcelId);
     try {
       await _firestore.runTransaction((tx) async {
-        final snapshot = await tx.get(parcelRef);
-        if (!snapshot.exists) {
-          throw const AppFailure('This parcel no longer exists.');
-        }
-        final parcel = snapshot.data()!;
-        _requireNotArchived(parcel);
+        final parcel = await _readParcel(tx, parcelRef);
         if (parcel['parcelStatus'] != ParcelStatus.sent.value) {
           throw const AppFailure(
             'Only a Sent parcel can be marked as returned.',
@@ -885,12 +877,7 @@ class FirestoreParcelRepository implements ParcelRepository {
     final parcelRef = _parcels.doc(parcelId);
     try {
       await _firestore.runTransaction((tx) async {
-        final snapshot = await tx.get(parcelRef);
-        if (!snapshot.exists) {
-          throw const AppFailure('This parcel no longer exists.');
-        }
-        final parcel = snapshot.data()!;
-        _requireNotArchived(parcel);
+        final parcel = await _readParcel(tx, parcelRef);
         if (parcel['paymentReviewRequired'] != true) {
           throw const AppFailure(
             'This parcel has no payment review to complete.',
@@ -938,12 +925,7 @@ class FirestoreParcelRepository implements ParcelRepository {
     final parcelRef = _parcels.doc(parcelId);
     try {
       await _firestore.runTransaction((tx) async {
-        final snapshot = await tx.get(parcelRef);
-        if (!snapshot.exists) {
-          throw const AppFailure('This parcel no longer exists.');
-        }
-        final parcel = snapshot.data()!;
-        _requireNotArchived(parcel);
+        final parcel = await _readParcel(tx, parcelRef);
         if ((parcel['notes'] as String? ?? '') == clean) return;
         tx.update(parcelRef, {
           'notes': clean.isEmpty ? FieldValue.delete() : clean,
@@ -969,12 +951,7 @@ class FirestoreParcelRepository implements ParcelRepository {
     final parcelRef = _parcels.doc(parcelId);
     try {
       await _firestore.runTransaction((tx) async {
-        final snapshot = await tx.get(parcelRef);
-        if (!snapshot.exists) {
-          throw const AppFailure('This parcel no longer exists.');
-        }
-        final parcel = snapshot.data()!;
-        _requireNotArchived(parcel);
+        final parcel = await _readParcel(tx, parcelRef);
         if (parcel['collectionMethod'] != CollectionMethod.payLater.value) {
           throw const AppFailure('Only a Pay Later parcel has a payment date.');
         }
@@ -1033,12 +1010,7 @@ class FirestoreParcelRepository implements ParcelRepository {
     try {
       await retryWhenDenied(
         () => _firestore.runTransaction((tx) async {
-          final snapshot = await tx.get(parcelRef);
-          if (!snapshot.exists) {
-            throw const AppFailure('This parcel no longer exists.');
-          }
-          final parcel = snapshot.data()!;
-          _requireNotArchived(parcel);
+          final parcel = await _readParcel(tx, parcelRef);
           if (parcel['parcelStatus'] == ParcelStatus.returned.value) {
             throw const AppFailure(
               "A returned parcel's payments can't be corrected.",
@@ -1186,6 +1158,8 @@ class FirestoreParcelRepository implements ParcelRepository {
     'parcelStatus': input.status.value,
   };
 
+  /// A new parcel: the editable fields (without the empty optional ones) plus
+  /// what only creation sets. Nothing has been received yet.
   Map<String, Object> _newParcelFields(
     ParcelInput input,
     String orderNumber,
@@ -1193,31 +1167,19 @@ class FirestoreParcelRepository implements ParcelRepository {
     String normalizedReference,
     String? guardId,
   ) {
-    final isFree = input.method == CollectionMethod.giftFree;
-    final expected = input.expectedPaisa;
+    final fields = _editableFields(
+      input,
+      normalizedReference,
+      input.expectedPaisa,
+      0,
+      input.method == CollectionMethod.giftFree,
+    );
     return {
+      for (final MapEntry(:key, :value) in fields.entries) key: ?value,
       'orderNumber': orderNumber,
       'orderSequence': sequence,
-      'customerId': input.customer.id,
-      'customerSnapshot': {
-        'name': input.customer.name,
-        'phone': input.customer.phone,
-        'address': input.customer.address,
-      },
-      'items': [for (final item in input.items) item.toMap()],
-      'collectionMethod': input.method.value,
-      'postalReference': input.postalReference.trim(),
-      'postalReferenceNormalized': normalizedReference,
       'postalGuardId': ?guardId,
-      'deliveryChargePaisa': ?input.deliveryChargePaisa,
-      'actualPackedWeightGrams': ?input.packedWeightGrams,
-      'estimatedPaymentDateLocal': ?input.estimatedPaymentDate,
-      'productAmountExpectedPaisa': expected,
       'receivedPaisa': 0,
-      'outstandingPaisa': expected,
-      'paymentStatus':
-          (isFree ? PaymentStatus.notRequired : PaymentStatus.pending).value,
-      'parcelStatus': input.status.value,
       'sendingDateLocal': pakistanDate(clock.nowUtc()),
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),

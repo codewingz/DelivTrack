@@ -264,133 +264,34 @@ class AppBarStatPill extends StatelessWidget {
   }
 }
 
-/// 3D Mint Floating Action Button (+ Add Parcel / + Add Customer / + Add Product).
-class MintFabButton extends StatelessWidget {
-  const MintFabButton({
-    super.key,
-    required this.label,
-    required this.onPressed,
-    this.icon = Icons.add,
-  });
-
-  final String label;
-  final VoidCallback onPressed;
-  final IconData icon;
+/// A small one-line pill at the end of a curved app bar ("Draft",
+/// "3 pending"). Use it in `actions`.
+class AppBarPill extends StatelessWidget {
+  const AppBarPill(this.text, {super.key});
+  final String text;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: AppColors.mintFabGradient,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-        boxShadow: const [
-          BoxShadow(color: AppColors.fabBevel, offset: Offset(0, 4)),
-          BoxShadow(
-            color: Color(0x470B4633),
-            blurRadius: 16,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-        child: InkWell(
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(end: AppSpacing.lg),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.xs,
+        ),
+        decoration: BoxDecoration(
+          color: AppColors.mint.withValues(alpha: 0.2),
           borderRadius: BorderRadius.circular(AppRadius.pill),
-          onTap: onPressed,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.xl,
-              vertical: AppSpacing.md,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, size: 20, color: AppColors.brand900),
-                const SizedBox(width: AppSpacing.sm),
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.brand900,
-                  ),
-                ),
-              ],
-            ),
+          border: Border.all(color: AppColors.mint.withValues(alpha: 0.3)),
+        ),
+        child: Text(
+          text,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: AppColors.mint,
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// 3D Metric Tile (e.g. Total parcels, Sent, Returned, etc.)
-class TactileMetricCard extends StatelessWidget {
-  const TactileMetricCard({
-    super.key,
-    required this.value,
-    required this.label,
-    this.icon,
-    this.iconColor,
-    this.iconBackground,
-    this.onTap,
-  });
-
-  final String value;
-  final String label;
-  final IconData? icon;
-  final Color? iconColor;
-  final Color? iconBackground;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return App3DCard(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      onTap: onTap,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          if (icon != null) ...[
-            Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color:
-                    iconBackground ??
-                    (iconColor ?? AppColors.primary).withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(AppRadius.control),
-              ),
-              child: Icon(
-                icon,
-                size: 18,
-                color: iconColor ?? AppColors.primary,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-          ],
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ],
       ),
     );
   }

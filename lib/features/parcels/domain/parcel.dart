@@ -151,8 +151,6 @@ class Parcel {
   final String? reviewNote;
   final String? reviewDate;
 
-  bool get paymentReviewCompleted => reviewResolution != null;
-
   /// The payment or reversal that last moved this parcel's money (every payment, correction and
   /// date-only correction changes it), so "received + this" says whether the payments changed.
   final String? lastPaymentId;

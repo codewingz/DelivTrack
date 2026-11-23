@@ -71,7 +71,6 @@ class ParcelFormViewModel extends ChangeNotifier {
 
   /// The parcel being edited, or null when adding.
   final Parcel? parcel;
-  bool get isEditing => parcel != null;
 
   Customer? customer;
   CollectionMethod? method;

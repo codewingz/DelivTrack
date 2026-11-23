@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../common_widgets/labeled_value.dart';
+import '../../../common_widgets/app_section_title.dart';
 import '../../../common_widgets/app_3d_decorations.dart';
 import '../../../common_widgets/app_dropdown_field.dart';
 import '../../../common_widgets/app_snack_bar.dart';
@@ -130,7 +132,10 @@ class _SettingsScreenState extends State<SettingsScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const _SectionLabel('Notifications', first: true),
+                    AppSectionTitle(
+                      'Notifications',
+                      padding: AppSectionTitle.betweenGroups.copyWith(top: 0),
+                    ),
                     _Group(
                       children: [
                         _SwitchRow(
@@ -224,7 +229,10 @@ class _SettingsScreenState extends State<SettingsScreen>
                           ),
                         ),
                       ),
-                    const _SectionLabel('Dispatch & defaults'),
+                    const AppSectionTitle(
+                      'Dispatch & defaults',
+                      padding: AppSectionTitle.betweenGroups,
+                    ),
                     _Group(
                       padded: true,
                       children: [
@@ -261,11 +269,14 @@ class _SettingsScreenState extends State<SettingsScreen>
                         ),
                       ],
                     ),
-                    const _SectionLabel('Account'),
+                    const AppSectionTitle(
+                      'Account',
+                      padding: AppSectionTitle.betweenGroups,
+                    ),
                     _Group(
                       padded: true,
                       children: [
-                        _Info(
+                        LabeledValue(
                           'Email',
                           widget.repository.email ?? 'Not available',
                         ),
@@ -298,35 +309,6 @@ const _rowTitle = TextStyle(
 const _rowSubtitle = TextStyle(fontSize: 13, color: AppColors.textSecondary);
 
 /// Small uppercase heading above a group.
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.text, {this.first = false});
-  final String text;
-  final bool first;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsetsDirectional.fromSTEB(
-        AppSpacing.xs,
-        first ? 0 : AppSpacing.xl,
-        AppSpacing.xs,
-        AppSpacing.sm,
-      ),
-      child: Semantics(
-        header: true,
-        child: Text(
-          text.toUpperCase(),
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1,
-            color: AppColors.label,
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 /// A glass card of rows (separated by thin lines), or of free content when
 /// [padded].
@@ -379,30 +361,6 @@ class _SwitchRow extends StatelessWidget {
       subtitle: Text(subtitle, style: _rowSubtitle),
       value: value,
       onChanged: onChanged,
-    );
-  }
-}
-
-class _Info extends StatelessWidget {
-  const _Info(this.label, this.value);
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: _rowSubtitle),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
-          ),
-        ),
-      ],
     );
   }
 }

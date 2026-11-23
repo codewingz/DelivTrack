@@ -4,12 +4,9 @@ class AppColors {
   // Brand Emerald & Ivory palette (V2 3D Liquid Glass)
   static const brand900 = Color(0xFF0B4633);
   static const brand800 = Color(0xFF115E46);
-  static const brand700 = Color(0xFF167558);
   static const brand100 = Color(0xFFD8F3E5);
   static const brand50 = Color(0xFFEEF8F2);
   static const mint = Color(0xFF9EEFD4);
-  static const mintLight = Color(0xFFB2F5DF);
-  static const mintDark = Color(0xFF5CC5A2);
 
   // Core semantic aliases
   static const primary = Color(0xFF115E46);

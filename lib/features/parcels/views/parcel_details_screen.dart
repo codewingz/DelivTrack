@@ -62,8 +62,7 @@ class _ParcelDetailsScreenState extends State<ParcelDetailsScreen> {
     final confirmed = await showConfirmDialog(
       context,
       title: 'Delete this draft parcel?',
-      message:
-          'This will permanently delete this draft order. This action cannot be undone.',
+      message: 'This will permanently delete this draft order. This action cannot be undone.',
       confirmLabel: 'Delete',
       destructive: true,
     );
@@ -84,8 +83,12 @@ class _ParcelDetailsScreenState extends State<ParcelDetailsScreen> {
     }
   }
 
-  Future<void> _sendTrackingWhatsApp(Parcel parcel, {String? trackingNumber}) async {
-    final sender = await widget.senderProfileRepository.getProfile() ??
+  Future<void> _sendTrackingWhatsApp(
+    Parcel parcel, {
+    String? trackingNumber,
+  }) async {
+    final sender =
+        await widget.senderProfileRepository.getProfile() ??
         const SenderProfile(name: '', phone: '', address: '');
     final ok = await widget.documentService.openTrackingWhatsApp(
       parcel: parcel,
@@ -95,7 +98,9 @@ class _ParcelDetailsScreenState extends State<ParcelDetailsScreen> {
     if (!ok && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Could not open WhatsApp. Please check the phone number.'),
+          content: Text(
+            'Could not open WhatsApp. Please check the phone number.',
+          ),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -154,7 +159,8 @@ class _ParcelDetailsScreenState extends State<ParcelDetailsScreen> {
   Future<void> _shareInvoice(Parcel parcel) async {
     final messenger = ScaffoldMessenger.of(context);
     try {
-      final sender = await widget.senderProfileRepository.getProfile() ??
+      final sender =
+          await widget.senderProfileRepository.getProfile() ??
           const SenderProfile.empty();
       final ok = await widget.documentService.shareInvoice(
         parcel: parcel,
@@ -162,9 +168,7 @@ class _ParcelDetailsScreenState extends State<ParcelDetailsScreen> {
       );
       if (mounted && !ok) {
         messenger.showSnackBar(
-          const SnackBar(
-            content: Text('Could not share invoice to WhatsApp'),
-          ),
+          const SnackBar(content: Text('Could not share invoice to WhatsApp')),
         );
       }
     } catch (e) {
@@ -179,7 +183,8 @@ class _ParcelDetailsScreenState extends State<ParcelDetailsScreen> {
   Future<void> _printShippingLabel(Parcel parcel) async {
     final messenger = ScaffoldMessenger.of(context);
     try {
-      final sender = await widget.senderProfileRepository.getProfile() ??
+      final sender =
+          await widget.senderProfileRepository.getProfile() ??
           const SenderProfile.empty();
       await widget.documentService.printShippingLabel(
         parcel: parcel,
@@ -646,8 +651,7 @@ class _ParcelView extends StatelessWidget {
                       final confirmed = await showConfirmDialog(
                         context,
                         title: 'Delete this draft parcel?',
-                        message:
-                            'This will permanently delete this draft order. This action cannot be undone.',
+                        message: 'This will permanently delete this draft order. This action cannot be undone.',
                         confirmLabel: 'Delete',
                         destructive: true,
                       );
@@ -659,8 +663,7 @@ class _ParcelView extends StatelessWidget {
                             content: Text('Draft parcel deleted.'),
                           ),
                         );
-                        if (context.mounted &&
-                            Navigator.of(context).canPop()) {
+                        if (context.mounted && Navigator.of(context).canPop()) {
                           Navigator.of(context).pop();
                         }
                       } on AppFailure catch (e) {

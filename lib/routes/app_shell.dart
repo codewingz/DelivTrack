@@ -9,7 +9,7 @@ import '../design_system/foundations/spacing/app_spacing.dart';
 
 /// Bottom-tab frame around the main sections (Home, Parcels, Payments, Customers, More).
 ///
-/// The bar is a floating glass pill on a strip of the page backdrop under the pages.
+/// The bar is a floating glass pill drawn over the pages; there is no strip behind it.
 ///
 /// Deliberately not a Scaffold: each tab page has its own Scaffold, and a second, outer one would
 /// make snackbars appear on the outer Scaffold, on top of the page's floating button.
@@ -30,37 +30,35 @@ class AppShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    final media = MediaQuery.of(context);
+    // The pill floats over the pages, which run to the bottom of the screen
+    // and scroll under it. This is the room they keep free at the bottom (as
+    // if it were a system inset) so the end of a list, an Add button or a
+    // message is never left under the pill. With the keyboard up the pill is
+    // behind it and nothing is reserved.
+    final reserved = media.viewInsets.bottom > 0
+        ? 0.0
+        : media.padding.bottom + _dockHeight + 2 * AppSpacing.md;
+    return Stack(
       children: [
-        // The strip below already handles the bottom system inset.
-        Expanded(
-          child: MediaQuery.removePadding(
-            context: context,
-            removeBottom: true,
+        Positioned.fill(
+          child: MediaQuery(
+            data: media.copyWith(
+              padding: media.padding.copyWith(bottom: reserved),
+              // A page's Add button and messages are placed from this one.
+              viewPadding: media.viewPadding.copyWith(bottom: reserved),
+            ),
             child: navigationShell,
           ),
         ),
-        // The pill floats on a strip of the page backdrop. Pages end above
-        // it, so their lists, Add buttons, messages and sheets are never
-        // under the bar.
-        ColoredBox(
-          color: AppColors.liquidBase,
-          child: SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsetsDirectional.fromSTEB(
-                AppSpacing.lg,
-                AppSpacing.sm,
-                AppSpacing.lg,
-                AppSpacing.md,
-              ),
-              child: Center(
-                heightFactor: 1,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: _dockMaxWidth),
-                  child: _dock(),
-                ),
-              ),
+        PositionedDirectional(
+          start: AppSpacing.lg,
+          end: AppSpacing.lg,
+          bottom: media.padding.bottom + AppSpacing.md,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: _dockMaxWidth),
+              child: _dock(),
             ),
           ),
         ),
@@ -73,6 +71,8 @@ class AppShell extends StatelessWidget {
     return GlassSurface(
       key: const Key('app-dock'),
       radius: AppRadius.pill,
+      // Content scrolls behind the pill, so it is real blurred glass.
+      blurSigma: 14,
       ledgeColor: AppColors.dockLedge,
       ledgeHeight: 5,
       child: SizedBox(

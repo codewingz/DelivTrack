@@ -72,7 +72,9 @@ class MoreScreen extends StatelessWidget {
             : null,
       ),
       body: LiquidBackground(
+        // The list runs under the floating tab bar; its padding clears it.
         child: SafeArea(
+          bottom: false,
           child: Align(
             alignment: Alignment.topCenter,
             child: ConstrainedBox(
@@ -82,7 +84,7 @@ class MoreScreen extends StatelessWidget {
                   AppSpacing.lg,
                   pinAccount ? 0 : AppSpacing.lg,
                   AppSpacing.lg,
-                  AppSpacing.lg,
+                  AppSpacing.lg + MediaQuery.paddingOf(context).bottom,
                 ),
                 children: [
                   if (!pinAccount) _Account(repository: repository),

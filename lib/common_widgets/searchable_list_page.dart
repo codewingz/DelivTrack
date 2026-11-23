@@ -146,7 +146,10 @@ class SearchableListPage<T> extends StatelessWidget {
               ),
             ),
       body: LiquidBackground(
+        // The list runs to the bottom edge (under the floating tab bar); its
+        // own bottom padding keeps the last row reachable.
         child: SafeArea(
+          bottom: false,
           child: Align(
             alignment: Alignment.topCenter,
             child: ConstrainedBox(
@@ -177,7 +180,7 @@ class SearchableListPage<T> extends StatelessWidget {
                         child: header,
                       ),
                     ),
-                  ..._content(),
+                  ..._content(MediaQuery.paddingOf(context).bottom),
                 ],
               ),
             ),
@@ -225,17 +228,22 @@ class SearchableListPage<T> extends StatelessWidget {
     );
   }
 
-  List<Widget> _content() {
+  /// [bottomInset] is the room to keep free under the content (the system
+  /// inset, plus the floating tab bar on a tab page).
+  List<Widget> _content(double bottomInset) {
     if (viewModel.errorMessage != null) {
       return [
         SliverFillRemaining(
           hasScrollBody: false,
-          child: EmptyState(
-            icon: Icons.error_outline_rounded,
-            title: "Couldn't load the list",
-            message: viewModel.errorMessage,
-            actionLabel: 'Retry',
-            onAction: viewModel.retry,
+          child: Padding(
+            padding: EdgeInsets.only(bottom: bottomInset),
+            child: EmptyState(
+              icon: Icons.error_outline_rounded,
+              title: "Couldn't load the list",
+              message: viewModel.errorMessage,
+              actionLabel: 'Retry',
+              onAction: viewModel.retry,
+            ),
           ),
         ),
       ];
@@ -244,7 +252,15 @@ class SearchableListPage<T> extends StatelessWidget {
       return const [SliverToBoxAdapter(child: ListSkeleton())];
     }
     if (visible.isEmpty) {
-      return [SliverFillRemaining(hasScrollBody: false, child: emptyBuilder())];
+      return [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: Padding(
+            padding: EdgeInsets.only(bottom: bottomInset),
+            child: emptyBuilder(),
+          ),
+        ),
+      ];
     }
     return [
       SliverPadding(
@@ -252,7 +268,9 @@ class SearchableListPage<T> extends StatelessWidget {
           AppSpacing.lg,
           AppSpacing.sm,
           AppSpacing.lg,
-          footer == null ? AppSpacing.x6l + AppSpacing.lg : AppSpacing.xs,
+          footer == null
+              ? AppSpacing.x6l + AppSpacing.lg + bottomInset
+              : AppSpacing.xs,
         ),
         sliver: SliverList.separated(
           itemCount: visible.length,
@@ -262,8 +280,8 @@ class SearchableListPage<T> extends StatelessWidget {
       ),
       if (footer != null)
         SliverPadding(
-          padding: const EdgeInsetsDirectional.only(
-            bottom: AppSpacing.x6l + AppSpacing.lg,
+          padding: EdgeInsetsDirectional.only(
+            bottom: AppSpacing.x6l + AppSpacing.lg + bottomInset,
           ),
           sliver: SliverToBoxAdapter(child: Center(child: footer)),
         ),

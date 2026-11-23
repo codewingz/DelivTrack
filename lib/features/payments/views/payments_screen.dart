@@ -112,7 +112,9 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                 : null,
           ),
           body: LiquidBackground(
+            // The list runs under the floating tab bar; see _body's padding.
             child: SafeArea(
+              bottom: false,
               child: Align(
                 alignment: Alignment.topCenter,
                 child: ConstrainedBox(
@@ -199,8 +201,10 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                 ),
               ),
             ),
-          const SliverPadding(
-            padding: EdgeInsetsDirectional.only(bottom: AppSpacing.xxl),
+          SliverPadding(
+            padding: EdgeInsetsDirectional.only(
+              bottom: AppSpacing.xxl + MediaQuery.paddingOf(context).bottom,
+            ),
           ),
         ],
       ),

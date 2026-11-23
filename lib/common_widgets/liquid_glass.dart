@@ -36,24 +36,6 @@ class LiquidBackground extends StatelessWidget {
               ),
             ),
           ),
-        // Ends in the plain base colour, so the page meets the tab bar's
-        // strip under it without a visible line.
-        const Align(
-          alignment: Alignment.bottomCenter,
-          child: SizedBox(
-            height: 48,
-            width: double.infinity,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Color(0x00EDF4EF), AppColors.liquidBase],
-                ),
-              ),
-            ),
-          ),
-        ),
         child,
       ],
     );

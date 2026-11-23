@@ -1,3 +1,4 @@
+import '../../../common_widgets/app_snack_bar.dart';
 import 'package:flutter/material.dart';
 
 import '../../../common_widgets/app_3d_decorations.dart';
@@ -79,11 +80,7 @@ class _SenderProfileScreenState extends State<SenderProfileScreen> {
     );
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Sender details saved.'),
-          duration: Duration(seconds: 2),
-          behavior: SnackBarBehavior.floating,
-        ),
+        appSnackBar('Sender details saved.', duration: const Duration(seconds: 2)),
       );
       if (Navigator.of(context).canPop()) {
         Navigator.of(context).pop();

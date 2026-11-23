@@ -8,7 +8,6 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import 'constants/app_colors.dart';
-import 'design_system/foundations/radius/app_radius.dart';
 import 'features/auth/data/auth_repository.dart';
 import 'features/customers/data/customer_repository.dart';
 import 'features/customers/data/contact_picker.dart';
@@ -149,22 +148,6 @@ class _DelivTrackAppState extends State<DelivTrackApp>
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
           elevation: 0,
-        ),
-        // Messages are floating glass pills, like the cards and the tab bar.
-        snackBarTheme: SnackBarThemeData(
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: AppColors.glassSnackFill,
-          elevation: 4,
-          contentTextStyle: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
-          actionTextColor: AppColors.primary,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.card),
-            side: const BorderSide(color: AppColors.glassEdge),
-          ),
         ),
       ),
     );

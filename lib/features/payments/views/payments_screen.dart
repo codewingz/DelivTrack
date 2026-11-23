@@ -1,3 +1,5 @@
+import '../../../common_widgets/app_snack_bar.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../../common_widgets/app_3d_decorations.dart';
@@ -48,9 +50,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
   Future<void> _receive(Parcel parcel) async {
     final messenger = ScaffoldMessenger.of(context);
     if (await showPaymentSheet(context, widget.repository, parcel)) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Payment recorded.')),
-      );
+      messenger.showSnackBar(appSnackBar('Payment recorded.'));
     }
   }
 

@@ -1,3 +1,5 @@
+import '../common_widgets/app_snack_bar.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -101,10 +103,9 @@ void _handleShellBack(
         messengerKey?.currentState ?? ScaffoldMessenger.of(context);
     messenger.hideCurrentSnackBar();
     messenger.showSnackBar(
-      const SnackBar(
-        content: Text('Press back again to exit'),
-        duration: Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
+      appSnackBar(
+        'Press back again to exit',
+        duration: const Duration(seconds: 2),
       ),
     );
   }
@@ -116,24 +117,23 @@ Widget _tabPage(
   GlobalKey<ScaffoldMessengerState>? key,
   VoidCallback? onExit,
   VoidCallback? onBack,
-]) =>
-    ScaffoldMessenger(
-      key: key,
-      child: Builder(
-        builder: (context) => PopScope(
-          canPop: false,
-          onPopInvokedWithResult: (didPop, _) {
-            if (didPop) return;
-            if (onBack != null) {
-              onBack();
-            } else {
-              _handleShellBack(context, key, onExit: onExit);
-            }
-          },
-          child: page,
-        ),
-      ),
-    );
+]) => ScaffoldMessenger(
+  key: key,
+  child: Builder(
+    builder: (context) => PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (onBack != null) {
+          onBack();
+        } else {
+          _handleShellBack(context, key, onExit: onExit);
+        }
+      },
+      child: page,
+    ),
+  ),
+);
 
 /// Signed-in users never see the auth screens; signed-out users never see the app.
 /// Re-evaluated on every sign-in / sign-out, including a remote password reset.
@@ -341,9 +341,8 @@ GoRouter createRouter(
         ),
       ),
       StatefulShellRoute.indexedStack(
-        builder: (context, state, navigationShell) => AppShell(
-          navigationShell: navigationShell,
-        ),
+        builder: (context, state, navigationShell) =>
+            AppShell(navigationShell: navigationShell),
         branches: [
           StatefulShellBranch(
             routes: [

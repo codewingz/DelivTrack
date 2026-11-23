@@ -1,3 +1,5 @@
+import '../../../common_widgets/app_snack_bar.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../../common_widgets/empty_state.dart';
@@ -69,7 +71,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
 
   Future<void> _act(Future<bool> Function() open, String done) async {
     final messenger = ScaffoldMessenger.of(context);
-    if (await open()) messenger.showSnackBar(SnackBar(content: Text(done)));
+    if (await open()) messenger.showSnackBar(appSnackBar(done));
   }
 
   @override

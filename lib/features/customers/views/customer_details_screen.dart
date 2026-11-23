@@ -1,3 +1,5 @@
+import '../../../common_widgets/app_snack_bar.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../../common_widgets/app_3d_decorations.dart';
@@ -50,18 +52,14 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
   Future<void> _call(Customer customer) async {
     final messenger = ScaffoldMessenger.of(context);
     if (!await widget.dialer.dial(customer.phone)) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text("Couldn't open the phone app.")),
-      );
+      messenger.showSnackBar(appSnackBar("Couldn't open the phone app."));
     }
   }
 
   Future<void> _edit(Customer customer) async {
     final messenger = ScaffoldMessenger.of(context);
     if (await widget.onEdit(customer) != null) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Customer updated.')),
-      );
+      messenger.showSnackBar(appSnackBar('Customer updated.'));
     }
   }
 

@@ -1,3 +1,5 @@
+import '../../../common_widgets/app_snack_bar.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../../common_widgets/app_3d_decorations.dart';
@@ -45,8 +47,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
   }
 
   void _showMessage(String message) =>
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(context).showSnackBar(appSnackBar(message));
 
   Future<void> _add() async {
     final savedId = await widget.onAdd();

@@ -1,3 +1,5 @@
+import '../../../common_widgets/app_snack_bar.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -54,7 +56,7 @@ class _ParcelDetailsScreenState extends State<ParcelDetailsScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final saved = await widget.onEdit(parcel);
     if (saved != null) {
-      messenger.showSnackBar(const SnackBar(content: Text('Parcel updated.')));
+      messenger.showSnackBar(appSnackBar('Parcel updated.'));
     }
   }
 
@@ -70,15 +72,13 @@ class _ParcelDetailsScreenState extends State<ParcelDetailsScreen> {
     final messenger = ScaffoldMessenger.of(context);
     try {
       await widget.repository.deleteDraft(parcel.id);
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Draft parcel deleted.')),
-      );
+      messenger.showSnackBar(appSnackBar('Draft parcel deleted.'));
       if (mounted && Navigator.of(context).canPop()) {
         Navigator.of(context).pop();
       }
     } on AppFailure catch (e) {
       if (mounted) {
-        messenger.showSnackBar(SnackBar(content: Text(e.message)));
+        messenger.showSnackBar(appSnackBar(e.message));
       }
     }
   }
@@ -97,12 +97,7 @@ class _ParcelDetailsScreenState extends State<ParcelDetailsScreen> {
     );
     if (!ok && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Could not open WhatsApp. Please check the phone number.',
-          ),
-          behavior: SnackBarBehavior.floating,
-        ),
+        appSnackBar('Could not open WhatsApp. Please check the phone number.'),
       );
     }
   }
@@ -122,18 +117,12 @@ class _ParcelDetailsScreenState extends State<ParcelDetailsScreen> {
       if (!done || !mounted) return;
 
       messenger.showSnackBar(
-        SnackBar(
-          content: Text(isDraft ? 'Parcel handed over.' : 'Handover saved.'),
-          duration: const Duration(seconds: 4),
-          // A message with a button stays until dismissed by default; this
-          // one must leave after its 4 seconds like any other.
-          persist: false,
-          action: SnackBarAction(
-            label: 'WhatsApp',
-            onPressed: () => _sendTrackingWhatsApp(
-              parcel,
-              trackingNumber: savedHandover?.postalReference,
-            ),
+        appSnackBar(
+          isDraft ? 'Parcel handed over.' : 'Handover saved.',
+          actionLabel: 'WhatsApp',
+          onAction: () => _sendTrackingWhatsApp(
+            parcel,
+            trackingNumber: savedHandover?.postalReference,
           ),
         ),
       );
@@ -154,7 +143,7 @@ class _ParcelDetailsScreenState extends State<ParcelDetailsScreen> {
       }
     } on AppFailure catch (e) {
       if (mounted) {
-        messenger.showSnackBar(SnackBar(content: Text(e.message)));
+        messenger.showSnackBar(appSnackBar(e.message));
       }
     }
   }
@@ -171,14 +160,12 @@ class _ParcelDetailsScreenState extends State<ParcelDetailsScreen> {
       );
       if (mounted && !ok) {
         messenger.showSnackBar(
-          const SnackBar(content: Text('Could not share invoice to WhatsApp')),
+          appSnackBar('Could not share invoice to WhatsApp'),
         );
       }
     } catch (e) {
       if (mounted) {
-        messenger.showSnackBar(
-          SnackBar(content: Text('Could not share invoice: $e')),
-        );
+        messenger.showSnackBar(appSnackBar('Could not share invoice: $e'));
       }
     }
   }
@@ -196,7 +183,7 @@ class _ParcelDetailsScreenState extends State<ParcelDetailsScreen> {
     } catch (e) {
       if (mounted) {
         messenger.showSnackBar(
-          SnackBar(content: Text('Could not print shipping label: $e')),
+          appSnackBar('Could not print shipping label: $e'),
         );
       }
     }
@@ -206,9 +193,9 @@ class _ParcelDetailsScreenState extends State<ParcelDetailsScreen> {
   Future<void> _act(Future<bool> Function() open, String done) async {
     final messenger = ScaffoldMessenger.of(context);
     try {
-      if (await open()) messenger.showSnackBar(SnackBar(content: Text(done)));
+      if (await open()) messenger.showSnackBar(appSnackBar(done));
     } on AppFailure catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+      messenger.showSnackBar(appSnackBar(e.message));
     }
   }
 
@@ -601,9 +588,7 @@ class _ParcelView extends StatelessWidget {
                             ClipboardData(text: parcel.postalReference),
                           );
                           messenger.showSnackBar(
-                            const SnackBar(
-                              content: Text('Tracking number copied.'),
-                            ),
+                            appSnackBar('Tracking number copied.'),
                           );
                         },
                       ),
@@ -803,18 +788,14 @@ class _ParcelView extends StatelessWidget {
                           try {
                             await repository.deleteDraft(parcel.id);
                             messenger.showSnackBar(
-                              const SnackBar(
-                                content: Text('Draft parcel deleted.'),
-                              ),
+                              appSnackBar('Draft parcel deleted.'),
                             );
                             if (context.mounted &&
                                 Navigator.of(context).canPop()) {
                               Navigator.of(context).pop();
                             }
                           } on AppFailure catch (e) {
-                            messenger.showSnackBar(
-                              SnackBar(content: Text(e.message)),
-                            );
+                            messenger.showSnackBar(appSnackBar(e.message));
                           }
                         },
                       ),

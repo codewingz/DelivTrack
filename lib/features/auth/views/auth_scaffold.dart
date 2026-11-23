@@ -39,80 +39,106 @@ class AuthScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SingleChildScrollView(
-        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            AppHeroHeader(title: title, subtitle: subtitle),
-            SafeArea(
-              top: false,
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 480),
-                  child: Padding(
-                    padding: const EdgeInsetsDirectional.fromSTEB(
-                      AppSpacing.lg,
-                      AppSpacing.lg,
-                      AppSpacing.lg,
-                      AppSpacing.xxl,
-                    ),
-                    child: Form(
-                      key: formKey,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          const Align(child: AppLogo(width: 144)),
-                          const SizedBox(height: AppSpacing.md),
-                          App3DCard(
-                            radius: AppRadius.cardLarge,
-                            padding: const EdgeInsets.all(AppSpacing.xl),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                if (topLink != null) ...[
-                                  Align(
-                                    alignment: AlignmentDirectional.centerStart,
-                                    child: topLink,
-                                  ),
-                                  const SizedBox(height: AppSpacing.sm),
-                                ],
-                                for (final field in fields) ...[
-                                  field,
-                                  const SizedBox(height: AppSpacing.lg),
-                                ],
-                                if (errorMessage != null) ...[
-                                  _AuthMessage(
-                                    errorMessage!,
-                                    color: AppColors.error,
-                                  ),
-                                  const SizedBox(height: AppSpacing.lg),
-                                ],
-                                if (successMessage != null) ...[
-                                  _AuthMessage(
-                                    successMessage!,
-                                    color: AppColors.success,
-                                  ),
-                                  const SizedBox(height: AppSpacing.lg),
-                                ],
-                                button,
-                                if (footer != null) ...[
-                                  const SizedBox(height: AppSpacing.sm),
-                                  footer!,
-                                ],
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.xl),
-                          const Align(child: _PoweredByPill()),
-                        ],
-                      ),
-                    ),
-                  ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final header = AppHeroHeader(title: title, subtitle: subtitle);
+          final content = _content();
+          // Too short to keep the header fixed (a landscape phone, or the
+          // keyboard with large text): let it scroll away with the content.
+          if (constraints.maxHeight < _minHeightForFixedHeader) {
+            return SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [header, content],
+              ),
+            );
+          }
+          // The header stays put; only the content under it scrolls. Drawn
+          // bottom-up so the header (and its shadow) paints over the content.
+          return Column(
+            verticalDirection: VerticalDirection.up,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  child: content,
                 ),
               ),
+              header,
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  static const double _minHeightForFixedHeader = 480;
+
+  Widget _content() {
+    return SafeArea(
+      top: false,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(
+              AppSpacing.lg,
+              AppSpacing.lg,
+              AppSpacing.lg,
+              AppSpacing.xxl,
             ),
-          ],
+            child: Form(
+              key: formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Align(child: AppLogo(width: 144)),
+                  const SizedBox(height: AppSpacing.md),
+                  App3DCard(
+                    radius: AppRadius.cardLarge,
+                    padding: const EdgeInsets.all(AppSpacing.xl),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (topLink != null) ...[
+                          Align(
+                            alignment: AlignmentDirectional.centerStart,
+                            child: topLink,
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                        ],
+                        for (final field in fields) ...[
+                          field,
+                          const SizedBox(height: AppSpacing.lg),
+                        ],
+                        if (errorMessage != null) ...[
+                          _AuthMessage(errorMessage!, color: AppColors.error),
+                          const SizedBox(height: AppSpacing.lg),
+                        ],
+                        if (successMessage != null) ...[
+                          _AuthMessage(
+                            successMessage!,
+                            color: AppColors.success,
+                          ),
+                          const SizedBox(height: AppSpacing.lg),
+                        ],
+                        button,
+                        if (footer != null) ...[
+                          const SizedBox(height: AppSpacing.sm),
+                          footer!,
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+                  const Align(child: _PoweredByPill()),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );

@@ -716,9 +716,14 @@ InputDecoration appInputDecoration({
     filled: true,
     fillColor: enabled ? AppColors.surface : AppColors.disabled,
     constraints: const BoxConstraints(minHeight: _fieldHeight),
-    contentPadding: const EdgeInsets.symmetric(
-      horizontal: AppSpacing.lg,
-      vertical: _fieldVerticalPadding,
+    // With an icon the text starts after the icon, so the start padding only
+    // moves the error/helper line: zero puts it at the field's edge, under
+    // the label.
+    contentPadding: EdgeInsetsDirectional.only(
+      start: prefixIcon == null ? AppSpacing.lg : 0,
+      end: AppSpacing.lg,
+      top: _fieldVerticalPadding,
+      bottom: _fieldVerticalPadding,
     ),
     prefixIcon: prefixIcon,
     // Narrower than Material's 48 so the text starts close to the icon.

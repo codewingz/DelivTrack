@@ -74,8 +74,8 @@ void main() {
       await t.enterText(fields.at(1), 'owner@codewingz.com');
       await t.enterText(fields.at(2), 'secret123');
       await t.enterText(fields.at(3), 'secret123');
-      await t.ensureVisible(find.widgetWithText(FilledButton, 'Sign Up'));
-      await t.tap(find.widgetWithText(FilledButton, 'Sign Up'));
+      await t.ensureVisible(find.widgetWithText(FilledButton, 'Create Account'));
+      await t.tap(find.widgetWithText(FilledButton, 'Create Account'));
       await t.pump();
       await t.pump();
       await t.pump();

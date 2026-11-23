@@ -45,7 +45,7 @@ Future<void> _pump(
   );
 }
 
-Finder get _signUpButton => find.widgetWithText(FilledButton, 'Sign Up');
+Finder get _signUpButton => find.widgetWithText(FilledButton, 'Create Account');
 
 void main() {
   group('authErrorMessage', () {

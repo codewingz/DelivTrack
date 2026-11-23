@@ -129,7 +129,7 @@ class _AppDropdownFieldState<T> extends State<AppDropdownField<T>> {
           // No extra padding: the border's 4 plus the menu's 16 side padding that the package adds to
           // the button already put the text where other fields have it (20).
           buttonStyleData: const FormFieldButtonStyleData(
-            height: 52,
+            height: 56,
             padding: EdgeInsets.zero,
           ),
           iconStyleData: const IconStyleData(

@@ -56,7 +56,6 @@ class _LoginScreenState extends State<LoginScreen> {
         final busy = _viewModel.isLoading;
         return AuthScaffold(
           formKey: _formKey,
-          showLogo: true,
           title: 'Welcome back',
           subtitle: 'Sign in to manage your parcels and payments.',
           errorMessage: _viewModel.errorMessage,

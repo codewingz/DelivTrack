@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 
 import '../../../common_widgets/app_3d_decorations.dart';
+import '../../../common_widgets/app_hero_header.dart';
 import '../../../common_widgets/app_logo.dart';
 import '../../../constants/app_colors.dart';
 import '../../../design_system/foundations/radius/app_radius.dart';
 import '../../../design_system/foundations/spacing/app_spacing.dart';
 
-/// Shared layout for auth screens: green header (icon, title, subtitle),
-/// optional logo, a card with fields, inline error, primary [button] and a
-/// [footer] link row, then the "Powered by" pill. Scrollable and width-capped.
+/// Shared layout for auth screens: green [AppHeroHeader], logo, a card with
+/// an optional [topLink], fields, inline error, primary [button] and an
+/// optional [footer] link row, then the "Powered by" pill. Scrollable and
+/// width-capped. Spacing follows the auth screen of the HTML prototype.
 class AuthScaffold extends StatelessWidget {
   const AuthScaffold({
     super.key,
@@ -16,11 +18,11 @@ class AuthScaffold extends StatelessWidget {
     required this.title,
     required this.fields,
     required this.button,
-    required this.footer,
+    this.footer,
+    this.topLink,
     this.subtitle,
     this.errorMessage,
     this.successMessage,
-    this.showLogo = false,
   });
 
   final GlobalKey<FormState> formKey;
@@ -30,8 +32,8 @@ class AuthScaffold extends StatelessWidget {
   final String? errorMessage;
   final String? successMessage;
   final Widget button;
-  final Widget footer;
-  final bool showLogo;
+  final Widget? footer;
+  final Widget? topLink;
 
   @override
   Widget build(BuildContext context) {
@@ -42,28 +44,39 @@ class AuthScaffold extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _AuthHeader(title: title, subtitle: subtitle),
+            AppHeroHeader(title: title, subtitle: subtitle),
             SafeArea(
               top: false,
               child: Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 480),
                   child: Padding(
-                    padding: const EdgeInsetsDirectional.all(AppSpacing.xxl),
+                    padding: const EdgeInsetsDirectional.fromSTEB(
+                      AppSpacing.lg,
+                      AppSpacing.lg,
+                      AppSpacing.lg,
+                      AppSpacing.xxl,
+                    ),
                     child: Form(
                       key: formKey,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          if (showLogo) ...[
-                            const Align(child: AppLogo(width: 160)),
-                            const SizedBox(height: AppSpacing.xl),
-                          ],
+                          const Align(child: AppLogo(width: 144)),
+                          const SizedBox(height: AppSpacing.md),
                           App3DCard(
+                            radius: AppRadius.cardLarge,
                             padding: const EdgeInsets.all(AppSpacing.xl),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
+                                if (topLink != null) ...[
+                                  Align(
+                                    alignment: AlignmentDirectional.centerStart,
+                                    child: topLink,
+                                  ),
+                                  const SizedBox(height: AppSpacing.sm),
+                                ],
                                 for (final field in fields) ...[
                                   field,
                                   const SizedBox(height: AppSpacing.lg),
@@ -83,8 +96,10 @@ class AuthScaffold extends StatelessWidget {
                                   const SizedBox(height: AppSpacing.lg),
                                 ],
                                 button,
-                                const SizedBox(height: AppSpacing.sm),
-                                footer,
+                                if (footer != null) ...[
+                                  const SizedBox(height: AppSpacing.sm),
+                                  footer!,
+                                ],
                               ],
                             ),
                           ),
@@ -125,105 +140,6 @@ class _AuthMessage extends StatelessWidget {
   }
 }
 
-class _AuthHeader extends StatelessWidget {
-  const _AuthHeader({required this.title, this.subtitle});
-  final String title;
-  final String? subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    final top = MediaQuery.paddingOf(context).top;
-    return Container(
-      padding: EdgeInsetsDirectional.fromSTEB(
-        AppSpacing.xxl,
-        top + AppSpacing.xxl,
-        AppSpacing.xxl,
-        AppSpacing.x3l,
-      ),
-      decoration: const BoxDecoration(
-        gradient: AppColors.headerGradient,
-        borderRadius: BorderRadius.vertical(
-          bottom: Radius.circular(AppRadius.cardLarge + AppSpacing.sm),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.cardShadow,
-            blurRadius: 18,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(AppRadius.card),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.25),
-                      ),
-                    ),
-                    child: const ExcludeSemantics(
-                      child: Icon(
-                        Icons.local_shipping_outlined,
-                        size: 32,
-                        color: AppColors.mint,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.lg),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'DELIVTRACK',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 1.2,
-                            color: AppColors.mint,
-                          ),
-                        ),
-                        Text(
-                          title,
-                          style: const TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              if (subtitle != null) ...[
-                const SizedBox(height: AppSpacing.lg),
-                Text(
-                  subtitle!,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    color: AppColors.brand100,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _PoweredByPill extends StatelessWidget {
   const _PoweredByPill();
 
@@ -231,7 +147,7 @@ class _PoweredByPill extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xl,
+        horizontal: AppSpacing.lg,
         vertical: AppSpacing.sm,
       ),
       decoration: BoxDecoration(
@@ -261,7 +177,7 @@ class _PoweredByPill extends StatelessWidget {
             ),
           ],
         ),
-        style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+        style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
       ),
     );
   }

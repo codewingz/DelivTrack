@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../common_widgets/app_text_field.dart';
 import '../../../common_widgets/primary_button.dart';
+import '../../../constants/app_colors.dart';
 import '../data/auth_repository.dart';
 import '../../../core/view_models/action_view_model.dart';
 import 'auth_scaffold.dart';
@@ -51,8 +52,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         final busy = _viewModel.isLoading;
         return AuthScaffold(
           formKey: _formKey,
-          title: 'Forgot password?',
-          subtitle: "Enter your email and we'll send you a link to reset your password.",
+          title: 'Reset password',
+          subtitle: 'Enter your email to recover access',
           errorMessage: _viewModel.errorMessage,
           successMessage: _sentTo == null
               ? null
@@ -71,10 +72,18 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             isLoading: busy,
             onPressed: _submit,
           ),
-          footer: AuthFooterLink(
-            prompt: 'Remembered your password?',
-            action: 'Back to log in',
+          topLink: TextButton.icon(
             onPressed: widget.onBackToLogin,
+            style: TextButton.styleFrom(
+              minimumSize: const Size(48, 48),
+              padding: EdgeInsets.zero,
+              foregroundColor: AppColors.primary,
+            ),
+            icon: const Icon(Icons.arrow_back_rounded, size: 18),
+            label: const Text(
+              'Back to Sign In',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+            ),
           ),
         );
       },

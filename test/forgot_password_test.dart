@@ -117,8 +117,8 @@ void main() {
     testWidgets('"Back to log in" calls onBackToLogin', (t) async {
       var tapped = false;
       await _pump(t, FakeAuthRepository(), onBack: () => tapped = true);
-      await t.ensureVisible(find.text('Back to log in'));
-      await t.tap(find.text('Back to log in'));
+      await t.ensureVisible(find.text('Back to Sign In'));
+      await t.tap(find.text('Back to Sign In'));
       expect(tapped, isTrue);
     });
   });

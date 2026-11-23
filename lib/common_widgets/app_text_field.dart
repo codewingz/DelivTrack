@@ -681,6 +681,11 @@ class _AppTextFieldState extends State<AppTextField> {
 
 /// The look shared by every input in the app (text fields and dropdowns): filled, rounded, with an
 /// emerald focus ring and red errors.
+/// Single-line fields are as tall as [PrimaryButton] (56): one 14px text line
+/// (20 high) plus this padding above and below.
+const double _fieldHeight = 56;
+const double _fieldVerticalPadding = (_fieldHeight - 20) / 2;
+
 InputDecoration appInputDecoration({
   String? hint,
   String? helperText,
@@ -710,10 +715,10 @@ InputDecoration appInputDecoration({
     ),
     filled: true,
     fillColor: enabled ? AppColors.surface : AppColors.disabled,
-    constraints: const BoxConstraints(minHeight: 52),
+    constraints: const BoxConstraints(minHeight: _fieldHeight),
     contentPadding: const EdgeInsets.symmetric(
       horizontal: AppSpacing.lg,
-      vertical: AppSpacing.md,
+      vertical: _fieldVerticalPadding,
     ),
     prefixIcon: prefixIcon,
     prefixText: prefixText,

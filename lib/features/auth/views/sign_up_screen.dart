@@ -58,6 +58,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         return AuthScaffold(
           formKey: _formKey,
           title: 'Create account',
+          subtitle: 'Start tracking your parcels with DelivTrack',
           errorMessage: _viewModel.errorMessage,
           fields: [
             AppTextField.name(
@@ -69,6 +70,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             AppTextField.password(
               controller: _password,
               isNew: true,
+              hint: 'Create password',
               helperText: 'At least 8 characters with letters and numbers',
               enabled: !busy,
               textInputAction: TextInputAction.next,
@@ -81,7 +83,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             ),
           ],
           button: PrimaryButton(
-            label: 'Sign Up',
+            label: 'Create Account',
             isLoading: busy,
             onPressed: _submit,
           ),

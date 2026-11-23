@@ -4383,6 +4383,73 @@ void main() {
       );
     }, skip: skip);
 
+    group('app settings', () {
+      Map<String, Object?> valid({Map<String, Object?> extra = const {}}) => {
+        'remindersEnabled': true,
+        'reminderMinutes': 540,
+        'showOverdueAlerts': true,
+        'promptWhatsAppTracking': true,
+        ...extra,
+      };
+
+      test('the owner can save and read their settings; nobody else can; they are never deleted', () async {
+        final path = 'users/${alice.uid}/settings/app';
+        Future<int> save(String? token, Map<String, Object?> data) =>
+            emu.set(token, path, data, serverTimes: const ['updatedAt']);
+        expect(await save(alice.token, valid()), 200);
+        expect(await emu.get(alice.token, path), 200);
+        expect(
+          await save(
+            alice.token,
+            valid(extra: {'payLaterDueDays': 14, 'defaultMethod': 'credit'}),
+          ),
+          200,
+          reason: 'with the optional defaults',
+        );
+        expect(await emu.get(bob.token, path), 403);
+        expect(await save(bob.token, valid()), 403);
+        expect(await emu.get(null, path), 403);
+        expect(await save(null, valid()), 403);
+        expect(await emu.delete(alice.token, path), 403);
+      }, skip: skip);
+
+      test('every value is checked', () async {
+        final path = 'users/${alice.uid}/settings/app';
+        Future<int> save(Map<String, Object?> data, {bool stamp = true}) =>
+            emu.set(
+              alice.token,
+              path,
+              data,
+              serverTimes: stamp ? const ['updatedAt'] : const [],
+            );
+        expect(await save(valid(extra: {'reminderMinutes': 0})), 200);
+        expect(await save(valid(extra: {'reminderMinutes': 1439})), 200);
+        for (final (bad, why) in <(Map<String, Object?>, String)>[
+          ({'reminderMinutes': 1440}, 'past the end of the day'),
+          ({'reminderMinutes': -1}, 'negative time'),
+          ({'reminderMinutes': '540'}, 'time as text'),
+          ({'remindersEnabled': 'yes'}, 'not a yes/no value'),
+          ({'showOverdueAlerts': 1}, 'not a yes/no value'),
+          ({'promptWhatsAppTracking': 'no'}, 'not a yes/no value'),
+          ({'payLaterDueDays': 10}, 'not one of 7, 14, 30'),
+          ({'defaultMethod': 'cash'}, 'unknown parcel type'),
+          ({'orderPrefix': 'XYZ-'}, 'a field that is not a setting'),
+        ]) {
+          expect(await save(valid(extra: bad)), 403, reason: why);
+        }
+        expect(
+          await save({...valid()}..remove('reminderMinutes')),
+          403,
+          reason: 'a required value is missing',
+        );
+        expect(
+          await save(valid(), stamp: false),
+          403,
+          reason: 'no server time',
+        );
+      }, skip: skip);
+    });
+
     group('sender profile', () {
       Map<String, dynamic> validProfile({
         String name = 'Ali Collection',

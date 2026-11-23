@@ -29,6 +29,7 @@ import '../features/payments/views/payments_screen.dart';
 import '../features/pdf/parcel_document_service.dart';
 import '../features/reminders/data/reminder_scheduler.dart';
 import '../features/reports/domain/reports.dart';
+import '../features/settings/data/settings_repository.dart';
 import '../features/settings/data/sender_profile_repository.dart';
 import '../features/settings/views/sender_profile_screen.dart';
 import '../features/settings/views/settings_screen.dart';
@@ -145,6 +146,7 @@ GoRouter createRouter(
   SenderProfileRepository senderProfileRepository =
       const NoSenderProfileRepository(),
   ReminderScheduler reminderScheduler = const NoReminderScheduler(),
+  SettingsRepository settingsRepository = const NoSettingsRepository(),
   PhoneDialer dialer = const UrlLauncherDialer(),
   ContactPicker contactPicker = const SystemContactPicker(),
   VoidCallback? onExit,
@@ -222,6 +224,7 @@ GoRouter createRouter(
         builder: (context, state) => SettingsScreen(
           repository: repository,
           scheduler: reminderScheduler,
+          settingsRepository: settingsRepository,
         ),
       ),
       GoRoute(
@@ -276,6 +279,7 @@ GoRouter createRouter(
           customerRepository: customerRepository,
           productRepository: productRepository,
           onAddCustomer: () => context.push<String>(AppRoutes.customerNew),
+          settings: settingsRepository.current,
         ),
       ),
       // Declared before the details route so "edit" is not read as a parcel id.
@@ -300,6 +304,7 @@ GoRouter createRouter(
           repository: parcelRepository,
           senderProfileRepository: senderRepo,
           documentService: const PrintingParcelDocumentService(),
+          settingsRepository: settingsRepository,
           parcelId: state.pathParameters['id']!,
           onEdit: (parcel) =>
               context.push<String>(AppRoutes.parcelEdit, extra: parcel),
@@ -354,6 +359,7 @@ GoRouter createRouter(
                     repository: repository,
                     parcelRepository: parcelRepository,
                     reminderScheduler: reminderScheduler,
+                    settingsRepository: settingsRepository,
                     onOpenReminders: () => context.push(AppRoutes.reminders),
                     onOpenParcel: (id) =>
                         context.push(AppRoutes.parcelPath(id)),

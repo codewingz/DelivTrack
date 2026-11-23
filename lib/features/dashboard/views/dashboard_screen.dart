@@ -22,6 +22,8 @@ import '../../parcels/views/parcels_screen.dart';
 import '../../reminders/data/reminder_scheduler.dart';
 import '../../reminders/domain/reminder_schedule.dart';
 import '../../reminders/viewmodel/reminder_list_view_model.dart';
+import '../../settings/data/settings_repository.dart';
+import '../../settings/domain/app_settings.dart';
 import '../domain/dashboard_stats.dart';
 import 'dashboard_widgets.dart';
 
@@ -38,11 +40,13 @@ class DashboardScreen extends StatefulWidget {
     required this.onOpenParcels,
     required this.onOpenPayments,
     required this.onAddParcel,
+    this.settingsRepository = const NoSettingsRepository(),
     this.clock = const Clock(),
   });
   final AuthRepository repository;
   final ParcelRepository parcelRepository;
   final ReminderScheduler reminderScheduler;
+  final SettingsRepository settingsRepository;
   final VoidCallback onOpenReminders;
   final void Function(String parcelId) onOpenParcel;
 
@@ -66,10 +70,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Set<int>? _plannedIds;
   bool _askedForPermission = false;
 
+  // The owner's preferences, live: a change in Settings re-plans the phone's
+  // reminders and redraws Home straight away.
+  late AppSettings _settings = widget.settingsRepository.current;
+  StreamSubscription<AppSettings>? _settingsChanges;
+
   @override
   void initState() {
     super.initState();
     _parcels.addListener(_keepPhoneInStep);
+    _settingsChanges = widget.settingsRepository.watch().listen((settings) {
+      if (!mounted || settings == _settings) return;
+      setState(() => _settings = settings);
+      _keepPhoneInStep();
+      // A failure to load keeps the settings already in use.
+    }, onError: (Object _) {});
     // A notification that started the app opens its parcel once Home is up.
     final launchParcelId = widget.reminderScheduler.takeLaunchParcelId();
     if (launchParcelId != null) {
@@ -81,6 +96,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   void dispose() {
+    _settingsChanges?.cancel();
     _parcels.removeListener(_keepPhoneInStep);
     _parcels.dispose();
     super.dispose();
@@ -90,7 +106,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// phone or a reinstall: the first load after sign-in schedules everything again.
   void _keepPhoneInStep() {
     if (_parcels.isLoading || _parcels.errorMessage != null) return;
-    final planned = plannedReminders(_parcels.all, _parcels.clock.nowUtc());
+    // Reminders switched off in Settings: nothing is planned, which also
+    // cancels what the phone still holds.
+    final planned = _settings.remindersEnabled
+        ? plannedReminders(
+            _parcels.all,
+            _parcels.clock.nowUtc(),
+            minutesOfDay: _settings.reminderMinutes,
+          )
+        : const <PlannedReminder>[];
     unawaited(widget.reminderScheduler.sync(planned));
     final ids = {for (final reminder in planned) reminder.id};
     final before = _plannedIds;
@@ -111,7 +135,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final allow = await showConfirmDialog(
       context,
       title: 'Get payment reminders?',
-      message: 'DelivTrack can remind you at 9:00 AM on the day a Pay Later payment is due. Allow notifications to turn this on.',
+      message:
+          'DelivTrack can remind you at ${_settings.reminderTimeLabel} on the day a Pay Later payment is due. Allow notifications to turn this on.',
       confirmLabel: 'Allow',
     );
     if (allow) await widget.reminderScheduler.requestPermission();
@@ -290,14 +315,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
       const SizedBox(height: AppSpacing.sm),
       AttentionCard(
         items: [
-          AttentionItem(
-            title: 'Overdue',
-            subtitle: 'Pay Later payments past their date',
-            count: stats.overdue,
-            icon: Icons.warning_amber_rounded,
-            color: AppColors.error,
-            onTap: widget.onOpenReminders,
-          ),
+          // Hidden when the owner switched overdue alerts off in Settings.
+          if (_settings.showOverdueAlerts)
+            AttentionItem(
+              title: 'Overdue',
+              subtitle: 'Pay Later payments past their date',
+              count: stats.overdue,
+              icon: Icons.warning_amber_rounded,
+              color: AppColors.error,
+              onTap: widget.onOpenReminders,
+            ),
           AttentionItem(
             title: 'Reminders due today',
             subtitle: 'Pay Later payments due today',

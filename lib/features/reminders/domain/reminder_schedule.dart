@@ -3,9 +3,6 @@ import '../../../core/time/pakistan_time.dart';
 import '../../parcels/domain/parcel.dart';
 import 'reminder_rules.dart';
 
-/// 09:00 in Pakistan (UTC+5, no daylight saving) is 04:00 UTC.
-const reminderHourUtc = 4;
-
 /// One notification to show on the phone for a Pay Later parcel.
 class PlannedReminder {
   const PlannedReminder({
@@ -34,12 +31,14 @@ class PlannedReminder {
 String parcelIdFromPayload(String payload) => payload.split('|').first;
 
 /// Reminders the phone should hold for [parcels] at [nowUtc]: Pay Later parcels with a date of today or
-/// later that still owe money, at 09:00 Pakistan time on that date. A time that has already passed is
+/// later that still owe money, at [minutesOfDay] (Pakistan time, 9:00 AM unless the owner chose
+/// another time in Settings) on that date. A time that has already passed is
 /// skipped (the in-app list shows it), so nothing is shown twice.
 List<PlannedReminder> plannedReminders(
   Iterable<Parcel> parcels,
-  DateTime nowUtc,
-) {
+  DateTime nowUtc, {
+  int minutesOfDay = 9 * 60,
+}) {
   final today = pakistanDate(nowUtc);
   final planned = <PlannedReminder>[];
   for (final parcel in parcels) {
@@ -49,7 +48,12 @@ List<PlannedReminder> plannedReminders(
     }
     final date = parcel.estimatedPaymentDate!;
     final parts = date.split('-').map(int.parse).toList();
-    final instant = DateTime.utc(parts[0], parts[1], parts[2], reminderHourUtc);
+    // Pakistan is UTC+5 with no daylight saving.
+    final instant = DateTime.utc(
+      parts[0],
+      parts[1],
+      parts[2],
+    ).add(Duration(minutes: minutesOfDay - 5 * 60));
     if (!instant.isAfter(nowUtc)) continue;
     planned.add(
       PlannedReminder(

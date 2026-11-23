@@ -15,6 +15,7 @@ import '../../../core/money/money.dart';
 import '../../../core/time/pakistan_time.dart';
 import '../../../design_system/foundations/radius/app_radius.dart';
 import '../../../design_system/foundations/spacing/app_spacing.dart';
+import '../../settings/data/settings_repository.dart';
 import '../data/parcel_repository.dart';
 import '../domain/parcel.dart';
 import '../domain/parcel_enums.dart';
@@ -36,6 +37,7 @@ class ParcelDetailsScreen extends StatefulWidget {
     required this.onEdit,
     this.senderProfileRepository = const NoSenderProfileRepository(),
     this.documentService = const PrintingParcelDocumentService(),
+    this.settingsRepository = const NoSettingsRepository(),
   });
   final ParcelRepository repository;
   final String parcelId;
@@ -44,6 +46,7 @@ class ParcelDetailsScreen extends StatefulWidget {
   final Future<String?> Function(Parcel parcel) onEdit;
   final SenderProfileRepository senderProfileRepository;
   final ParcelDocumentService documentService;
+  final SettingsRepository settingsRepository;
 
   @override
   State<ParcelDetailsScreen> createState() => _ParcelDetailsScreenState();
@@ -127,6 +130,8 @@ class _ParcelDetailsScreenState extends State<ParcelDetailsScreen> {
         ),
       );
 
+      // Switched off in Settings: the message's WhatsApp button is enough.
+      if (!widget.settingsRepository.current.promptWhatsAppTracking) return;
       final sendNow = await showConfirmDialog(
         context,
         title: 'Send tracking update?',

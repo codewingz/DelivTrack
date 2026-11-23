@@ -4,6 +4,7 @@ import '../../../common_widgets/app_3d_decorations.dart';
 import '../../../common_widgets/app_hero_header.dart';
 import '../../../common_widgets/app_logo.dart';
 import '../../../common_widgets/liquid_glass.dart';
+import '../../../common_widgets/powered_by_pill.dart';
 import '../../../constants/app_colors.dart';
 import '../../../design_system/foundations/radius/app_radius.dart';
 import '../../../design_system/foundations/spacing/app_spacing.dart';
@@ -141,7 +142,7 @@ class AuthScaffold extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xl),
-                  const Align(child: _PoweredByPill()),
+                  const Align(child: PoweredByPill()),
                 ],
               ),
             ),
@@ -168,49 +169,6 @@ class _AuthMessage extends StatelessWidget {
           fontWeight: FontWeight.w600,
           color: color,
         ),
-      ),
-    );
-  }
-}
-
-class _PoweredByPill extends StatelessWidget {
-  const _PoweredByPill();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.sm,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-        border: Border.all(color: AppColors.border),
-        // Same soft shadow + solid ledge as the 3D cards.
-        boxShadow: const [
-          BoxShadow(
-            color: AppColors.cardShadow,
-            blurRadius: 18,
-            offset: Offset(0, 8),
-          ),
-          BoxShadow(color: AppColors.cardBevel, offset: Offset(0, 4)),
-        ],
-      ),
-      child: const Text.rich(
-        TextSpan(
-          text: 'Powered by  ',
-          children: [
-            TextSpan(
-              text: 'CodeWingz',
-              style: TextStyle(
-                fontWeight: FontWeight.w800,
-                color: AppColors.primary,
-              ),
-            ),
-          ],
-        ),
-        style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
       ),
     );
   }

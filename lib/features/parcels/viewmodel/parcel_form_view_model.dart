@@ -24,13 +24,27 @@ class ItemDraft {
 
 /// State of the Add Parcel form and the rules that connect its fields.
 class ParcelFormViewModel extends ChangeNotifier {
-  ParcelFormViewModel() : parcel = null, items = [ItemDraft(0)] {
+  /// A new parcel. [defaultMethod] and [payLaterDueDays] are the owner's
+  /// defaults from Settings; [today] ("yyyy-MM-dd", Pakistan) is what the due
+  /// days count from.
+  ParcelFormViewModel({
+    CollectionMethod? defaultMethod,
+    this.payLaterDueDays,
+    this.today,
+  }) : parcel = null,
+       items = [ItemDraft(0)] {
+    method = defaultMethod;
+    payDate = _defaultPayDate();
+    // Taken after the defaults, so a form the owner has not touched can be
+    // left without the "Discard?" question.
     _initialSignature = _signature();
   }
 
   /// Prefills the form from a saved parcel (edit mode).
   ParcelFormViewModel.fromParcel(Parcel saved)
     : parcel = saved,
+      payLaterDueDays = null,
+      today = null,
       customer = Customer(
         id: saved.customerId,
         name: saved.customerName,
@@ -73,6 +87,12 @@ class ParcelFormViewModel extends ChangeNotifier {
   int? chargePaisa;
   int? packedGrams;
   String? payDate;
+
+  /// The owner's default number of days until a Pay Later payment is due.
+  final int? payLaterDueDays;
+
+  /// Today in Pakistan ("yyyy-MM-dd"), which the due days count from.
+  final String? today;
   final List<ItemDraft> items;
 
   int _nextKey = 1;
@@ -127,9 +147,25 @@ class ParcelFormViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// The owner's default payment date for a new Pay Later parcel, or null.
+  String? _defaultPayDate() {
+    final days = payLaterDueDays;
+    final today = this.today;
+    if (method != CollectionMethod.payLater || days == null || today == null) {
+      return null;
+    }
+    final due = DateTime.parse('${today}T00:00:00Z').add(Duration(days: days));
+    return '${due.year.toString().padLeft(4, '0')}-${due.month.toString().padLeft(2, '0')}-${due.day.toString().padLeft(2, '0')}';
+  }
+
   void setMethod(CollectionMethod value) {
+    final wasPayLater = method == CollectionMethod.payLater;
     method = value;
-    if (value != CollectionMethod.payLater) payDate = null;
+    if (value != CollectionMethod.payLater) {
+      payDate = null;
+    } else if (!wasPayLater) {
+      payDate = _defaultPayDate();
+    }
     notifyListeners();
   }
 

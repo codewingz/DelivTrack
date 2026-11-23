@@ -18,6 +18,7 @@ import '../../customers/data/customer_repository.dart';
 import '../../customers/domain/customer.dart';
 import '../../customers/views/customer_picker_screen.dart';
 import '../../products/data/product_repository.dart';
+import '../../settings/domain/app_settings.dart';
 import '../../products/domain/product.dart';
 import '../../products/views/product_picker_screen.dart';
 import '../data/parcel_repository.dart';
@@ -35,6 +36,7 @@ class ParcelFormScreen extends StatefulWidget {
     required this.productRepository,
     required this.onAddCustomer,
     this.parcel,
+    this.settings = const AppSettings(),
     this.clock = const Clock(),
   });
 
@@ -47,6 +49,9 @@ class ParcelFormScreen extends StatefulWidget {
 
   /// The parcel to edit; null when adding.
   final Parcel? parcel;
+
+  /// The owner's defaults for a new parcel (parcel type, Pay Later date).
+  final AppSettings settings;
   final Clock clock;
 
   @override
@@ -56,7 +61,11 @@ class ParcelFormScreen extends StatefulWidget {
 class _ParcelFormScreenState extends State<ParcelFormScreen> {
   final _formKey = GlobalKey<FormState>();
   late final _form = widget.parcel == null
-      ? ParcelFormViewModel()
+      ? ParcelFormViewModel(
+          defaultMethod: widget.settings.defaultMethod,
+          payLaterDueDays: widget.settings.payLaterDueDays,
+          today: pakistanDate(widget.clock.nowUtc()),
+        )
       : ParcelFormViewModel.fromParcel(widget.parcel!);
   final _action = ActionViewModel();
   bool _saved = false;

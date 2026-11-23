@@ -15,6 +15,7 @@ import 'features/customers/data/phone_dialer.dart';
 import 'features/parcels/data/parcel_repository.dart';
 import 'features/products/data/product_repository.dart';
 import 'features/reminders/data/reminder_scheduler.dart';
+import 'features/settings/data/settings_repository.dart';
 import 'features/settings/data/sender_profile_repository.dart';
 import 'firebase_options.dart';
 import 'routes/app_router.dart';
@@ -51,6 +52,7 @@ Future<void> main() async {
       customerRepository: FirestoreCustomerRepository(),
       parcelRepository: FirestoreParcelRepository(),
       senderProfileRepository: FirestoreSenderProfileRepository(),
+      settingsRepository: FirestoreSettingsRepository(),
     ),
   );
 }
@@ -64,6 +66,7 @@ class DelivTrackApp extends StatefulWidget {
     required this.parcelRepository,
     this.senderProfileRepository = const NoSenderProfileRepository(),
     this.reminderScheduler = const NoReminderScheduler(),
+    this.settingsRepository = const NoSettingsRepository(),
     this.dialer = const NoPhoneDialer(),
     this.contactPicker = const NoContactPicker(),
     this.onExit,
@@ -74,6 +77,7 @@ class DelivTrackApp extends StatefulWidget {
   final ParcelRepository parcelRepository;
   final SenderProfileRepository senderProfileRepository;
   final ReminderScheduler reminderScheduler;
+  final SettingsRepository settingsRepository;
   final PhoneDialer dialer;
   final ContactPicker contactPicker;
   final VoidCallback? onExit;
@@ -91,6 +95,7 @@ class _DelivTrackAppState extends State<DelivTrackApp>
     widget.parcelRepository,
     senderProfileRepository: widget.senderProfileRepository,
     reminderScheduler: widget.reminderScheduler,
+    settingsRepository: widget.settingsRepository,
     dialer: widget.dialer,
     contactPicker: widget.contactPicker,
     onExit: widget.onExit,

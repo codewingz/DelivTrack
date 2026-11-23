@@ -325,7 +325,7 @@ class _NotificationsOffBanner extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xs),
               const Text(
-                'Turn them on to get a reminder at 9:00 AM on the day a payment is due. This list always works without them.',
+                'Turn them on to get a reminder on the day a payment is due, at the time set in Settings. This list always works without them.',
                 style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
               ),
               TextButton(

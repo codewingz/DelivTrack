@@ -477,6 +477,29 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // The owner's preferences (reminders, defaults for new parcels). Every value is checked, so a
+    // changed app cannot store anything else here.
+    function validAppSettings(data) {
+      return data.keys().hasOnly(['remindersEnabled', 'reminderMinutes', 'showOverdueAlerts',
+          'promptWhatsAppTracking', 'payLaterDueDays', 'defaultMethod', 'updatedAt'])
+        && data.keys().hasAll(['remindersEnabled', 'reminderMinutes', 'showOverdueAlerts',
+          'promptWhatsAppTracking', 'updatedAt'])
+        && data.remindersEnabled is bool
+        && data.showOverdueAlerts is bool
+        && data.promptWhatsAppTracking is bool
+        && data.reminderMinutes is int && data.reminderMinutes >= 0 && data.reminderMinutes <= 1439
+        && (!('payLaterDueDays' in data) || data.payLaterDueDays in [7, 14, 30])
+        && (!('defaultMethod' in data)
+            || data.defaultMethod in ['postal_collection', 'advance', 'credit', 'free_gift'])
+        && data.updatedAt == request.time;
+    }
+
+    match /users/{uid}/settings/app {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid) && validAppSettings(request.resource.data);
+      allow delete: if false;
+    }
+
     // Everything else is closed.
     match /{document=**} {
       allow read, write: if false;

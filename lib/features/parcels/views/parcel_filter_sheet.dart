@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../common_widgets/app_date_field.dart';
 import '../../../common_widgets/app_form_sheet.dart';
-import '../../../common_widgets/app_select_field.dart';
+import '../../../common_widgets/app_dropdown_field.dart';
 import '../../../constants/app_colors.dart';
 import '../../../core/errors/app_failure.dart';
 import '../../../design_system/foundations/radius/app_radius.dart';
@@ -57,35 +57,6 @@ class _FilterSheet extends StatefulWidget {
 class _FilterSheetState extends State<_FilterSheet> {
   late ParcelFilters _filters = widget.current;
 
-  Future<void> _pickProduct() async {
-    // A real value even for "any product", so closing the dialog without choosing changes nothing.
-    final chosen = await showDialog<({String? id, String? name})>(
-      context: context,
-      builder: (context) => SimpleDialog(
-        title: const Text('Product'),
-        children: [
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(context, (id: null, name: null)),
-            child: const Text('Any product'),
-          ),
-          for (final product in widget.products)
-            SimpleDialogOption(
-              onPressed: () =>
-                  Navigator.pop(context, (id: product.id, name: product.name)),
-              child: Text(product.name),
-            ),
-        ],
-      ),
-    );
-    if (chosen == null) return;
-    setState(
-      () => _filters = _filters.copyWith(
-        productId: chosen.id,
-        productName: chosen.name,
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final count = widget.countFor?.call(_filters);
@@ -134,10 +105,27 @@ class _FilterSheetState extends State<_FilterSheet> {
         _Section(
           children: [
             const _SectionLabel('Product'),
-            AppSelectField(
+            // The same dropdown as "Parcel type" on the parcel form. An empty
+            // id stands for "Any product".
+            AppDropdownField<String>(
               hint: 'Any product',
-              displayText: _filters.productName,
-              onTap: _pickProduct,
+              enabled: !busy,
+              value: _filters.productId ?? '',
+              options: [
+                (value: '', label: 'Any product'),
+                for (final product in widget.products)
+                  (value: product.id, label: product.name),
+              ],
+              onChanged: (id) => setState(
+                () => _filters = _filters.copyWith(
+                  productId: id.isEmpty ? null : id,
+                  productName: id.isEmpty
+                      ? null
+                      : widget.products
+                            .firstWhere((product) => product.id == id)
+                            .name,
+                ),
+              ),
             ),
           ],
         ),

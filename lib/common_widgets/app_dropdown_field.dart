@@ -13,7 +13,7 @@ import 'app_text_field.dart';
 class AppDropdownField<T> extends StatefulWidget {
   const AppDropdownField({
     super.key,
-    required this.label,
+    this.label,
     required this.hint,
     required this.options,
     required this.value,
@@ -23,7 +23,8 @@ class AppDropdownField<T> extends StatefulWidget {
     this.enabled = true,
   });
 
-  final String label;
+  /// Shown above the field; leave out when the group already has a heading.
+  final String? label;
   final String hint;
   final List<({T value, String label})> options;
 
@@ -69,8 +70,10 @@ class _AppDropdownFieldState<T> extends State<AppDropdownField<T>> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        AppFieldLabel(widget.label, isRequired: widget.isRequired),
-        const SizedBox(height: AppSpacing.sm),
+        if (widget.label != null) ...[
+          AppFieldLabel(widget.label!, isRequired: widget.isRequired),
+          const SizedBox(height: AppSpacing.sm),
+        ],
         DropdownButtonFormField2<T>(
           valueListenable: _value,
           isExpanded: true,

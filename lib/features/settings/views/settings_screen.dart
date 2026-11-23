@@ -9,7 +9,6 @@ import '../../../common_widgets/liquid_glass.dart';
 import '../../../common_widgets/powered_by_pill.dart';
 import '../../../common_widgets/primary_button.dart';
 import '../../../constants/app_colors.dart';
-import '../../../constants/app_info.dart';
 import '../../../core/errors/app_failure.dart';
 import '../../../design_system/foundations/spacing/app_spacing.dart';
 import '../../auth/data/auth_repository.dart';
@@ -288,8 +287,6 @@ class _SettingsScreenState extends State<SettingsScreen>
                           'Email',
                           widget.repository.email ?? 'Not available',
                         ),
-                        const SizedBox(height: AppSpacing.md),
-                        const _Info('App version', appVersion),
                       ],
                     ),
                     const SizedBox(height: AppSpacing.xl),

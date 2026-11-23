@@ -1,6 +1,3 @@
-import 'dart:io';
-
-import 'package:deliv_track/constants/app_info.dart';
 import 'package:deliv_track/core/errors/app_failure.dart';
 import 'package:deliv_track/features/parcels/domain/parcel_enums.dart';
 import 'package:deliv_track/features/settings/data/settings_repository.dart';
@@ -49,17 +46,8 @@ Future<MemorySettingsRepository> _open(
 Finder _switch(String title) => find.widgetWithText(SwitchListTile, title);
 
 void main() {
-  test('the version shown in Settings is the pubspec version', () {
-    final pubspec = File('pubspec.yaml').readAsStringSync();
-    final version = RegExp(
-      r'^version:\s*(\S+)',
-      multiLine: true,
-    ).firstMatch(pubspec)!.group(1);
-    expect(appVersion, version);
-  });
-
   testWidgets(
-    'shows the defaults, the account email and the version; no backup note and no Log out',
+    'shows the defaults and the account email; no app version, backup note or Log out',
     (t) async {
       await _open(
         t,
@@ -88,7 +76,7 @@ void main() {
       expect(find.text('No default date'), findsOneWidget);
       expect(find.text('Ask every time'), findsOneWidget);
       expect(find.text('ali@codewingz.com'), findsOneWidget);
-      expect(find.text(appVersion), findsOneWidget);
+      expect(find.text('App version'), findsNothing);
       expect(
         find.textContaining('whenever you open DelivTrack'),
         findsOneWidget,

@@ -8,6 +8,8 @@ class SenderProfile {
     required this.address,
     this.businessName = '',
     this.preferSenderName = false,
+    this.invoiceUsesSenderName = false,
+    this.labelUsesSenderName = false,
   });
 
   const SenderProfile.empty()
@@ -15,7 +17,9 @@ class SenderProfile {
       phone = '',
       address = '',
       businessName = '',
-      preferSenderName = false;
+      preferSenderName = false,
+      invoiceUsesSenderName = false,
+      labelUsesSenderName = false;
 
   final String name;
   final String phone;
@@ -30,8 +34,20 @@ class SenderProfile {
 
   /// The name shown to customers: the business name, unless the owner chose
   /// the sender name or gave no business name. Empty when nothing is saved.
-  String get customerFacingName =>
-      !preferSenderName && businessName.isNotEmpty ? businessName : name;
+  String get customerFacingName => _nameFor(preferSenderName);
+
+  /// The same choice, made separately for invoices and for printed labels.
+  final bool invoiceUsesSenderName;
+  final bool labelUsesSenderName;
+
+  /// The name printed on invoices.
+  String get invoiceName => _nameFor(invoiceUsesSenderName);
+
+  /// The name printed on shipping labels.
+  String get labelName => _nameFor(labelUsesSenderName);
+
+  String _nameFor(bool useSenderName) =>
+      !useSenderName && businessName.isNotEmpty ? businessName : name;
 
   Map<String, dynamic> toMap() => {
     'name': collapseSpaces(name),
@@ -40,6 +56,8 @@ class SenderProfile {
     if (collapseSpaces(businessName).isNotEmpty)
       'businessName': collapseSpaces(businessName),
     if (preferSenderName) 'preferSenderName': true,
+    if (invoiceUsesSenderName) 'invoiceUsesSenderName': true,
+    if (labelUsesSenderName) 'labelUsesSenderName': true,
   };
 
   factory SenderProfile.fromMap(Map<String, dynamic> map) {
@@ -49,6 +67,8 @@ class SenderProfile {
       address: (map['address'] as String?)?.trim() ?? '',
       businessName: (map['businessName'] as String?)?.trim() ?? '',
       preferSenderName: map['preferSenderName'] == true,
+      invoiceUsesSenderName: map['invoiceUsesSenderName'] == true,
+      labelUsesSenderName: map['labelUsesSenderName'] == true,
     );
   }
 
@@ -58,12 +78,16 @@ class SenderProfile {
     String? address,
     String? businessName,
     bool? preferSenderName,
+    bool? invoiceUsesSenderName,
+    bool? labelUsesSenderName,
   }) => SenderProfile(
     name: name ?? this.name,
     phone: phone ?? this.phone,
     address: address ?? this.address,
     businessName: businessName ?? this.businessName,
     preferSenderName: preferSenderName ?? this.preferSenderName,
+    invoiceUsesSenderName: invoiceUsesSenderName ?? this.invoiceUsesSenderName,
+    labelUsesSenderName: labelUsesSenderName ?? this.labelUsesSenderName,
   );
 
   @override
@@ -75,9 +99,18 @@ class SenderProfile {
           phone == other.phone &&
           address == other.address &&
           businessName == other.businessName &&
-          preferSenderName == other.preferSenderName;
+          preferSenderName == other.preferSenderName &&
+          invoiceUsesSenderName == other.invoiceUsesSenderName &&
+          labelUsesSenderName == other.labelUsesSenderName;
 
   @override
-  int get hashCode =>
-      Object.hash(name, phone, address, businessName, preferSenderName);
+  int get hashCode => Object.hash(
+    name,
+    phone,
+    address,
+    businessName,
+    preferSenderName,
+    invoiceUsesSenderName,
+    labelUsesSenderName,
+  );
 }

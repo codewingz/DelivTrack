@@ -43,6 +43,8 @@ class _SenderProfileScreenState extends State<SenderProfileScreen> {
   /// nothing is saved yet (the form is shown).
   SenderProfile? _saved;
   bool _preferSenderName = false;
+  bool _invoiceUsesSenderName = false;
+  bool _labelUsesSenderName = false;
   bool _editing = false;
 
   @override
@@ -75,6 +77,8 @@ class _SenderProfileScreenState extends State<SenderProfileScreen> {
     _name.text = profile.name;
     _business.text = profile.businessName;
     _preferSenderName = profile.preferSenderName;
+    _invoiceUsesSenderName = profile.invoiceUsesSenderName;
+    _labelUsesSenderName = profile.labelUsesSenderName;
     _phone.text = profile.phone;
     _address.text = profile.address;
   }
@@ -95,6 +99,8 @@ class _SenderProfileScreenState extends State<SenderProfileScreen> {
       name: collapseSpaces(_name.text),
       businessName: collapseSpaces(_business.text),
       preferSenderName: _preferSenderName,
+      invoiceUsesSenderName: _invoiceUsesSenderName,
+      labelUsesSenderName: _labelUsesSenderName,
       phone: collapseSpaces(_phone.text),
       address: collapseSpaces(_address.text),
     );
@@ -200,18 +206,36 @@ class _SenderProfileScreenState extends State<SenderProfileScreen> {
               icon: Icons.storefront_outlined,
               isRequired: false,
             ),
-            const SizedBox(height: AppSpacing.lg),
-            // Which name customers see in WhatsApp messages. Without a
-            // business name the sender name is used either way.
-            AppChoiceField<bool>(
-              label: 'Name shown to customers',
-              initialValue: _preferSenderName,
-              options: const [
-                (value: false, label: 'Business name'),
-                (value: true, label: 'Sender name'),
-              ],
-              onChanged: (value) => _preferSenderName = value,
-            ),
+            // Which name is used in each place. Without a business name the
+            // sender name is used everywhere.
+            for (final (label, initial, onChanged) in [
+              (
+                'Name in WhatsApp messages',
+                _preferSenderName,
+                (bool v) => _preferSenderName = v,
+              ),
+              (
+                'Name on invoices',
+                _invoiceUsesSenderName,
+                (bool v) => _invoiceUsesSenderName = v,
+              ),
+              (
+                'Name on printed labels',
+                _labelUsesSenderName,
+                (bool v) => _labelUsesSenderName = v,
+              ),
+            ]) ...[
+              AppChoiceField<bool>(
+                label: label,
+                initialValue: initial,
+                options: const [
+                  (value: false, label: 'Business name'),
+                  (value: true, label: 'Sender name'),
+                ],
+                onChanged: onChanged,
+              ),
+              const SizedBox(height: AppSpacing.lg),
+            ],
             const SizedBox(height: AppSpacing.lg),
             AppTextField.phone(
               controller: _phone,
@@ -370,12 +394,21 @@ class _SavedDetails extends StatelessWidget {
             profile.address,
             style: const TextStyle(fontSize: 15, color: AppColors.textPrimary),
           ),
-          const SizedBox(height: AppSpacing.md),
-          const _FieldLabel('Name shown to customers'),
-          Text(
-            profile.customerFacingName,
-            style: const TextStyle(fontSize: 15, color: AppColors.textPrimary),
-          ),
+          for (final (label, value) in [
+            ('Name in WhatsApp messages', profile.customerFacingName),
+            ('Name on invoices', profile.invoiceName),
+            ('Name on printed labels', profile.labelName),
+          ]) ...[
+            const SizedBox(height: AppSpacing.md),
+            _FieldLabel(label),
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 15,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ],
         ],
       ),
     );

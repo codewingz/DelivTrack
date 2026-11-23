@@ -21,7 +21,9 @@ class ShippingLabelPdfBuilder {
   }) async {
     final doc = pw.Document(title: 'Shipping Label #${parcel.orderNumber}');
 
-    final senderName = sender.name.isNotEmpty ? sender.name : 'Merchant (Sender)';
+    final senderName = sender.labelName.isNotEmpty
+        ? sender.labelName
+        : 'Merchant (Sender)';
     final senderPhone = sender.phone;
     final senderAddress = sender.address;
 

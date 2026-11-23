@@ -30,4 +30,14 @@ void main() {
     expect(noBusiness.customerFacingName, 'Ali Raza');
     expect(const SenderProfile.empty().customerFacingName, '');
   });
+
+  test('messages, invoices and labels are chosen separately', () {
+    final mixed = base.copyWith(labelUsesSenderName: true);
+    expect(mixed.customerFacingName, 'Ali Collection');
+    expect(mixed.invoiceName, 'Ali Collection');
+    expect(mixed.labelName, 'Ali Raza');
+    expect(mixed.toMap()['labelUsesSenderName'], true);
+    expect(mixed.toMap().containsKey('invoiceUsesSenderName'), isFalse);
+    expect(SenderProfile.fromMap(mixed.toMap()), mixed);
+  });
 }

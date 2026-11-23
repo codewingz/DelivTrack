@@ -23,7 +23,9 @@ class InvoicePdfBuilder {
   }) async {
     final doc = pw.Document(title: 'Invoice #${parcel.orderNumber}');
 
-    final merchantName = sender.name.isNotEmpty ? sender.name : 'DelivTrack Merchant';
+    final merchantName = sender.invoiceName.isNotEmpty
+        ? sender.invoiceName
+        : 'DelivTrack Merchant';
     final merchantPhone = sender.phone;
     final merchantAddress = sender.address;
 

@@ -42,8 +42,8 @@ void main() {
         await t.pumpAndSettle();
 
         expect(find.byType(TextFormField), findsNothing);
-        // the title, and again as the name shown to customers
-        expect(find.text('Ali Collection'), findsNWidgets(2));
+        // the title, and the name used in messages, invoices and labels
+        expect(find.text('Ali Collection'), findsNWidgets(4));
         expect(find.text('Sender: Ali Raza'), findsOneWidget);
         expect(find.text('0300 1234567'), findsOneWidget);
         expect(find.text('Shop 12, Main Bazaar, Lahore'), findsOneWidget);
@@ -72,7 +72,7 @@ void main() {
       );
       await t.pumpWidget(_wrap(SenderProfileScreen(repository: repo)));
       await t.pumpAndSettle();
-      expect(find.text('Ali Raza'), findsNWidgets(2));
+      expect(find.text('Ali Raza'), findsNWidgets(4));
       expect(find.textContaining('Sender:'), findsNothing);
     });
 
@@ -91,9 +91,16 @@ void main() {
       await t.pumpAndSettle();
       await t.tap(find.text('Edit'));
       await t.pumpAndSettle();
-      await t.ensureVisible(find.text('Sender name'));
-      await t.pumpAndSettle();
-      await t.tap(find.text('Sender name'));
+      // the choices, in order: WhatsApp messages, invoices, printed labels
+      for (final choice in [
+        find.text('Sender name').first,
+        find.text('Sender name').at(2),
+      ]) {
+        await t.ensureVisible(choice);
+        await t.pumpAndSettle();
+        await t.tap(choice);
+        await t.pumpAndSettle();
+      }
       await t.pumpAndSettle();
       await t.ensureVisible(find.text('Save details'));
       await t.pumpAndSettle();
@@ -102,6 +109,10 @@ void main() {
       final saved = await repo.getProfile();
       expect(saved?.preferSenderName, isTrue);
       expect(saved?.customerFacingName, 'Ali Raza');
+      expect(saved?.invoiceUsesSenderName, isFalse, reason: 'left as it was');
+      expect(saved?.invoiceName, 'Ali Collection');
+      expect(saved?.labelUsesSenderName, isTrue);
+      expect(saved?.labelName, 'Ali Raza');
     });
 
     testWidgets('validation prevents saving empty or invalid fields', (
@@ -164,7 +175,7 @@ void main() {
       expect(find.text('Sender details saved.'), findsOneWidget);
       // back to the read-only view of what was saved
       expect(find.byType(TextFormField), findsNothing);
-      expect(find.text('Zara Collections'), findsNWidgets(2));
+      expect(find.text('Zara Collections'), findsNWidgets(4));
       expect(find.text('Edit'), findsOneWidget);
     });
 
@@ -177,7 +188,7 @@ void main() {
         await t.pumpAndSettle();
 
         expect(find.byType(BrandLoadingIndicator), findsNothing);
-        expect(find.text('Name shown to customers'), findsOneWidget);
+        expect(find.text('Name in WhatsApp messages'), findsOneWidget);
         expect(
           find.text('Could not load profile. You can enter details below.'),
           findsOneWidget,

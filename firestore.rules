@@ -457,13 +457,15 @@ service cloud.firestore {
     }
 
     function validSenderProfile(data) {
-      return data.keys().hasOnly(['name', 'phone', 'address', 'businessName', 'preferSenderName', 'updatedAt'])
+      return data.keys().hasOnly(['name', 'phone', 'address', 'businessName', 'preferSenderName', 'invoiceUsesSenderName', 'labelUsesSenderName', 'updatedAt'])
         && data.keys().hasAll(['name', 'phone', 'address', 'updatedAt'])
         && trimmedText(data.name, 2, 60)
         // the business name is optional
         && (!('businessName' in data) || trimmedText(data.businessName, 2, 60))
         // stored only when the owner chose the sender name for customer messages
         && (!('preferSenderName' in data) || data.preferSenderName == true)
+        && (!('invoiceUsesSenderName' in data) || data.invoiceUsesSenderName == true)
+        && (!('labelUsesSenderName' in data) || data.labelUsesSenderName == true)
         && trimmedText(data.phone, 10, 20)
         && trimmedText(data.address, 5, 200)
         && data.updatedAt == request.time;

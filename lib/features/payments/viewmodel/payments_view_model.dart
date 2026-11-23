@@ -28,6 +28,14 @@ class PaymentsViewModel extends LiveListViewModel<Parcel> {
     notifyListeners();
   }
 
+  /// How many active parcels have received nothing yet (the Pending list).
+  int get pendingCount => all
+      .where(
+        (parcel) =>
+            !parcel.isArchived && PaymentTab.pending.includes(parcel, today),
+      )
+      .length;
+
   /// Everything in the selected list.
   List<Parcel> get matching => [
     for (final parcel in all)

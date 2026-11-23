@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../common_widgets/app_3d_decorations.dart';
 import '../../../common_widgets/count_badge.dart';
 import '../../../common_widgets/empty_state.dart';
+import '../../../common_widgets/liquid_glass.dart';
 import '../../../common_widgets/searchable_list_page.dart';
 import '../../../common_widgets/status_chip.dart';
 import '../../../constants/app_colors.dart';
@@ -283,24 +284,29 @@ class _FiltersButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return OutlinedButton.icon(
-      style: OutlinedButton.styleFrom(
-        minimumSize: const Size(48, 56),
-        foregroundColor: AppColors.primary,
-        backgroundColor: AppColors.surface,
-        side: const BorderSide(color: AppColors.border, width: 1.2),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.control),
+    return GlassSurface(
+      radius: AppRadius.control,
+      blurSigma: 12,
+      child: OutlinedButton.icon(
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size(48, 56),
+          foregroundColor: AppColors.primary,
+          // The glass panel draws the fill and the edge.
+          side: BorderSide.none,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.control),
+          ),
         ),
-      ),
-      onPressed: onPressed,
-      icon: CountBadge(
-        count: activeCount,
-        child: const Icon(Icons.tune_rounded),
-      ),
-      label: const Text(
-        'Filters',
-        style: TextStyle(fontWeight: FontWeight.w700),
+        onPressed: onPressed,
+        icon: CountBadge(
+          count: activeCount,
+          child: const Icon(Icons.tune_rounded),
+        ),
+        label: const Text(
+          'Filters',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
       ),
     );
   }

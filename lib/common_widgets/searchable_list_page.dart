@@ -192,10 +192,17 @@ class SearchableListPage<T> extends StatelessWidget {
   /// The search box with [searchTrailing] beside it, or under it when large
   /// text leaves no room for both.
   Widget _searchRow(BuildContext context) {
-    final search = AppTextField.search(
-      controller: searchController!,
-      hint: searchHint,
-      onChanged: onQueryChanged,
+    // Glass, blurred: the green header shows through the half that lies on it.
+    final search = GlassSurface(
+      radius: AppRadius.control,
+      blurSigma: 12,
+      ledgeHeight: 0,
+      child: AppTextField.search(
+        controller: searchController!,
+        hint: searchHint,
+        onChanged: onQueryChanged,
+        glass: true,
+      ),
     );
     final trailing = searchTrailing;
     if (trailing == null) return search;

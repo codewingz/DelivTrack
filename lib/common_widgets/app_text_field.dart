@@ -55,6 +55,10 @@ class AppTextField extends StatefulWidget {
   /// Shows a clear (x) button while text is present. Requires a [controller].
   final bool clearable;
 
+  /// No fill or resting border of its own: for a field placed on a
+  /// [GlassSurface], which draws them.
+  final bool glass;
+
   const AppTextField({
     super.key,
     this.controller,
@@ -84,6 +88,7 @@ class AppTextField extends StatefulWidget {
     this.focusNode,
     this.autovalidateMode,
     this.clearable = false,
+    this.glass = false,
   }) : assert(!clearable || controller != null, 'clearable needs a controller');
 
   /// Whole-number quantity, 1-99,999, counted in [unit] (pieces, boxes, dozen...).
@@ -161,12 +166,14 @@ class AppTextField extends StatefulWidget {
     required TextEditingController controller,
     String hint = 'Search',
     ValueChanged<String>? onChanged,
+    bool glass = false,
   }) {
     return AppTextField(
       key: key,
       controller: controller,
       hint: hint,
       clearable: true,
+      glass: glass,
       textCapitalization: TextCapitalization.none,
       textInputAction: TextInputAction.search,
       prefixIcon: const Icon(
@@ -640,6 +647,7 @@ class _AppTextFieldState extends State<AppTextField> {
             hint: widget.hint,
             helperText: widget.helperText,
             enabled: widget.enabled,
+            glass: widget.glass,
             prefixIcon: widget.prefixIcon,
             prefixText: widget.prefixText,
             suffixText: widget.suffixText,
@@ -694,7 +702,9 @@ InputDecoration appInputDecoration({
   String? prefixText,
   String? suffixText,
   Widget? suffixIcon,
+  bool glass = false,
 }) {
+  final restingBorder = glass ? Colors.transparent : AppColors.border;
   return InputDecoration(
     hintText: hint,
     hintStyle: const TextStyle(
@@ -714,7 +724,11 @@ InputDecoration appInputDecoration({
       color: AppColors.error,
     ),
     filled: true,
-    fillColor: enabled ? AppColors.surface : AppColors.disabled,
+    fillColor: glass
+        ? Colors.transparent
+        : enabled
+        ? AppColors.surface
+        : AppColors.disabled,
     constraints: const BoxConstraints(minHeight: _fieldHeight),
     // With an icon the text starts after the icon, so the start padding only
     // moves the error/helper line: zero puts it at the field's edge, under
@@ -743,11 +757,11 @@ InputDecoration appInputDecoration({
     suffixIcon: suffixIcon,
     border: OutlineInputBorder(
       borderRadius: BorderRadius.circular(AppRadius.control),
-      borderSide: const BorderSide(color: AppColors.border),
+      borderSide: BorderSide(color: restingBorder),
     ),
     enabledBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(AppRadius.control),
-      borderSide: const BorderSide(color: AppColors.border),
+      borderSide: BorderSide(color: restingBorder),
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(AppRadius.control),

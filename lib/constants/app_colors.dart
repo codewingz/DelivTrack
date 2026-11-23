@@ -31,6 +31,7 @@ class AppColors {
   static const btnBevel = Color(0xFF073325);
   static const fabBevel = Color(0xFF5CC5A2);
   static const stripeDue = Color(0xFFD97706);
+  static const closeButton = Color(0xFFF1F5F3);
 
   // 3D Liquid Glass
   static const liquidBase = Color(0xFFEDF4EF);

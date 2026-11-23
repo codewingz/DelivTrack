@@ -68,6 +68,12 @@ FakeParcelRepository _repo() => FakeParcelRepository(
 
 Finder get _searchField => find.byType(TextFormField).first;
 
+/// The sheet's submit button: "Show 3 Parcels" (the number follows the choices).
+Finder get _apply => find.ancestor(
+  of: find.textContaining(RegExp(r'^Show .*Parcels?$')),
+  matching: find.byType(FilledButton),
+);
+
 void main() {
   group('search', () {
     testWidgets(
@@ -150,9 +156,9 @@ void main() {
     }
 
     Future<void> apply(WidgetTester t) async {
-      await t.ensureVisible(find.widgetWithText(FilledButton, 'Apply Filters'));
+      await t.ensureVisible(_apply);
       await t.pump();
-      await t.tap(find.widgetWithText(FilledButton, 'Apply Filters'));
+      await t.tap(_apply);
       await t.pumpAndSettle();
     }
 
@@ -200,7 +206,7 @@ void main() {
     );
 
     testWidgets(
-      'reopening the sheet shows the current choices; Reset all clears them',
+      'reopening the sheet shows the current choices; Reset clears them',
       (t) async {
         await _pump(t, _repo());
         await openFilters(t);
@@ -214,7 +220,7 @@ void main() {
               .selected,
           isTrue,
         );
-        await t.tap(find.text('Reset all'));
+        await t.tap(find.text('Reset'));
         await t.pump();
         expect(
           t
@@ -290,11 +296,9 @@ void main() {
           today: '2026-11-10',
         ).then((f) => result = f);
         await t.pumpAndSettle();
-        await t.ensureVisible(
-          find.widgetWithText(FilledButton, 'Apply Filters'),
-        );
+        await t.ensureVisible(_apply);
         await t.pump();
-        await t.tap(find.widgetWithText(FilledButton, 'Apply Filters'));
+        await t.tap(_apply);
         await t.pumpAndSettle();
         expect(
           find.text('The sending date range ends before it starts.'),
@@ -346,9 +350,7 @@ void main() {
             await t.tap(find.widgetWithText(OutlinedButton, 'Filters'));
             await t.pumpAndSettle();
             expect(t.takeException(), isNull);
-            await t.ensureVisible(
-              find.widgetWithText(FilledButton, 'Apply Filters'),
-            );
+            await t.ensureVisible(_apply);
             await t.pump();
             expect(t.takeException(), isNull);
           },

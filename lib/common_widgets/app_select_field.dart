@@ -9,7 +9,7 @@ import 'app_text_field.dart';
 class AppSelectField extends StatelessWidget {
   const AppSelectField({
     super.key,
-    required this.label,
+    this.label,
     required this.hint,
     required this.displayText,
     required this.onTap,
@@ -19,7 +19,8 @@ class AppSelectField extends StatelessWidget {
     this.icon = Icons.arrow_drop_down_rounded,
   });
 
-  final String label;
+  /// Shown above the field; leave out when the group already has a heading.
+  final String? label;
   final String hint;
 
   /// Text of the current choice; null or empty when nothing is chosen.

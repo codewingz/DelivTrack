@@ -101,6 +101,14 @@ class _ParcelsScreenState extends State<ParcelsScreen> {
       current: _viewModel.filters,
       products: _viewModel.products,
       today: _viewModel.today,
+      // The payment-date filter needs dates fetched after Apply, so there is
+      // no count to show for it beforehand.
+      countFor: (filters) =>
+          filters.hasReceivedDates ||
+              _viewModel.isLoadingPaymentDates ||
+              _viewModel.paymentDatesError != null
+          ? null
+          : _viewModel.matchingWith(filters).length,
     );
     if (filters != null) _viewModel.setFilters(filters);
   }

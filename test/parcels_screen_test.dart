@@ -89,10 +89,10 @@ void main() {
             .toList();
         expect(orders, ['ADT-000002', 'ADT-000001'], reason: 'newest first');
         expect(find.text('Sara Khan'), findsOneWidget);
-        expect(find.text('VPL 22222'), findsOneWidget);
-        expect(find.text('6 Nov 2026 · Rs. 5,000'), findsOneWidget);
+        expect(find.text('VPL 22222 · 6 Nov 2026'), findsOneWidget);
+        expect(find.text('Rs. 5,000'), findsNWidgets(2));
         expect(find.text('Sent'), findsNWidgets(2));
-        expect(find.text('Pending'), findsNWidgets(2));
+        expect(find.text('Due Rs. 5,000'), findsNWidgets(2));
       },
     );
 
@@ -121,10 +121,10 @@ void main() {
           ),
         );
         expect(find.text('Draft'), findsOneWidget);
-        expect(find.text('No tracking number yet'), findsOneWidget);
+        expect(find.text('Awaiting handover · 7 Nov 2026'), findsOneWidget);
         expect(find.text('Not required'), findsOneWidget);
-        expect(find.text('7 Nov 2026 · Gift / Free'), findsOneWidget);
-        expect(find.text('XYZ 12345'), findsOneWidget);
+        expect(find.text('Gift / Free'), findsOneWidget);
+        expect(find.text('XYZ 12345 · 7 Nov 2026'), findsOneWidget);
       },
     );
 

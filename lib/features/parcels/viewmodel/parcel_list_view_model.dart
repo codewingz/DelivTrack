@@ -52,13 +52,17 @@ class ParcelListViewModel extends LiveListViewModel<Parcel> {
   }
 
   /// Every parcel that matches (before paging).
-  List<Parcel> get matching {
+  List<Parcel> get matching => matchingWith(_filters);
+
+  /// Every parcel that matches the search text and [filters] (used to count
+  /// what another choice of filters would show).
+  List<Parcel> matchingWith(ParcelFilters filters) {
     if (isLoadingPaymentDates || _paymentDatesError != null) return const [];
     final today = this.today;
     return [
       for (final parcel in all)
         if (parcelMatchesQuery(parcel, _query) &&
-            _filters.matches(
+            filters.matches(
               parcel,
               today,
               paymentDates: _paymentDates?[parcel.id] ?? const {},

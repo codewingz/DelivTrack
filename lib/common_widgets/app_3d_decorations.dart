@@ -24,10 +24,7 @@ BoxDecoration app3DCardDecoration({
         offset: Offset(0, 8),
       ),
       // 3D solid tactile bottom bevel ledge
-      BoxShadow(
-        color: AppColors.cardBevel,
-        offset: Offset(0, 4),
-      ),
+      BoxShadow(color: AppColors.cardBevel, offset: Offset(0, 4)),
     ],
   );
 }
@@ -59,10 +56,7 @@ class App3DCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget content = Padding(
-      padding: padding,
-      child: child,
-    );
+    Widget content = Padding(padding: padding, child: child);
 
     if (stripeColor != null) {
       content = Stack(
@@ -97,12 +91,7 @@ class App3DCard extends StatelessWidget {
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(radius),
         clipBehavior: Clip.antiAlias,
-        child: onTap == null
-            ? content
-            : InkWell(
-                onTap: onTap,
-                child: content,
-              ),
+        child: onTap == null ? content : InkWell(onTap: onTap, child: content),
       ),
     );
 
@@ -120,6 +109,9 @@ AppBar appCurvedAppBar({
   double toolbarHeight = kToolbarHeight,
   bool automaticallyImplyLeading = true,
   Widget? flexibleSpace,
+
+  /// How far [bottom] sticks out under the green area (e.g. half a search box).
+  double bottomOverhang = 0,
 }) {
   return AppBar(
     title: title,
@@ -134,8 +126,10 @@ AppBar appCurvedAppBar({
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
     ),
-    flexibleSpace: flexibleSpace ??
+    flexibleSpace:
+        flexibleSpace ??
         Container(
+          margin: EdgeInsets.only(bottom: bottomOverhang),
           decoration: const BoxDecoration(
             gradient: AppColors.headerGradient,
             borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
@@ -171,10 +165,7 @@ class MintFabButton extends StatelessWidget {
         gradient: AppColors.mintFabGradient,
         borderRadius: BorderRadius.circular(AppRadius.pill),
         boxShadow: const [
-          BoxShadow(
-            color: AppColors.fabBevel,
-            offset: Offset(0, 4),
-          ),
+          BoxShadow(color: AppColors.fabBevel, offset: Offset(0, 4)),
           BoxShadow(
             color: Color(0x470B4633),
             blurRadius: 16,
@@ -248,7 +239,9 @@ class TactileMetricCard extends StatelessWidget {
               width: 34,
               height: 34,
               decoration: BoxDecoration(
-                color: iconBackground ?? (iconColor ?? AppColors.primary).withValues(alpha: 0.12),
+                color:
+                    iconBackground ??
+                    (iconColor ?? AppColors.primary).withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(AppRadius.control),
               ),
               child: Icon(

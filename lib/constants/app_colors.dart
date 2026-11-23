@@ -30,6 +30,7 @@ class AppColors {
   static const cardShadow = Color(0x1F115E46);
   static const btnBevel = Color(0xFF073325);
   static const fabBevel = Color(0xFF5CC5A2);
+  static const stripeDue = Color(0xFFD97706);
 
   // Status & Financial indicators
   static const success = Color(0xFF15803D);

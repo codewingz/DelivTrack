@@ -4,6 +4,7 @@ import '../../../common_widgets/app_3d_decorations.dart';
 import '../../../common_widgets/confirm_dialog.dart';
 import '../../../common_widgets/initial_avatar.dart';
 import '../../../common_widgets/liquid_glass.dart';
+import '../../../common_widgets/status_chip.dart';
 import '../../../constants/app_colors.dart';
 import '../../../design_system/foundations/radius/app_radius.dart';
 import '../../../design_system/foundations/spacing/app_spacing.dart';
@@ -30,6 +31,11 @@ class MoreScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    // The account card sits half over the header's bottom edge and stays
+    // put. With large text or a short screen it scrolls with the page.
+    final pinAccount = textScale <= 1.3 && MediaQuery.heightOf(context) >= 480;
+    final accountHeight = 36 + 48 * textScale;
     return Scaffold(
       // The backdrop continues behind the header's curve.
       extendBodyBehindAppBar: true,
@@ -40,6 +46,30 @@ class MoreScreen extends StatelessWidget {
           subtitle: 'Workspace & settings',
           icon: Icons.grid_view_outlined,
         ),
+        bottomOverhang: pinAccount ? accountHeight / 2 + AppSpacing.sm : 0,
+        bottom: pinAccount
+            ? PreferredSize(
+                preferredSize: Size.fromHeight(accountHeight + AppSpacing.sm),
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 640),
+                    child: Padding(
+                      padding: const EdgeInsetsDirectional.fromSTEB(
+                        AppSpacing.lg,
+                        0,
+                        AppSpacing.lg,
+                        AppSpacing.sm,
+                      ),
+                      child: SizedBox(
+                        height: accountHeight,
+                        child: _Account(repository: repository, pinned: true),
+                      ),
+                    ),
+                  ),
+                ),
+              )
+            : null,
       ),
       body: LiquidBackground(
         child: SafeArea(
@@ -48,9 +78,14 @@ class MoreScreen extends StatelessWidget {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 640),
               child: ListView(
-                padding: const EdgeInsetsDirectional.all(AppSpacing.lg),
+                padding: EdgeInsetsDirectional.fromSTEB(
+                  AppSpacing.lg,
+                  pinAccount ? 0 : AppSpacing.lg,
+                  AppSpacing.lg,
+                  AppSpacing.lg,
+                ),
                 children: [
-                  _Account(repository: repository),
+                  if (!pinAccount) _Account(repository: repository),
                   const _SectionLabel('Business & catalog'),
                   _Group(
                     tiles: [
@@ -109,8 +144,20 @@ class MoreScreen extends StatelessWidget {
 
 /// Who is signed in: initial, name and email.
 class _Account extends StatelessWidget {
-  const _Account({required this.repository});
+  const _Account({required this.repository, this.pinned = false});
   final AuthRepository repository;
+
+  /// In the header the card has a fixed height: each line stays whole on one
+  /// line and shrinks to fit. In the page it wraps freely.
+  final bool pinned;
+
+  Widget _line(String text, TextStyle style) => pinned
+      ? FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: AlignmentDirectional.centerStart,
+          child: Text(text, softWrap: false, style: style),
+        )
+      : Text(text, style: style);
 
   @override
   Widget build(BuildContext context) {
@@ -121,37 +168,44 @@ class _Account extends StatelessWidget {
         final name = collapseSpaces(snapshot.data ?? '');
         final email = repository.email ?? '';
         final title = name.isNotEmpty ? name : 'DelivTrack account';
-        return App3DCard(
-          glass: true,
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Row(
-            children: [
-              InitialAvatar(name: title, filled: true),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    if (email.isNotEmpty)
-                      Text(
-                        email,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: AppColors.textSecondary,
+        return GlassSurface(
+          radius: AppRadius.hero,
+          blurSigma: 12,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.md,
+            ),
+            child: Row(
+              children: [
+                InitialAvatar(name: title, filled: true),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _line(
+                        title,
+                        const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
                         ),
                       ),
-                  ],
+                      if (email.isNotEmpty)
+                        _line(
+                          email,
+                          const TextStyle(fontSize: 13, color: AppColors.label),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(width: AppSpacing.sm),
+                // The signed-in account.
+                const StatusChip(label: 'Active', color: AppColors.primary),
+              ],
+            ),
           ),
         );
       },

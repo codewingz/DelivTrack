@@ -287,7 +287,16 @@ void main() {
       Parcel? opened;
       await _open(
         t,
-        FakeParcelRepository(initial: [testParcel(id: 'a')]),
+        FakeParcelRepository(
+          initial: [
+            testParcel(
+              id: 'a',
+              status: ParcelStatus.draft,
+              reference: '',
+              charge: null,
+            ),
+          ],
+        ),
         'a',
         onEdit: (p) async {
           opened = p;
@@ -302,7 +311,20 @@ void main() {
   );
 
   testWidgets('a cancelled edit shows no snackbar', (t) async {
-    await _open(t, FakeParcelRepository(initial: [testParcel(id: 'a')]), 'a');
+    await _open(
+      t,
+      FakeParcelRepository(
+        initial: [
+          testParcel(
+            id: 'a',
+            status: ParcelStatus.draft,
+            reference: '',
+            charge: null,
+          ),
+        ],
+      ),
+      'a',
+    );
     await t.tap(find.byTooltip('Edit parcel'));
     await t.pump();
     expect(find.text('Parcel updated.'), findsNothing);
@@ -837,7 +859,7 @@ void main() {
         expect(button('Mark Review Completed'), findsNothing);
         expect(
           button('Archive Parcel'),
-          findsOneWidget,
+          findsNothing,
           reason: 'archiving is possible once the review is done',
         );
       },
@@ -919,7 +941,7 @@ void main() {
     Finder button(String label) => find.widgetWithText(OutlinedButton, label);
 
     testWidgets(
-      'a parcel that still owes money, or is paid in full, offers no Archive; a draft, a returned one and a Gift / Free one do',
+      'a parcel that still owes money, or is paid in full, offers no Archive, nor does a returned or a Gift / Free one; only a draft does',
       (t) async {
         for (final (parcel, canArchive) in [
           (testParcel(id: 'a'), false),
@@ -943,8 +965,8 @@ void main() {
             ),
             false,
           ),
-          (testParcel(id: 'a', status: ParcelStatus.returned), true),
-          (testParcel(id: 'a', method: CollectionMethod.giftFree), true),
+          (testParcel(id: 'a', status: ParcelStatus.returned), false),
+          (testParcel(id: 'a', method: CollectionMethod.giftFree), false),
         ]) {
           await _open(t, FakeParcelRepository(initial: [parcel]), 'a');
           expect(
@@ -954,6 +976,34 @@ void main() {
           );
           await t.pumpWidget(const SizedBox());
         }
+      },
+    );
+
+    testWidgets(
+      'only a draft offers Edit: a sent parcel is locked after the handover',
+      (t) async {
+        await _open(
+          t,
+          FakeParcelRepository(initial: [testParcel(id: 'a')]),
+          'a',
+        );
+        expect(find.byTooltip('Edit parcel'), findsNothing);
+        await t.pumpWidget(const SizedBox());
+        await _open(
+          t,
+          FakeParcelRepository(
+            initial: [
+              testParcel(
+                id: 'a',
+                status: ParcelStatus.draft,
+                reference: '',
+                charge: null,
+              ),
+            ],
+          ),
+          'a',
+        );
+        expect(find.byTooltip('Edit parcel'), findsOneWidget);
       },
     );
 
@@ -1018,7 +1068,14 @@ void main() {
       'Archive asks first; Cancel keeps the parcel; Archive hides it and shows the Restore banner',
       (t) async {
         final repo = FakeParcelRepository(
-          initial: [testParcel(id: 'a', method: CollectionMethod.giftFree)],
+          initial: [
+            testParcel(
+              id: 'a',
+              status: ParcelStatus.draft,
+              reference: '',
+              charge: null,
+            ),
+          ],
         );
         await _open(t, repo, 'a');
         await t.ensureVisible(button('Archive Parcel'));
@@ -1072,7 +1129,8 @@ void main() {
         await t.tap(find.widgetWithText(FilledButton, 'Restore Parcel'));
         await t.pumpAndSettle();
         expect(find.text('Parcel restored.'), findsOneWidget);
-        expect(find.byTooltip('Edit parcel'), findsOneWidget);
+        // A sent parcel stays locked after it is restored.
+        expect(find.byTooltip('Edit parcel'), findsNothing);
         expect(
           find.widgetWithText(FilledButton, 'Restore Parcel'),
           findsNothing,

@@ -10,7 +10,6 @@ import '../../../utils/text.dart';
 import '../data/parcel_repository.dart';
 import '../domain/parcel.dart';
 import '../domain/parcel_enums.dart';
-import '../domain/payment.dart';
 import '../domain/payment_rules.dart';
 
 /// Opens the "Mark Payment Received" sheet. Returns true when a payment was recorded.
@@ -36,20 +35,6 @@ class PaymentSheet extends StatefulWidget {
 
   @override
   State<PaymentSheet> createState() => _PaymentSheetState();
-}
-
-/// How a payment on a parcel of [method] is recorded: the owner does not pick.
-PaymentType defaultPaymentTypeFor(CollectionMethod method) {
-  switch (method) {
-    case CollectionMethod.postalCollection:
-      return PaymentType.postOfficeRemittance;
-    case CollectionMethod.payLater:
-      return PaymentType.customerPayment;
-    case CollectionMethod.advance:
-      return PaymentType.advance;
-    case CollectionMethod.giftFree:
-      return PaymentType.customerPayment;
-  }
 }
 
 class _PaymentSheetState extends State<PaymentSheet> {
@@ -83,7 +68,7 @@ class _PaymentSheetState extends State<PaymentSheet> {
         return widget.repository.recordPayment(
           widget.parcel.id,
           amountPaisa: parseRupeesToPaisa(_amount.text)!,
-          type: defaultPaymentTypeFor(widget.parcel.method),
+          type: paymentTypeFor(widget.parcel.method),
           note: _note.text,
           receivedOn: _enteredLate ? _receivedOn : null,
         );

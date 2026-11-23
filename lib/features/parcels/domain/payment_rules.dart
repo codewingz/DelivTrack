@@ -1,4 +1,5 @@
 import 'parcel_enums.dart';
+import 'payment.dart';
 
 /// What is still to be collected: never negative.
 int outstandingFor({required int expectedPaisa, required int receivedPaisa}) =>
@@ -27,3 +28,12 @@ String? paymentProblem({required int amountPaisa, required String note}) {
   }
   return null;
 }
+
+/// How a payment on a parcel of [method] is recorded: the type follows the
+/// parcel type, the owner does not pick (the Firestore rules check the same).
+PaymentType paymentTypeFor(CollectionMethod method) => switch (method) {
+  CollectionMethod.postalCollection => PaymentType.postOfficeRemittance,
+  CollectionMethod.advance => PaymentType.advance,
+  CollectionMethod.payLater ||
+  CollectionMethod.giftFree => PaymentType.customerPayment,
+};

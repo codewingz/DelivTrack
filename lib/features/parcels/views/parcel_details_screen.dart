@@ -234,9 +234,8 @@ class _ParcelDetailsScreenState extends State<ParcelDetailsScreen> {
                         '${parcel.sendingDateLabel} · ${parcel.method.label}',
                   ),
             actions: [
-              if (parcel != null &&
-                  parcel.status == ParcelStatus.draft &&
-                  !parcel.isArchived)
+              // Owner's rule: only a draft that received no money is deleted.
+              if (parcel != null && parcel.canArchive)
                 IconButton(
                   tooltip: 'Delete draft',
                   style: IconButton.styleFrom(
@@ -246,9 +245,8 @@ class _ParcelDetailsScreenState extends State<ParcelDetailsScreen> {
                   icon: const Icon(Icons.delete_outline_rounded),
                   onPressed: () => _deleteDraft(parcel),
                 ),
-              if (parcel != null &&
-                  parcel.status != ParcelStatus.returned &&
-                  !parcel.isArchived)
+              // Owner's rule: a parcel is edited only before the handover.
+              if (parcel != null && parcel.canEdit)
                 IconButton(
                   tooltip: 'Edit parcel',
                   icon: const Icon(Icons.edit_outlined),
@@ -779,7 +777,7 @@ class _ParcelView extends StatelessWidget {
                         }, 'Parcel archived.'),
                         child: const Text('Archive Parcel'),
                       ),
-                    if (parcel.status == ParcelStatus.draft)
+                    if (parcel.canArchive)
                       OutlinedButton.icon(
                         icon: const Icon(
                           Icons.delete_outline_rounded,

@@ -92,7 +92,7 @@ Future<int> _payOn(
     ),
     DocWrite(
       'users/${user.uid}/parcels/$pid/payments/$payId',
-      {'amountPaisa': amount, 'paymentType': 'customer_payment'},
+      {'amountPaisa': amount, 'paymentType': 'post_office_remittance'},
       serverTimes: const ['receivedAt', 'recordedAt'],
     ),
   ]);
@@ -2156,7 +2156,7 @@ void main() {
       );
     }, skip: skip);
 
-    test('returning a parcel that is paid in full still flags it for review; a Gift / Free return does not', () async {
+    test('a parcel that is paid in full cannot be returned; a Gift / Free return is not flagged for review', () async {
       final paid = await setup();
       final base = {
         'receivedPaisa': 500000,
@@ -2181,7 +2181,8 @@ void main() {
           paid,
           _parcel(seq: 1, overrides: {...base, ..._returned()}),
         ),
-        200,
+        403,
+        reason: "owner's rule: a parcel paid in full cannot be returned",
       );
       final free = await setup(
         overrides: {
@@ -2536,7 +2537,7 @@ void main() {
         );
       }, skip: skip);
 
-      test('after completion the parcel can be archived and keeps its notes editable; nobody else can complete it', () async {
+      test('after completion the parcel keeps its notes editable but is never archived; nobody else can complete it', () async {
         final s = await returnedParcel();
         final other = await emu.signUp(
           'revother${DateTime.now().microsecondsSinceEpoch}@x.com',
@@ -2572,49 +2573,54 @@ void main() {
               },
             ),
           ),
-          200,
-          reason: 'archivable now',
+          403,
+          reason: "owner's rule: never archived after the handover",
         );
       }, skip: skip);
 
-      test('an archived parcel cannot be completed', () async {
-        final s = await returnedParcel();
-        expect(await resolve(s, done()), 200);
-        final at = await emu.timestampOf(
-          s.user.token,
-          ppath(s.user.uid, s.pid),
-          'paymentReviewResolvedAt',
-        );
-        final kept = {...done(), 'paymentReviewResolvedAt': at};
-        expect(
-          await replace(
-            s,
-            _parcel(seq: 1, overrides: {...kept, 'isArchived': true}),
-          ),
-          200,
-        );
-        expect(
-          await replace(
-            s,
-            _parcel(
-              seq: 1,
-              overrides: {
-                ...kept,
-                'isArchived': true,
-                'paymentReviewNote': 'Changed after archive',
-              },
+      test(
+        'a returned parcel cannot be archived, with or without other changes',
+        () async {
+          final s = await returnedParcel();
+          expect(await resolve(s, done()), 200);
+          final at = await emu.timestampOf(
+            s.user.token,
+            ppath(s.user.uid, s.pid),
+            'paymentReviewResolvedAt',
+          );
+          final kept = {...done(), 'paymentReviewResolvedAt': at};
+          expect(
+            await replace(
+              s,
+              _parcel(seq: 1, overrides: {...kept, 'isArchived': true}),
             ),
-          ),
-          403,
-        );
-      }, skip: skip);
+            403,
+            reason: "owner's rule: a returned parcel is never archived",
+          );
+          expect(
+            await replace(
+              s,
+              _parcel(
+                seq: 1,
+                overrides: {
+                  ...kept,
+                  'isArchived': true,
+                  'paymentReviewNote': 'Changed after archive',
+                },
+              ),
+            ),
+            403,
+          );
+        },
+        skip: skip,
+      );
     });
 
     group('archiving', () {
       Map<String, Object?> archived(Map<String, Object?> overrides) =>
           _parcel(seq: 1, overrides: {...overrides, 'isArchived': true});
 
-      test('only a parcel with nothing left to chase can be archived: draft, returned, nothing owed, Gift / Free', () async {
+      test('only a draft that received no money can be archived: not a sent, paid, returned or Gift / Free parcel', () async {
         final unpaid = await setup();
         expect(
           await replace(unpaid, archived({})),
@@ -2658,8 +2664,8 @@ void main() {
         );
         expect(
           await replace(paid, archived(paidOverrides)),
-          200,
-          reason: 'paid in full',
+          403,
+          reason: "owner's rule: never once paid",
         );
 
         final returned = await setup();
@@ -2687,8 +2693,8 @@ void main() {
         final free = await setup(overrides: freeOverrides);
         expect(
           await replace(free, archived(freeOverrides)),
-          200,
-          reason: 'Gift / Free',
+          403,
+          reason: 'Gift / Free, but handed over',
         );
 
         final freeReturned = await setup(overrides: freeOverrides);
@@ -2707,8 +2713,8 @@ void main() {
             freeReturned,
             archived({...freeOverrides, ..._returned(review: false)}),
           ),
-          200,
-          reason: 'returned with nothing to review',
+          403,
+          reason: 'returned parcels were handed over',
         );
       }, skip: skip);
 
@@ -2792,16 +2798,9 @@ void main() {
       }, skip: skip);
 
       test('an archived parcel takes no payment', () async {
-        final s = await setup();
-        const paidOverrides = {
-          'receivedPaisa': 500000,
-          'outstandingPaisa': 0,
-          'paymentStatus': 'received',
-          'lastPaymentId': 'pay1',
-        };
-        expect(await _payOn(emu, s.user, s.pid, s.created, 500000), 200);
-        expect(await replace(s, archived(paidOverrides)), 200);
-        // a payment would need outstanding money anyway; the rule also names archived parcels explicitly
+        const draft = {'parcelStatus': 'draft', 'collectionMethod': 'advance'};
+        final s = await setup(overrides: draft);
+        expect(await replace(s, archived(draft)), 200);
         expect(
           await emu.commit(s.user.token, [
             DocWrite(
@@ -2809,7 +2808,13 @@ void main() {
               {
                 ..._parcel(
                   seq: 1,
-                  overrides: {...paidOverrides, 'receivedPaisa': 500100},
+                  overrides: {
+                    ...draft,
+                    'receivedPaisa': 100,
+                    'outstandingPaisa': 499900,
+                    'paymentStatus': 'partial',
+                    'lastPaymentId': 'p1',
+                  },
                 ),
                 'isArchived': true,
                 'createdAt': s.created,
@@ -2900,7 +2905,7 @@ void main() {
 
     Map<String, Object?> payment({
       int amount = 100000,
-      String type = 'customer_payment',
+      String type = 'post_office_remittance',
       Map<String, Object?> extra = const {},
     }) => {'amountPaisa': amount, 'paymentType': type, ...extra};
 
@@ -3257,7 +3262,7 @@ void main() {
             paypath(s.user.uid, s.pid, 'rev_$originalId'),
             {
               'amountPaisa': -original,
-              'paymentType': type ?? 'customer_payment',
+              'paymentType': type ?? 'post_office_remittance',
               'reversalOfPaymentId': originalId,
               'correctionReason': reason,
               'replacementPaisa': replacement,
@@ -3270,7 +3275,7 @@ void main() {
               paypath(s.user.uid, s.pid, 'cor_$originalId'),
               {
                 'amountPaisa': replacement,
-                'paymentType': 'customer_payment',
+                'paymentType': 'post_office_remittance',
                 'correctionOfPaymentId': originalId,
               },
               serverTimes: const ['receivedAt', 'recordedAt'],
@@ -3351,7 +3356,7 @@ void main() {
               paypath(s.user.uid, s.pid, 'rev_pay1'),
               {
                 'amountPaisa': -200000,
-                'paymentType': 'customer_payment',
+                'paymentType': 'post_office_remittance',
                 'reversalOfPaymentId': 'pay1',
                 'correctionReason': reason,
                 'replacementPaisa': replacement,
@@ -3364,7 +3369,7 @@ void main() {
                 paypath(s.user.uid, s.pid, 'cor_pay1'),
                 {
                   'amountPaisa': replacement,
-                  'paymentType': 'customer_payment',
+                  'paymentType': 'post_office_remittance',
                   'correctionOfPaymentId': 'pay1',
                   if (replacementAt is DateTime) 'receivedAt': replacementAt,
                 },
@@ -3660,7 +3665,7 @@ void main() {
               paypath(s.user.uid, s.pid, 'cor_pay1'),
               {
                 'amountPaisa': 300000,
-                'paymentType': 'customer_payment',
+                'paymentType': 'post_office_remittance',
                 'correctionOfPaymentId': 'pay1',
               },
               serverTimes: const ['receivedAt', 'recordedAt'],
@@ -3676,7 +3681,7 @@ void main() {
     String ppath(String uid, String id) => 'users/$uid/parcels/$id';
 
     Future<({({String uid, String token}) user, String pid, DateTime created})>
-    setup() async {
+    setup({Map<String, Object?> overrides = const {}}) async {
       final u = await emu.signUp(
         'fin${DateTime.now().microsecondsSinceEpoch}_${n++}@x.com',
       );
@@ -3687,10 +3692,10 @@ void main() {
           DocWrite('users/${u.uid}/counters/orders', {'lastSequence': 1}),
           DocWrite(
             ppath(u.uid, pid),
-            _parcel(seq: 1),
+            _parcel(seq: 1, overrides: overrides),
             serverTimes: const ['createdAt', 'updatedAt'],
           ),
-          ..._guardFor(u.uid, pid, _parcel(seq: 1)),
+          ..._guardFor(u.uid, pid, _parcel(seq: 1, overrides: overrides)),
         ]),
         200,
       );
@@ -3798,7 +3803,7 @@ void main() {
         await emu.set(
           s.user.token,
           'users/${s.user.uid}/parcels/${s.pid}/payments/pay1',
-          {'amountPaisa': 1, 'paymentType': 'customer_payment'},
+          {'amountPaisa': 1, 'paymentType': 'post_office_remittance'},
           serverTimes: const ['receivedAt', 'recordedAt'],
         ),
         403,
@@ -3820,7 +3825,7 @@ void main() {
           ),
           DocWrite(
             'users/${s.user.uid}/parcels/${s.pid}/payments/pay2',
-            {'amountPaisa': 100000, 'paymentType': 'customer_payment'},
+            {'amountPaisa': 100000, 'paymentType': 'post_office_remittance'},
             serverTimes: const ['receivedAt', 'recordedAt'],
           ),
         ]),
@@ -3860,14 +3865,15 @@ void main() {
       );
     }, skip: skip);
 
-    test('the expected amount cannot change on its own; it moves with the item lines', () async {
-      final s = await setup();
+    test('on a draft the expected amount cannot change on its own; it moves with the item lines', () async {
+      final s = await setup(overrides: {'parcelStatus': 'draft'});
       expect(
         await replace(
           s,
           _parcel(
             seq: 1,
             overrides: {
+              'parcelStatus': 'draft',
               'productAmountExpectedPaisa': 100,
               'outstandingPaisa': 100,
             },
@@ -3892,6 +3898,7 @@ void main() {
           _parcel(
             seq: 1,
             overrides: {
+              'parcelStatus': 'draft',
               'items': cheaper,
               'productAmountExpectedPaisa': 200000,
               'outstandingPaisa': 200000,
@@ -3904,9 +3911,9 @@ void main() {
     }, skip: skip);
 
     test(
-      'the customer snapshot must be a copy of the customer record',
+      'on a draft the customer snapshot must be a copy of the customer record',
       () async {
-        final s = await setup();
+        final s = await setup(overrides: {'parcelStatus': 'draft'});
         final other = {
           'name': 'Someone Else',
           'phone': '0311 7654321',
@@ -3915,7 +3922,10 @@ void main() {
         expect(
           await replace(
             s,
-            _parcel(seq: 1, overrides: {'customerSnapshot': other}),
+            _parcel(
+              seq: 1,
+              overrides: {'parcelStatus': 'draft', 'customerSnapshot': other},
+            ),
           ),
           403,
           reason: 'snapshot swapped, same customer id',
@@ -3925,7 +3935,11 @@ void main() {
             s,
             _parcel(
               seq: 1,
-              overrides: {'customerId': 'ghost', 'customerSnapshot': other},
+              overrides: {
+                'parcelStatus': 'draft',
+                'customerId': 'ghost',
+                'customerSnapshot': other,
+              },
             ),
           ),
           403,
@@ -3950,7 +3964,11 @@ void main() {
             s,
             _parcel(
               seq: 1,
-              overrides: {'customerId': 'cust2', 'customerSnapshot': other},
+              overrides: {
+                'parcelStatus': 'draft',
+                'customerId': 'cust2',
+                'customerSnapshot': other,
+              },
             ),
           ),
           200,
@@ -3962,6 +3980,7 @@ void main() {
             _parcel(
               seq: 1,
               overrides: {
+                'parcelStatus': 'draft',
                 'customerId': 'cust2',
                 'customerSnapshot': other,
                 'notes': 'edit',
@@ -3981,13 +4000,19 @@ void main() {
             DocWrite('users/${u.uid}/counters/orders', {'lastSequence': 1}),
             DocWrite(
               ppath(u.uid, 'snapparcel'),
-              _parcel(seq: 1, overrides: {'customerSnapshot': other}),
+              _parcel(
+                seq: 1,
+                overrides: {'parcelStatus': 'draft', 'customerSnapshot': other},
+              ),
               serverTimes: const ['createdAt', 'updatedAt'],
             ),
             ..._guardFor(
               u.uid,
               'snapparcel',
-              _parcel(seq: 1, overrides: {'customerSnapshot': other}),
+              _parcel(
+                seq: 1,
+                overrides: {'parcelStatus': 'draft', 'customerSnapshot': other},
+              ),
             ),
           ]),
           403,
@@ -4014,7 +4039,11 @@ void main() {
           s,
           _parcel(
             seq: 1,
-            overrides: {'productAmountExpectedPaisa': 1, 'outstandingPaisa': 1},
+            overrides: {
+              'parcelStatus': 'draft',
+              'productAmountExpectedPaisa': 1,
+              'outstandingPaisa': 1,
+            },
           ),
           token: intruder.token,
         ),
@@ -4023,10 +4052,208 @@ void main() {
     }, skip: skip);
   });
 
+  group("owner's rules: drafts, paid parcels and payment types", () {
+    String ppath(String uid, String id) => 'users/$uid/parcels/$id';
+    var count = 0;
+
+    Future<({({String uid, String token}) user, String pid, DateTime created})>
+    setup({Map<String, Object?> overrides = const {}}) async {
+      final u = await emu.signUp(
+        'owner${DateTime.now().microsecondsSinceEpoch}_${count++}@x.com',
+      );
+      final pid = 'p${DateTime.now().microsecondsSinceEpoch}';
+      await _ensureCustomer(emu, u);
+      expect(
+        await emu.commit(u.token, [
+          DocWrite('users/${u.uid}/counters/orders', {'lastSequence': 1}),
+          DocWrite(
+            ppath(u.uid, pid),
+            _parcel(seq: 1, overrides: overrides),
+            serverTimes: const ['createdAt', 'updatedAt'],
+          ),
+          ..._guardFor(u.uid, pid, _parcel(seq: 1, overrides: overrides)),
+        ]),
+        200,
+      );
+      return (
+        user: u,
+        pid: pid,
+        created: await emu.createdAt(u.token, ppath(u.uid, pid)),
+      );
+    }
+
+    /// One payment of [amount] with [type], moving the parcel with it.
+    Future<int> pay(
+      ({({String uid, String token}) user, String pid, DateTime created}) s,
+      int amount,
+      String type, {
+      Map<String, Object?> overrides = const {},
+      String? token,
+    }) {
+      final out = 500000 - amount;
+      return emu.commit(token ?? s.user.token, [
+        DocWrite(
+          ppath(s.user.uid, s.pid),
+          {
+            ..._parcel(
+              seq: 1,
+              overrides: {
+                ...overrides,
+                'receivedPaisa': amount,
+                'outstandingPaisa': out,
+                'paymentStatus': out == 0 ? 'received' : 'partial',
+                'lastPaymentId': 'pay1',
+              },
+            ),
+            'createdAt': s.created,
+          },
+          serverTimes: const ['updatedAt'],
+        ),
+        DocWrite(
+          '${ppath(s.user.uid, s.pid)}/payments/pay1',
+          {'amountPaisa': amount, 'paymentType': type},
+          serverTimes: const ['receivedAt', 'recordedAt'],
+        ),
+      ]);
+    }
+
+    /// Reverses "pay1" of [amount] with no replacement.
+    Future<int> reverse(
+      ({({String uid, String token}) user, String pid, DateTime created}) s,
+      int amount,
+    ) => emu.commit(s.user.token, [
+      DocWrite(
+        ppath(s.user.uid, s.pid),
+        {
+          ..._parcel(seq: 1, overrides: {'lastPaymentId': 'rev_pay1'}),
+          'createdAt': s.created,
+        },
+        serverTimes: const ['updatedAt'],
+      ),
+      DocWrite(
+        '${ppath(s.user.uid, s.pid)}/payments/rev_pay1',
+        {
+          'amountPaisa': -amount,
+          'paymentType': 'post_office_remittance',
+          'reversalOfPaymentId': 'pay1',
+          'correctionReason': 'Wrong amount entered',
+          'replacementPaisa': 0,
+        },
+        serverTimes: const ['receivedAt', 'recordedAt'],
+      ),
+    ]);
+
+    test('no payment before the handover, except an advance on an Advance paid parcel', () async {
+      const draft = {'parcelStatus': 'draft'};
+      final postal = await setup(overrides: draft);
+      expect(
+        await pay(postal, 200000, 'post_office_remittance', overrides: draft),
+        403,
+        reason: 'a draft takes no payment',
+      );
+      const advanceDraft = {
+        'parcelStatus': 'draft',
+        'collectionMethod': 'advance',
+      };
+      final advance = await setup(overrides: advanceDraft);
+      expect(
+        await pay(advance, 500000, 'advance', overrides: advanceDraft),
+        200,
+        reason: 'the advance is paid on the draft',
+      );
+      final sent = await setup();
+      expect(await pay(sent, 200000, 'post_office_remittance'), 200);
+    }, skip: skip);
+
+    test(
+      'the payment type follows the parcel type; another user cannot pay',
+      () async {
+        final postal = await setup();
+        expect(await pay(postal, 200000, 'advance'), 403);
+        expect(await pay(postal, 200000, 'customer_payment'), 403);
+        expect(
+          await pay(postal, 200000, 'post_office_remittance', token: bob.token),
+          403,
+          reason: 'not the owner',
+        );
+        expect(await pay(postal, 200000, 'post_office_remittance'), 200);
+
+        const credit = {'collectionMethod': 'credit'};
+        final payLater = await setup(overrides: credit);
+        expect(
+          await pay(
+            payLater,
+            200000,
+            'post_office_remittance',
+            overrides: credit,
+          ),
+          403,
+        );
+        expect(
+          await pay(payLater, 200000, 'customer_payment', overrides: credit),
+          200,
+        );
+      },
+      skip: skip,
+    );
+
+    test('a payment can be corrected while money is still owed, not once paid in full', () async {
+      final partial = await setup();
+      expect(await pay(partial, 200000, 'post_office_remittance'), 200);
+      expect(await reverse(partial, 200000), 200, reason: 'part paid');
+
+      final paid = await setup();
+      expect(await pay(paid, 500000, 'post_office_remittance'), 200);
+      expect(await reverse(paid, 500000), 403, reason: 'paid in full');
+    }, skip: skip);
+
+    test(
+      'only an unpaid draft can be deleted, and only by its owner',
+      () async {
+        const advanceDraft = {
+          'parcelStatus': 'draft',
+          'collectionMethod': 'advance',
+        };
+        final paidDraft = await setup(overrides: advanceDraft);
+        expect(
+          await pay(paidDraft, 500000, 'advance', overrides: advanceDraft),
+          200,
+        );
+        expect(
+          await emu.delete(
+            paidDraft.user.token,
+            ppath(paidDraft.user.uid, paidDraft.pid),
+          ),
+          403,
+          reason: 'a draft that received money',
+        );
+
+        final sent = await setup();
+        expect(
+          await emu.delete(sent.user.token, ppath(sent.user.uid, sent.pid)),
+          403,
+          reason: 'handed over',
+        );
+
+        final draft = await setup(overrides: {'parcelStatus': 'draft'});
+        expect(
+          await emu.delete(bob.token, ppath(draft.user.uid, draft.pid)),
+          403,
+          reason: 'not the owner',
+        );
+        expect(
+          await emu.delete(draft.user.token, ppath(draft.user.uid, draft.pid)),
+          200,
+        );
+      },
+      skip: skip,
+    );
+  });
+
   group('parcel edits', () {
     String ppath(String uid, String id) => 'users/$uid/parcels/$id';
 
-    test('an edit may remove optional fields and change status; amounts must stay consistent', () async {
+    test('a handed-over parcel never goes back to Draft and its lines and type are locked', () async {
       final u = await emu.signUp(
         'pe${DateTime.now().microsecondsSinceEpoch}@x.com',
       );
@@ -4077,7 +4304,8 @@ void main() {
             'users/${u.uid}/postal_refs/${_parcel(seq: 1)['postalGuardId']}',
           ),
         ]),
-        200,
+        403,
+        reason: "owner's rule: a handed-over parcel never goes back to Draft",
       );
       // bigger order: expected and outstanding move together
       final bigger = [
@@ -4105,13 +4333,10 @@ void main() {
             {...biggerParcel, 'createdAt': created},
             serverTimes: const ['updatedAt'],
           ),
-          ..._guardFor(
-            u.uid,
-            pid,
-            biggerParcel,
-          ), // back from a draft: the reference is reserved again
+          ..._guardFor(u.uid, pid, biggerParcel),
         ]),
-        200,
+        403,
+        reason: "owner's rule: product lines are locked after the handover",
       );
       expect(
         await replace(
@@ -4137,7 +4362,8 @@ void main() {
             },
           ),
         ),
-        200,
+        403,
+        reason: "owner's rule: the parcel type is locked after the handover",
       );
       // ... but a date on a non Pay Later parcel is refused
       expect(
@@ -4156,35 +4382,35 @@ void main() {
         String name = 'Ali Collection',
         String phone = '0300 1234567',
         String address = 'Shop 12, Main Market, Lahore',
-      }) => {
-        'name': name,
-        'phone': phone,
-        'address': address,
-      };
+      }) => {'name': name, 'phone': phone, 'address': address};
 
-      test('owner can create, update and read their own sender profile', () async {
-        final path = 'users/${alice.uid}/settings/sender_profile';
-        // Create
-        final createStatus = await emu.set(
-          alice.token,
-          path,
-          validProfile(),
-          serverTimes: const ['updatedAt'],
-        );
-        expect(createStatus, 200);
+      test(
+        'owner can create, update and read their own sender profile',
+        () async {
+          final path = 'users/${alice.uid}/settings/sender_profile';
+          // Create
+          final createStatus = await emu.set(
+            alice.token,
+            path,
+            validProfile(),
+            serverTimes: const ['updatedAt'],
+          );
+          expect(createStatus, 200);
 
-        // Read
-        expect(await emu.get(alice.token, path), 200);
+          // Read
+          expect(await emu.get(alice.token, path), 200);
 
-        // Update
-        final updateStatus = await emu.set(
-          alice.token,
-          path,
-          validProfile(name: 'Ali & Sons Traders'),
-          serverTimes: const ['updatedAt'],
-        );
-        expect(updateStatus, 200);
-      }, skip: skip);
+          // Update
+          final updateStatus = await emu.set(
+            alice.token,
+            path,
+            validProfile(name: 'Ali & Sons Traders'),
+            serverTimes: const ['updatedAt'],
+          );
+          expect(updateStatus, 200);
+        },
+        skip: skip,
+      );
 
       test('invalid fields or missing required keys are rejected', () async {
         final path = 'users/${alice.uid}/settings/sender_profile';
@@ -4215,21 +4441,17 @@ void main() {
           await emu.set(
             alice.token,
             path,
-            {'name': 'Ali Collection', 'address': 'Shop 12, Main Market, Lahore'},
+            {
+              'name': 'Ali Collection',
+              'address': 'Shop 12, Main Market, Lahore',
+            },
             serverTimes: const ['updatedAt'],
           ),
           403,
         );
 
         // Missing server timestamp updatedAt
-        expect(
-          await emu.set(
-            alice.token,
-            path,
-            validProfile(),
-          ),
-          403,
-        );
+        expect(await emu.set(alice.token, path, validProfile()), 403);
       }, skip: skip);
 
       test('another user or signed-out request cannot read or write sender profile', () async {

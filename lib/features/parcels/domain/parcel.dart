@@ -163,13 +163,13 @@ class Parcel {
   /// Hidden from every list and total; the order number stays reserved. Only restoring is possible.
   final bool isArchived;
 
-  /// A parcel can be archived once nothing is left to chase: a draft, a returned parcel, or one that
-  /// owes nothing (paid in full, or Gift / Free). A returned parcel whose payment review is still open
-  /// stays on the lists until the review is completed.
+  /// Owner's rule (also in the Firestore rules): only a draft that received no money can be archived
+  /// or deleted; a parcel that was handed over or paid stays on the lists.
   bool get canArchive =>
-      !isArchived &&
-      !paymentReviewRequired &&
-      (status != ParcelStatus.sent || outstandingPaisa == 0);
+      !isArchived && status == ParcelStatus.draft && receivedPaisa == 0;
+
+  /// Products, prices, customer and type can be changed only before the handover.
+  bool get canEdit => !isArchived && status == ParcelStatus.draft;
 
   String get sendingDateLabel => formatDate(sendingDate);
 }

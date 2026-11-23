@@ -255,16 +255,25 @@ service cloud.firestore {
         && request.resource.data.orderSequence == resource.data.orderSequence
         && request.resource.data.createdAt == resource.data.createdAt
         && request.resource.data.sendingDateLocal == resource.data.sendingDateLocal
-        // An archived parcel cannot be edited; the only change allowed is restoring it. A parcel can be
-        // archived only when nothing is left to chase (a draft, a returned parcel, or nothing owed) and no
-        // payment review is open; archiving changes nothing else.
+        // An archived parcel cannot be edited; the only change allowed is restoring it. Owner's rule: only
+        // a draft that received no money can be archived (never a parcel that was handed over or paid);
+        // archiving changes nothing else.
         && (request.resource.data.get('isArchived', false) == resource.data.get('isArchived', false)
             ? !resource.data.get('isArchived', false)
             : (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isArchived', 'updatedAt'])
                 && (resource.data.get('isArchived', false)
-                    || (!resource.data.get('paymentReviewRequired', false)
-                        && (resource.data.parcelStatus in ['draft', 'returned']
-                            || resource.data.outstandingPaisa == 0)))))
+                    || (resource.data.parcelStatus == 'draft'
+                        && resource.data.receivedPaisa == 0))))
+        // Owner's rules for a handed-over parcel: it never goes back to Draft, and its customer, parcel
+        // type, product lines and expected amount are locked (only the handover details, notes, the Pay
+        // Later date, payments and the return can still change).
+        && (resource.data.parcelStatus == 'draft'
+            || (request.resource.data.parcelStatus != 'draft'
+                && request.resource.data.items == resource.data.items
+                && request.resource.data.customerId == resource.data.customerId
+                && request.resource.data.customerSnapshot == resource.data.customerSnapshot
+                && request.resource.data.collectionMethod == resource.data.collectionMethod
+                && request.resource.data.productAmountExpectedPaisa == resource.data.productAmountExpectedPaisa))
         // The expected amount can change only together with the item lines.
         && (request.resource.data.items != resource.data.items
             || request.resource.data.productAmountExpectedPaisa == resource.data.productAmountExpectedPaisa
@@ -301,25 +310,35 @@ service cloud.firestore {
                 && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['paymentReviewRequired', 'paymentReviewReason',
                     'paymentReviewNote', 'paymentReviewDateLocal', 'paymentReviewResolvedAt', 'updatedAt'])))
         && (request.resource.data.parcelStatus != 'returned' || resource.data.parcelStatus == 'returned'
+            // Owner's rule: a parcel paid in full is finished and cannot be returned.
             || (resource.data.parcelStatus == 'sent'
+                && resource.data.paymentStatus != 'received'
                 && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['parcelStatus', 'returnedDateLocal', 'returnReason', 'paymentReviewRequired', 'updatedAt'])))
         // A changed Pay Later date must be today or later.
         && (!('estimatedPaymentDateLocal' in request.resource.data)
             || ('estimatedPaymentDateLocal' in resource.data && resource.data.estimatedPaymentDateLocal == request.resource.data.estimatedPaymentDateLocal)
             || request.resource.data.estimatedPaymentDateLocal >= pakistanDate(request.time));
-      // A draft parcel (not yet handed over) can be deleted by its owner. Sent and returned parcels are
-      // locked audit records and can never be deleted.
+      // A draft parcel (not yet handed over) that received no money can be deleted by its owner. Paid,
+      // sent and returned parcels are locked audit records and can never be deleted.
       allow delete: if isOwner(uid)
-        && resource.data.parcelStatus == 'draft';
+        && resource.data.parcelStatus == 'draft'
+        && resource.data.receivedPaisa == 0;
     }
 
     // Payments: append-only, written in the same commit that moves the parcel's received amount.
     //  * a payment (positive) never exceeds what is outstanding and never lands on a Gift / Free or
-    //    returned parcel; it may carry an earlier "received on" date (not in the future, not before sending);
+    //    returned parcel, nor on a draft (except an advance); its type follows the parcel type; it may carry an earlier "received on" date (not in the future, not before sending);
     //  * a correction reverses an earlier payment with a negative twin (document id "rev_<payment id>", so
     //    each payment can be reversed once) and may add one replacement ("cor_<payment id>") in the same commit.
     function parcelAt(uid, parcelId) {
       return /databases/$(database)/documents/users/$(uid)/parcels/$(parcelId);
+    }
+
+    // Owner's rule: the payment type follows the parcel type.
+    function paymentTypeFor(method) {
+      return method == 'postal_collection' ? 'post_office_remittance'
+        : method == 'advance' ? 'advance'
+        : 'customer_payment';
     }
 
     function paymentAt(uid, parcelId, paymentId) {
@@ -348,6 +367,11 @@ service cloud.firestore {
           && get(parcelAt(uid, parcelId)).data.parcelStatus != 'returned'
           && !get(parcelAt(uid, parcelId)).data.get('isArchived', false)
           && get(parcelAt(uid, parcelId)).data.collectionMethod != 'free_gift'
+          // Owner's rules: money is recorded only after the handover (an advance is the one exception,
+          // it is paid on the draft), and its type follows the parcel type.
+          && (get(parcelAt(uid, parcelId)).data.parcelStatus == 'sent'
+              || get(parcelAt(uid, parcelId)).data.collectionMethod == 'advance')
+          && request.resource.data.paymentType == paymentTypeFor(get(parcelAt(uid, parcelId)).data.collectionMethod)
           && request.resource.data.amountPaisa <= get(parcelAt(uid, parcelId)).data.outstandingPaisa
           && getAfter(parcelAt(uid, parcelId)).data.receivedPaisa
               == get(parcelAt(uid, parcelId)).data.receivedPaisa + request.resource.data.amountPaisa)
@@ -364,6 +388,8 @@ service cloud.firestore {
           && request.resource.data.replacementPaisa >= 0 && request.resource.data.replacementPaisa <= 9999999900
           && get(paymentAt(uid, parcelId, paymentId[4:])).data.amountPaisa == -request.resource.data.amountPaisa
           && get(paymentAt(uid, parcelId, paymentId[4:])).data.paymentType == request.resource.data.paymentType
+          // Owner's rule: once a parcel is paid in full its payments are final.
+          && get(parcelAt(uid, parcelId)).data.paymentStatus != 'received'
           && get(parcelAt(uid, parcelId)).data.parcelStatus != 'returned'
           && !get(parcelAt(uid, parcelId)).data.get('isArchived', false)
           && getAfter(parcelAt(uid, parcelId)).data.receivedPaisa

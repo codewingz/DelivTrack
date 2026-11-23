@@ -13,32 +13,36 @@ import 'helpers/tab_finders.dart';
 
 void main() {
   test(
-    'Parcel.canArchive: only when nothing is left to chase, and never twice',
+    'Parcel.canArchive: only a draft that received no money, and never twice',
     () {
-      expect(testParcel().canArchive, isFalse, reason: 'sent, owes Rs. 5,000');
-      expect(testParcel(received: 500000).canArchive, isTrue);
+      const draft = ParcelStatus.draft;
+      expect(
+        testParcel(status: draft, reference: '', charge: null).canArchive,
+        isTrue,
+      );
       expect(
         testParcel(
-          status: ParcelStatus.draft,
+          status: draft,
           reference: '',
           charge: null,
+          method: CollectionMethod.advance,
+          received: 500000,
         ).canArchive,
-        isTrue,
+        isFalse,
+        reason: 'a paid draft',
+      );
+      expect(testParcel().canArchive, isFalse, reason: 'handed over');
+      expect(
+        testParcel(received: 500000).canArchive,
+        isFalse,
+        reason: 'paid in full',
       );
       expect(
         testParcel(status: ParcelStatus.returned).canArchive,
-        isTrue,
-        reason: 'returned, nothing to review',
-      );
-      expect(
-        testParcel(
-          status: ParcelStatus.returned,
-          paymentReviewRequired: true,
-        ).canArchive,
         isFalse,
-        reason: 'DT-003: payment review still open',
+        reason: 'returned parcels were handed over',
       );
-      expect(testParcel(method: CollectionMethod.giftFree).canArchive, isTrue);
+      expect(testParcel(method: CollectionMethod.giftFree).canArchive, isFalse);
       expect(
         testParcel(received: 500000, isArchived: true).canArchive,
         isFalse,
@@ -69,7 +73,7 @@ void main() {
     expect(await repo.watchArchived().first, isEmpty);
   });
 
-  test('completing the payment review makes a returned parcel archivable; the money is untouched', () async {
+  test('completing the payment review leaves the money untouched; a returned parcel is never archived', () async {
     final repo = FakeParcelRepository(
       initial: [
         testParcel(
@@ -87,26 +91,22 @@ void main() {
       date: '2026-11-08',
     );
     final done = (await repo.watchAll().first).single;
-    expect(done.canArchive, isTrue);
+    expect(done.canArchive, isFalse);
     expect(done.receivedPaisa, 100000);
     expect(done.reviewResolution, ReviewResolution.balanceWaived);
-    await repo.archive('a');
-    expect(await repo.watchAll().first, isEmpty);
-    await expectLater(
-      repo.completePaymentReview(
-        'a',
-        resolution: ReviewResolution.other,
-        note: 'again again',
-        date: '2026-11-08',
-      ),
-      throwsA(isA<AppFailure>()),
-    );
+    await expectLater(repo.archive('a'), throwsA(isA<AppFailure>()));
   });
 
   test('archived parcels leave watchAll and appear in watchArchived; restoring reverses it', () async {
     final repo = FakeParcelRepository(
       initial: [
-        testParcel(id: 'a', sequence: 1, received: 500000),
+        testParcel(
+          id: 'a',
+          sequence: 1,
+          status: ParcelStatus.draft,
+          reference: '',
+          charge: null,
+        ),
         testParcel(id: 'b', sequence: 2),
       ],
     );

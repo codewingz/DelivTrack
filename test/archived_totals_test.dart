@@ -17,29 +17,35 @@ import 'helpers/fake_parcel_repository.dart';
 const _today = '2026-11-10';
 
 void main() {
-  FakeParcelRepository repo() => FakeParcelRepository(
-    initial: [
-      testParcel(id: 'open', sequence: 1), // owes Rs. 5,000
-      testParcel(id: 'paid', sequence: 2, received: 500000), // paid in full
-      testParcel(
-        id: 'adv',
-        sequence: 3,
-        method: CollectionMethod.advance,
-        received: 200000,
-      ),
-    ],
-  );
+  // A paid parcel can no longer be archived (owner's rule), but one archived
+  // earlier keeps its money in the totals: [paidArchived] seeds that case.
+  FakeParcelRepository repo({bool paidArchived = false}) =>
+      FakeParcelRepository(
+        initial: [
+          testParcel(id: 'open', sequence: 1), // owes Rs. 5,000
+          testParcel(
+            id: 'paid',
+            sequence: 2,
+            received: 500000,
+            isArchived: paidArchived,
+          ), // paid in full
+          testParcel(
+            id: 'adv',
+            sequence: 3,
+            method: CollectionMethod.advance,
+            received: 200000,
+          ),
+        ],
+      );
 
   group('dashboard figures', () {
-    test('archiving a paid parcel moves it out of the counts but not out of Total received', () async {
-      final r = repo();
+    test('an archived paid parcel is out of the counts but not out of Total received', () async {
       final before = DashboardStats.from(
-        await r.watchAll(includeArchived: true).first,
+        await repo().watchAll(includeArchived: true).first,
         _today,
       );
-      await r.archive('paid');
       final after = DashboardStats.from(
-        await r.watchAll(includeArchived: true).first,
+        await repo(paidArchived: true).watchAll(includeArchived: true).first,
         _today,
       );
       expect(before.totalReceivedPaisa, 700000);
@@ -63,8 +69,7 @@ void main() {
     });
 
     test('restoring does not count the money twice', () async {
-      final r = repo();
-      await r.archive('paid');
+      final r = repo(paidArchived: true);
       await r.restore('paid');
       final stats = DashboardStats.from(
         await r.watchAll(includeArchived: true).first,

@@ -306,6 +306,12 @@ class FirestoreParcelRepository implements ParcelRepository {
         if (before['parcelStatus'] == ParcelStatus.returned.value) {
           throw const AppFailure("A returned parcel can't be edited.");
         }
+        // Owner's rule (also in the Firestore rules): locked after handover.
+        if (before['parcelStatus'] != ParcelStatus.draft.value) {
+          throw const AppFailure(
+            "A parcel can't be edited after it was handed over.",
+          );
+        }
         final received = before['receivedPaisa'] as int;
         final wasFree =
             before['collectionMethod'] == CollectionMethod.giftFree.value;
@@ -608,6 +614,24 @@ class FirestoreParcelRepository implements ParcelRepository {
           if (parcel['parcelStatus'] == ParcelStatus.returned.value) {
             throw const AppFailure("A returned parcel can't take payments.");
           }
+          // Owner's rules (also in the Firestore rules): money is recorded
+          // only after the handover, except an advance; and the payment type
+          // follows the parcel type.
+          final method = CollectionMethod.values.firstWhere(
+            (m) => m.value == parcel['collectionMethod'],
+          );
+          if (parcel['parcelStatus'] == ParcelStatus.draft.value &&
+              method != CollectionMethod.advance) {
+            throw const AppFailure(
+              'Hand over the parcel before recording a payment. If the customer paid first, change the parcel type to Advance paid.',
+            );
+          }
+          if (method != CollectionMethod.giftFree &&
+              type != paymentTypeFor(method)) {
+            throw AppFailure(
+              'A ${method.label} parcel takes a ${paymentTypeFor(method).label} payment.',
+            );
+          }
           final isFree =
               parcel['collectionMethod'] == CollectionMethod.giftFree.value;
           if (isFree) {
@@ -712,6 +736,11 @@ class FirestoreParcelRepository implements ParcelRepository {
       if (data['parcelStatus'] != ParcelStatus.draft.value) {
         throw const AppFailure('Only draft parcels can be deleted.');
       }
+      if ((data['receivedPaisa'] as int? ?? 0) > 0) {
+        throw const AppFailure(
+          "A parcel that received money can't be deleted.",
+        );
+      }
       final paymentsSnap = await parcelRef.collection('payments').get();
       final batch = _firestore.batch();
       for (final p in paymentsSnap.docs) {
@@ -737,11 +766,13 @@ class FirestoreParcelRepository implements ParcelRepository {
         final parcel = snapshot.data()!;
         final isArchived = parcel['isArchived'] == true;
         if (isArchived == archived) return;
+        // Owner's rule (also in the Firestore rules): never once handed over
+        // or paid.
         if (archived &&
-            parcel['parcelStatus'] == ParcelStatus.sent.value &&
-            (parcel['outstandingPaisa'] as int) > 0) {
+            (parcel['parcelStatus'] != ParcelStatus.draft.value ||
+                (parcel['receivedPaisa'] as int) > 0)) {
           throw const AppFailure(
-            "A parcel that still has money to collect can't be archived.",
+            "A parcel that was handed over or received money can't be archived.",
           );
         }
         if (archived && parcel['paymentReviewRequired'] == true) {
@@ -794,6 +825,12 @@ class FirestoreParcelRepository implements ParcelRepository {
         if (parcel['parcelStatus'] != ParcelStatus.sent.value) {
           throw const AppFailure(
             'Only a Sent parcel can be marked as returned.',
+          );
+        }
+        // Owner's rule (also in the Firestore rules).
+        if (parcel['paymentStatus'] == PaymentStatus.received.value) {
+          throw const AppFailure(
+            "A parcel paid in full can't be marked as returned.",
           );
         }
         final sending = parcel['sendingDateLocal'] as String;
@@ -1005,6 +1042,12 @@ class FirestoreParcelRepository implements ParcelRepository {
           if (parcel['parcelStatus'] == ParcelStatus.returned.value) {
             throw const AppFailure(
               "A returned parcel's payments can't be corrected.",
+            );
+          }
+          // Owner's rule (also in the Firestore rules).
+          if (parcel['paymentStatus'] == PaymentStatus.received.value) {
+            throw const AppFailure(
+              "A parcel paid in full can't have its payments corrected.",
             );
           }
 

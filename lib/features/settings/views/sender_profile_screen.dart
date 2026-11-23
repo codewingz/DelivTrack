@@ -225,6 +225,7 @@ class _SenderProfileScreenState extends State<SenderProfileScreen> {
                 (bool v) => _labelUsesSenderName = v,
               ),
             ]) ...[
+              const SizedBox(height: AppSpacing.lg),
               AppChoiceField<bool>(
                 label: label,
                 initialValue: initial,
@@ -234,7 +235,6 @@ class _SenderProfileScreenState extends State<SenderProfileScreen> {
                 ],
                 onChanged: onChanged,
               ),
-              const SizedBox(height: AppSpacing.lg),
             ],
             const SizedBox(height: AppSpacing.lg),
             AppTextField.phone(

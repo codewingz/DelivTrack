@@ -231,14 +231,13 @@ void main() {
   });
 
   group('Delete Customer', () {
-    final delete = find.widgetWithText(OutlinedButton, 'Delete Customer');
+    final delete = find.byTooltip('Delete customer');
 
     testWidgets('is offered with or without parcels', (t) async {
       await _open(t, FakeParcelRepository());
       expect(delete, findsOneWidget);
       await t.pumpWidget(const SizedBox());
       await _open(t, FakeParcelRepository(initial: [_p('a', 1)]));
-      await t.ensureVisible(delete);
       expect(delete, findsOneWidget);
     });
 
@@ -266,8 +265,6 @@ void main() {
         );
         await t.pump();
         await t.pump();
-        await t.pump();
-        await t.ensureVisible(delete);
         await t.pump();
         await t.tap(delete);
         await t.pumpAndSettle();

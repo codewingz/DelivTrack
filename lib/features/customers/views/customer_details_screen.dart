@@ -2,7 +2,6 @@ import '../../../common_widgets/app_snack_bar.dart';
 
 import '../../../common_widgets/confirm_dialog.dart';
 import '../../../core/errors/app_failure.dart';
-import '../../../design_system/foundations/radius/app_radius.dart';
 
 import 'package:flutter/material.dart';
 
@@ -75,7 +74,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
       title: 'Delete ${customer.name}?',
       message: 'Only the customer is deleted. Their parcels and payments stay in your records. This action cannot be undone.',
       confirmLabel: 'Delete',
-      destructive: true,
+      // Same look as the "Send tracking update?" dialog (owner's choice).
       icon: Icons.delete_outline_rounded,
     );
     if (!confirmed || !mounted) return;
@@ -110,6 +109,17 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                 ? const Text('Customer')
                 : AppBarTitle(customer.name, subtitle: customer.phone),
             actions: [
+              // Deletes the customer only; their parcels and payments stay.
+              if (customer != null)
+                IconButton(
+                  tooltip: 'Delete customer',
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppColors.error,
+                    foregroundColor: Colors.white,
+                  ),
+                  icon: const Icon(Icons.delete_outline_rounded),
+                  onPressed: () => _delete(customer),
+                ),
               if (customer != null)
                 IconButton(
                   tooltip: 'Edit customer',
@@ -238,38 +248,6 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                     ),
                   ),
                 ),
-              // Deletes the customer only; their parcels and payments stay.
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsetsDirectional.all(AppSpacing.lg),
-                  child: Align(
-                    alignment: AlignmentDirectional.centerStart,
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size(48, 48),
-                        foregroundColor: AppColors.error,
-                        backgroundColor: AppColors.error.withValues(
-                          alpha: 0.08,
-                        ),
-                        side: BorderSide(
-                          color: AppColors.error.withValues(alpha: 0.4),
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                            AppRadius.control,
-                          ),
-                        ),
-                      ),
-                      onPressed: () => _delete(customer),
-                      icon: const Icon(Icons.delete_outline_rounded),
-                      label: const Text(
-                        'Delete Customer',
-                        style: TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
               const SliverPadding(
                 padding: EdgeInsetsDirectional.only(bottom: AppSpacing.xxl),
               ),

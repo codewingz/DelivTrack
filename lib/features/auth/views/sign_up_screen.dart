@@ -87,7 +87,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
           ),
           footer: AuthFooterLink(
             prompt: 'Already have an account?',
-            action: 'Log in',
+            action: 'Sign in',
             onPressed: widget.onLogIn,
           ),
         );

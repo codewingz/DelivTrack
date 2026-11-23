@@ -246,8 +246,8 @@ void main() {
   testWidgets('"Log in" link calls onLogIn', (t) async {
     var tapped = false;
     await _pump(t, FakeAuthRepository(), onLogIn: () => tapped = true);
-    await t.ensureVisible(find.text('Log in'));
-    await t.tap(find.text('Log in'));
+    await t.ensureVisible(find.text('Sign in'));
+    await t.tap(find.text('Sign in'));
     expect(tapped, isTrue);
   });
 

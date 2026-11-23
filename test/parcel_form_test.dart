@@ -195,13 +195,13 @@ void main() {
         await _open(t);
         expect(find.widgetWithText(AppBar, 'Add parcel'), findsOneWidget);
         expect(
-          find.textContaining('assigned automatically when you save'),
+          find.text('Order # auto-assigned on save'),
           findsOneWidget,
         );
         expect(find.textContaining('Sending date'), findsNothing);
         expect(find.textContaining('Notes'), findsNothing);
         expect(find.textContaining('Expected'), findsNothing);
-        expect(find.text('Products total: Rs. 0'), findsOneWidget);
+        expect(find.bySemanticsLabel('Products total: Rs. 0'), findsOneWidget);
         expect(find.text('Save Parcel'), findsOneWidget);
         expect(find.byType(AppBar), findsOneWidget);
         expect(find.byType(Dialog), findsNothing);
@@ -317,7 +317,10 @@ void main() {
         await _type(t, 'Enter quantity', '3');
         await _type(t, 'Enter agreed price', '2500.50');
         expect(find.text('Line total: Rs. 7,501.50'), findsOneWidget);
-        expect(find.text('Products total: Rs. 7,501.50'), findsOneWidget);
+        expect(
+          find.bySemanticsLabel('Products total: Rs. 7,501.50'),
+          findsOneWidget,
+        );
       },
     );
 
@@ -418,12 +421,12 @@ void main() {
       await _pickProduct(t, 'Dry Fruits', row: 1);
       await _type(t, 'Enter weight', '2');
       await _type(t, 'Enter agreed price', '50', last: true);
-      expect(find.text('Products total: Rs. 300'), findsOneWidget);
+      expect(find.bySemanticsLabel('Products total: Rs. 300'), findsOneWidget);
 
       await _scrollTo(t, find.byTooltip('Remove product 2'));
       await t.tap(find.byTooltip('Remove product 2'));
       await t.pump();
-      expect(find.text('Products total: Rs. 200'), findsOneWidget);
+      expect(find.bySemanticsLabel('Products total: Rs. 200'), findsOneWidget);
       expect(
         find.byTooltip('Remove product 1'),
         findsNothing,

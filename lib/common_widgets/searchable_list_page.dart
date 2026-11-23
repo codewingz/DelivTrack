@@ -111,8 +111,8 @@ class SearchableListPage<T> extends StatelessWidget {
         // Two lines of text need a taller bar, more so with large text.
         toolbarHeight: subtitle == null && titleIcon == null
             ? kToolbarHeight
-            : 24 + 48 * MediaQuery.textScalerOf(context).scale(1),
-        title: _title(),
+            : AppBarTitle.heightFor(context),
+        title: AppBarTitle(title, subtitle: subtitle, icon: titleIcon),
         actions: actions,
       ),
       floatingActionButton: addLabel == null || onAdd == null
@@ -221,48 +221,6 @@ class SearchableListPage<T> extends StatelessWidget {
         Expanded(child: search),
         const SizedBox(width: AppSpacing.sm),
         trailing,
-      ],
-    );
-  }
-
-  Widget _title() {
-    final text = subtitle == null
-        ? Text(title)
-        : Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.w700),
-              ),
-              Text(
-                subtitle!,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 13, color: AppColors.brand100),
-              ),
-            ],
-          );
-    if (titleIcon == null) return text;
-    return Row(
-      children: [
-        Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: AppColors.mint.withValues(alpha: 0.2),
-            borderRadius: BorderRadius.circular(AppRadius.control),
-            border: Border.all(color: AppColors.mint.withValues(alpha: 0.3)),
-          ),
-          child: ExcludeSemantics(
-            child: Icon(titleIcon, size: 20, color: AppColors.mint),
-          ),
-        ),
-        const SizedBox(width: AppSpacing.md),
-        Flexible(child: text),
       ],
     );
   }

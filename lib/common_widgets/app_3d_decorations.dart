@@ -155,6 +155,62 @@ AppBar appCurvedAppBar({
   );
 }
 
+/// Title for [appCurvedAppBar] with an optional line under it and an optional
+/// icon tile before it. Give the bar [heightFor] as its toolbar height.
+class AppBarTitle extends StatelessWidget {
+  const AppBarTitle(this.title, {super.key, this.subtitle, this.icon});
+  final String title;
+  final String? subtitle;
+  final IconData? icon;
+
+  /// Toolbar height that fits the two lines at the current text size.
+  static double heightFor(BuildContext context) =>
+      24 + 48 * MediaQuery.textScalerOf(context).scale(1);
+
+  @override
+  Widget build(BuildContext context) {
+    final text = subtitle == null
+        ? Text(title)
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              Text(
+                subtitle!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 13, color: AppColors.brand100),
+              ),
+            ],
+          );
+    if (icon == null) return text;
+    return Row(
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: AppColors.mint.withValues(alpha: 0.2),
+            borderRadius: BorderRadius.circular(AppRadius.control),
+            border: Border.all(color: AppColors.mint.withValues(alpha: 0.3)),
+          ),
+          child: ExcludeSemantics(
+            child: Icon(icon, size: 20, color: AppColors.mint),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.md),
+        Flexible(child: text),
+      ],
+    );
+  }
+}
+
 /// 3D Mint Floating Action Button (+ Add Parcel / + Add Customer / + Add Product).
 class MintFabButton extends StatelessWidget {
   const MintFabButton({

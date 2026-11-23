@@ -6,21 +6,28 @@ class SenderProfile {
     required this.name,
     required this.phone,
     required this.address,
+    this.businessName = '',
   });
 
   const SenderProfile.empty()
-      : name = '',
-        phone = '',
-        address = '';
+    : name = '',
+      phone = '',
+      address = '',
+      businessName = '';
 
   final String name;
   final String phone;
   final String address;
 
+  /// Optional shop or company name; empty when not given.
+  final String businessName;
+
   Map<String, dynamic> toMap() => {
     'name': collapseSpaces(name),
     'phone': collapseSpaces(phone),
     'address': collapseSpaces(address),
+    if (collapseSpaces(businessName).isNotEmpty)
+      'businessName': collapseSpaces(businessName),
   };
 
   factory SenderProfile.fromMap(Map<String, dynamic> map) {
@@ -28,6 +35,7 @@ class SenderProfile {
       name: (map['name'] as String?)?.trim() ?? '',
       phone: (map['phone'] as String?)?.trim() ?? '',
       address: (map['address'] as String?)?.trim() ?? '',
+      businessName: (map['businessName'] as String?)?.trim() ?? '',
     );
   }
 
@@ -35,12 +43,13 @@ class SenderProfile {
     String? name,
     String? phone,
     String? address,
-  }) =>
-      SenderProfile(
-        name: name ?? this.name,
-        phone: phone ?? this.phone,
-        address: address ?? this.address,
-      );
+    String? businessName,
+  }) => SenderProfile(
+    name: name ?? this.name,
+    phone: phone ?? this.phone,
+    address: address ?? this.address,
+    businessName: businessName ?? this.businessName,
+  );
 
   @override
   bool operator ==(Object other) =>
@@ -49,8 +58,9 @@ class SenderProfile {
           runtimeType == other.runtimeType &&
           name == other.name &&
           phone == other.phone &&
-          address == other.address;
+          address == other.address &&
+          businessName == other.businessName;
 
   @override
-  int get hashCode => Object.hash(name, phone, address);
+  int get hashCode => Object.hash(name, phone, address, businessName);
 }

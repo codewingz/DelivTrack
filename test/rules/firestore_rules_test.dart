@@ -4475,6 +4475,32 @@ void main() {
         expect(await emu.get(null, path), 403);
       }, skip: skip);
 
+      test('the business name is optional; when given it is 2-60 trimmed characters', () async {
+        final path = 'users/${alice.uid}/settings/sender_profile';
+        Future<int> save(Object? business) => emu.set(
+          alice.token,
+          path,
+          {...validProfile(), 'businessName': ?business},
+          serverTimes: const ['updatedAt'],
+        );
+        expect(await save(null), 200, reason: 'none');
+        expect(await save('Ali Traders'), 200);
+        expect(await save('A'), 403, reason: 'too short');
+        expect(await save(' Ali Traders'), 403, reason: 'not trimmed');
+        expect(await save('x' * 61), 403, reason: 'too long');
+        expect(await save(5), 403, reason: 'not text');
+        expect(
+          await emu.set(
+            bob.token,
+            path,
+            {...validProfile(), 'businessName': 'Bob Traders'},
+            serverTimes: const ['updatedAt'],
+          ),
+          403,
+          reason: 'another user',
+        );
+      }, skip: skip);
+
       test('deleting sender profile is forbidden', () async {
         final path = 'users/${alice.uid}/settings/sender_profile';
         expect(await emu.delete(alice.token, path), 403);

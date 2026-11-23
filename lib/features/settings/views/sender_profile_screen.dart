@@ -1,14 +1,18 @@
 import '../../../common_widgets/app_snack_bar.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../../common_widgets/app_3d_decorations.dart';
 import '../../../common_widgets/app_text_field.dart';
 import '../../../common_widgets/brand_loading_indicator.dart';
+import '../../../common_widgets/liquid_glass.dart';
 import '../../../common_widgets/primary_button.dart';
 import '../../../constants/app_colors.dart';
 import '../../../core/errors/app_failure.dart';
 import '../../../core/view_models/action_view_model.dart';
+import '../../../design_system/foundations/radius/app_radius.dart';
 import '../../../design_system/foundations/spacing/app_spacing.dart';
+import '../../../utils/text.dart';
 import '../../../utils/app_validators.dart';
 import '../data/sender_profile_repository.dart';
 import '../domain/sender_profile.dart';
@@ -27,11 +31,17 @@ class SenderProfileScreen extends StatefulWidget {
 class _SenderProfileScreenState extends State<SenderProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   final _name = TextEditingController();
+  final _business = TextEditingController();
   final _phone = TextEditingController();
   final _address = TextEditingController();
   final _viewModel = ActionViewModel();
 
   bool _loading = true;
+
+  /// The saved details, shown read-only until Edit is tapped; null when
+  /// nothing is saved yet (the form is shown).
+  SenderProfile? _saved;
+  bool _editing = false;
 
   @override
   void initState() {
@@ -43,14 +53,15 @@ class _SenderProfileScreenState extends State<SenderProfileScreen> {
     try {
       final profile = await widget.repository.getProfile();
       if (mounted && profile != null) {
-        _name.text = profile.name;
-        _phone.text = profile.phone;
-        _address.text = profile.address;
+        _saved = profile;
+        _fill(profile);
       }
     } on AppFailure catch (e) {
       if (mounted) _viewModel.fail(e.message);
     } catch (_) {
-      if (mounted) _viewModel.fail('Could not load profile. You can enter details below.');
+      if (mounted) {
+        _viewModel.fail('Could not load profile. You can enter details below.');
+      }
     } finally {
       if (mounted) {
         setState(() => _loading = false);
@@ -58,9 +69,17 @@ class _SenderProfileScreenState extends State<SenderProfileScreen> {
     }
   }
 
+  void _fill(SenderProfile profile) {
+    _name.text = profile.name;
+    _business.text = profile.businessName;
+    _phone.text = profile.phone;
+    _address.text = profile.address;
+  }
+
   @override
   void dispose() {
     _name.dispose();
+    _business.dispose();
     _phone.dispose();
     _address.dispose();
     _viewModel.dispose();
@@ -69,101 +88,290 @@ class _SenderProfileScreenState extends State<SenderProfileScreen> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    final profile = SenderProfile(
+      name: collapseSpaces(_name.text),
+      businessName: collapseSpaces(_business.text),
+      phone: collapseSpaces(_phone.text),
+      address: collapseSpaces(_address.text),
+    );
     final success = await _viewModel.run(
-      () => widget.repository.saveProfile(
-        SenderProfile(
-          name: _name.text,
-          phone: _phone.text,
-          address: _address.text,
-        ),
+      () => widget.repository.saveProfile(profile),
+    );
+    if (!success || !mounted) return;
+    // Back to the read-only view of what was saved.
+    setState(() {
+      _saved = profile;
+      _editing = false;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      appSnackBar(
+        'Sender details saved.',
+        duration: const Duration(seconds: 2),
       ),
     );
-    if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        appSnackBar('Sender details saved.', duration: const Duration(seconds: 2)),
-      );
-      if (Navigator.of(context).canPop()) {
-        Navigator.of(context).pop();
-      }
-    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final saved = _saved;
     return Scaffold(
-      appBar: appCurvedAppBar(title: const Text('Sender & return details')),
-      body: SafeArea(
-        child: _loading
-            ? const Center(child: BrandLoadingIndicator())
-            : Align(
-                alignment: Alignment.topCenter,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 640),
-                  child: Form(
-                    key: _formKey,
-                    child: ListView(
-                      padding: const EdgeInsetsDirectional.all(AppSpacing.lg),
-                      children: [
-                        Text(
-                          'These details will appear as your return address on parcel slips, box labels, and customer invoices.',
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodyMedium
-                              ?.copyWith(color: AppColors.label),
+      // The backdrop continues behind the header's curve.
+      extendBodyBehindAppBar: true,
+      appBar: appCurvedAppBar(
+        toolbarHeight: AppBarTitle.heightFor(context),
+        title: const AppBarTitle(
+          'Sender & return details',
+          subtitle: 'Return address for slips & invoices',
+        ),
+      ),
+      body: LiquidBackground(
+        child: SafeArea(
+          child: _loading
+              ? const Center(child: BrandLoadingIndicator())
+              : Align(
+                  alignment: Alignment.topCenter,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 640),
+                    child: Form(
+                      key: _formKey,
+                      child: SingleChildScrollView(
+                        keyboardDismissBehavior:
+                            ScrollViewKeyboardDismissBehavior.onDrag,
+                        padding: const EdgeInsetsDirectional.all(AppSpacing.lg),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const Padding(
+                              padding: EdgeInsetsDirectional.symmetric(
+                                horizontal: AppSpacing.xs,
+                              ),
+                              child: Text(
+                                'These details will appear as your return address on parcel slips, box labels, and customer invoices.',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  height: 1.4,
+                                  color: AppColors.label,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.lg),
+                            if (saved != null && !_editing)
+                              _SavedDetails(
+                                profile: saved,
+                                onEdit: () => setState(() {
+                                  _fill(saved);
+                                  _editing = true;
+                                }),
+                              )
+                            else
+                              ..._form(),
+                          ],
                         ),
-                        const SizedBox(height: AppSpacing.lg),
-                        AppTextField.name(
-                          controller: _name,
-                          label: 'Sender / Business name',
-                          hint: 'e.g. Ali Collection',
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        AppTextField.phone(
-                          controller: _phone,
-                          label: 'Sender phone number',
-                          hint: '0300 1234567',
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        AppTextField.multiline(
-                          controller: _address,
-                          label: 'Return address',
-                          hint: 'Shop/House #, Street, City',
-                          validator: (v) => AppValidators.address(
-                            v,
-                            fieldName: 'Return address',
-                          ),
-                        ),
-                        ListenableBuilder(
-                          listenable: _viewModel,
-                          builder: (context, _) => _viewModel.errorMessage != null
-                              ? Padding(
-                                  padding: const EdgeInsets.only(
-                                    top: AppSpacing.md,
-                                  ),
-                                  child: Text(
-                                    _viewModel.errorMessage!,
-                                    style: const TextStyle(
-                                      color: AppColors.error,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                )
-                              : const SizedBox.shrink(),
-                        ),
-                        const SizedBox(height: AppSpacing.xl),
-                        ListenableBuilder(
-                          listenable: _viewModel,
-                          builder: (context, _) => PrimaryButton(
-                            label: 'Save details',
-                            isLoading: _viewModel.isLoading,
-                            onPressed: _save,
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _form() {
+    return [
+      App3DCard(
+        glass: true,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AppTextField.name(
+              controller: _name,
+              label: 'Sender name',
+              hint: 'Enter sender name',
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            AppTextField.name(
+              controller: _business,
+              label: 'Business name (optional)',
+              hint: 'Enter business name',
+              icon: Icons.storefront_outlined,
+              isRequired: false,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            AppTextField.phone(
+              controller: _phone,
+              label: 'Sender phone number',
+              hint: 'Enter sender phone number',
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            AppTextField.multiline(
+              controller: _address,
+              label: 'Return address',
+              hint: 'Enter return address',
+              isRequired: true,
+              validator: (v) =>
+                  AppValidators.address(v, fieldName: 'Return address'),
+            ),
+          ],
+        ),
+      ),
+      ListenableBuilder(
+        listenable: _viewModel,
+        builder: (context, _) => _viewModel.errorMessage != null
+            ? Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.md),
+                child: Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    _viewModel.errorMessage!,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.error,
+                    ),
+                  ),
+                ),
+              )
+            : const SizedBox.shrink(),
+      ),
+      const SizedBox(height: AppSpacing.lg),
+      ListenableBuilder(
+        listenable: _viewModel,
+        builder: (context, _) => PrimaryButton(
+          label: 'Save details',
+          isLoading: _viewModel.isLoading,
+          onPressed: _save,
+        ),
+      ),
+    ];
+  }
+}
+
+/// The saved details, read-only, with an Edit button.
+class _SavedDetails extends StatelessWidget {
+  const _SavedDetails({required this.profile, required this.onEdit});
+  final SenderProfile profile;
+  final VoidCallback onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasBusiness = profile.businessName.isNotEmpty;
+    return App3DCard(
+      glass: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // The Edit button moves under the name when both do not fit.
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: AppSpacing.md,
+            runSpacing: AppSpacing.sm,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: AppColors.brand50,
+                      borderRadius: BorderRadius.circular(AppRadius.control),
+                      border: Border.all(color: AppColors.brand100),
+                    ),
+                    child: const SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: ExcludeSemantics(
+                        child: Icon(
+                          Icons.storefront_outlined,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Flexible(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          hasBusiness ? profile.businessName : profile.name,
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        if (hasBusiness)
+                          Text(
+                            'Sender: ${profile.name}',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: AppColors.label,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
+              GlassSurface(
+                radius: AppRadius.control,
+                ledgeHeight: 3,
+                child: TextButton.icon(
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size(48, 48),
+                    foregroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.lg,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.control),
+                    ),
+                  ),
+                  onPressed: onEdit,
+                  icon: const Icon(Icons.edit_outlined, size: 18),
+                  label: const Text(
+                    'Edit',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const Divider(height: AppSpacing.x3l, color: AppColors.border),
+          const _FieldLabel('Sender phone number'),
+          Text(
+            profile.phone,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          const _FieldLabel('Return address'),
+          Text(
+            profile.address,
+            style: const TextStyle(fontSize: 15, color: AppColors.textPrimary),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FieldLabel extends StatelessWidget {
+  const _FieldLabel(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text.toUpperCase(),
+      style: const TextStyle(
+        fontSize: 12,
+        letterSpacing: 1,
+        color: AppColors.textSecondary,
       ),
     );
   }

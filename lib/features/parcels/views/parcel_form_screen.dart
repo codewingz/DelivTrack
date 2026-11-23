@@ -497,7 +497,7 @@ class _ItemCardState extends State<_ItemCard> {
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
-                    color: AppColors.label,
+                    color: AppColors.primary,
                   ),
                 ),
               ),
@@ -514,6 +514,7 @@ class _ItemCardState extends State<_ItemCard> {
                 ),
             ],
           ),
+          const SizedBox(height: AppSpacing.sm),
           AppSelectField(
             label: 'Product',
             hint: 'Select a product',

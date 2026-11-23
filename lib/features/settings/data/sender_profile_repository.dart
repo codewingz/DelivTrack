@@ -5,7 +5,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../core/errors/app_failure.dart';
 import '../../../core/errors/firestore_failure.dart';
-import '../../../utils/text.dart';
 import '../domain/sender_profile.dart';
 
 abstract class SenderProfileRepository {
@@ -78,10 +77,9 @@ class FirestoreSenderProfileRepository implements SenderProfileRepository {
     final uid = _auth.currentUser?.uid;
     if (uid == null) throw const AppFailure('Sign in required.');
     try {
+      // Every field of the profile (toMap), so a new one is never left out.
       await _doc(uid).set({
-        'name': collapseSpaces(profile.name),
-        'phone': collapseSpaces(profile.phone),
-        'address': collapseSpaces(profile.address),
+        ...profile.toMap(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } on FirebaseException catch (e) {

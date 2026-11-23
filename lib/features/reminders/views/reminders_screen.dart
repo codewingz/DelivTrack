@@ -1,13 +1,14 @@
-import '../../../common_widgets/app_snack_bar.dart';
-
 import 'package:flutter/material.dart';
 
+import '../../../common_widgets/app_3d_decorations.dart';
+import '../../../common_widgets/app_snack_bar.dart';
+import '../../../common_widgets/liquid_glass.dart';
+import '../../../common_widgets/primary_button.dart';
 import '../../../common_widgets/empty_state.dart';
 import '../../../common_widgets/list_skeleton.dart';
 import '../../../constants/app_colors.dart';
 import '../../../core/money/money.dart';
 import '../../../core/time/pakistan_time.dart';
-import '../../../design_system/foundations/radius/app_radius.dart';
 import '../../../design_system/foundations/spacing/app_spacing.dart';
 import '../../parcels/data/parcel_repository.dart';
 import '../../parcels/domain/parcel.dart';
@@ -77,15 +78,26 @@ class _RemindersScreenState extends State<RemindersScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Reminders')),
-      body: SafeArea(
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 640),
-            child: ListenableBuilder(
-              listenable: _viewModel,
-              builder: (context, _) => _body(context),
+      // The backdrop continues behind the header's curve.
+      extendBodyBehindAppBar: true,
+      appBar: appCurvedAppBar(
+        toolbarHeight: AppBarTitle.heightFor(context),
+        title: const AppBarTitle(
+          'Reminders',
+          subtitle: 'Pay Later follow-ups',
+          icon: Icons.notifications_none_rounded,
+        ),
+      ),
+      body: LiquidBackground(
+        child: SafeArea(
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 640),
+              child: ListenableBuilder(
+                listenable: _viewModel,
+                builder: (context, _) => _body(context),
+              ),
             ),
           ),
         ),
@@ -212,18 +224,33 @@ class _ReminderTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        InkWell(
-          onTap: onOpen,
-          child: Padding(
-            padding: const EdgeInsetsDirectional.symmetric(
-              horizontal: AppSpacing.lg,
-              vertical: AppSpacing.md,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    final urgent =
+        group == ReminderGroup.overdue || group == ReminderGroup.dueToday;
+    return Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(
+        AppSpacing.lg,
+        0,
+        AppSpacing.lg,
+        AppSpacing.md,
+      ),
+      child: App3DCard(
+        glass: true,
+        onTap: onOpen,
+        stripeColor: urgent ? AppColors.error : AppColors.primary,
+        padding: const EdgeInsetsDirectional.fromSTEB(
+          AppSpacing.lg,
+          AppSpacing.lg,
+          AppSpacing.sm,
+          AppSpacing.xs,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // The order number, with the amount at the end; the amount moves
+            // below when large text leaves no room.
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              spacing: AppSpacing.md,
               children: [
                 Text(
                   parcel.orderNumber,
@@ -233,61 +260,60 @@ class _ReminderTile extends StatelessWidget {
                     color: AppColors.primaryDark,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  parcel.customerName,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Text(
-                  'Outstanding ${formatRupees(parcel.outstandingPaisa)}',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                Text(
-                  reminderDateText(parcel, group, today),
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: group == ReminderGroup.overdue
-                        ? AppColors.error
-                        : AppColors.textSecondary,
+                Padding(
+                  padding: const EdgeInsetsDirectional.only(end: AppSpacing.sm),
+                  child: Text(
+                    'Outstanding ${formatRupees(parcel.outstandingPaisa)}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.pending,
+                    ),
                   ),
                 ),
               ],
             ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsetsDirectional.symmetric(
-            horizontal: AppSpacing.sm,
-          ),
-          child: Wrap(
-            children: [
-              // Not for a draft: money is recorded only after the handover.
-              if (parcel.status == ParcelStatus.sent)
-                TextButton(
-                  onPressed: onReceive,
-                  child: const Text('Mark Received'),
-                ),
-              TextButton(
-                onPressed: onChangeDate,
-                child: Text(
-                  group == ReminderGroup.noDate ? 'Set Date' : 'Change Date',
-                ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              parcel.customerName,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
               ),
-            ],
-          ),
+            ),
+            Text(
+              reminderDateText(parcel, group, today),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: group == ReminderGroup.overdue
+                    ? AppColors.error
+                    : AppColors.textSecondary,
+              ),
+            ),
+            const Divider(height: AppSpacing.xl, color: AppColors.border),
+            Wrap(
+              children: [
+                // Not for a draft: money is recorded only after the handover.
+                if (parcel.status == ParcelStatus.sent)
+                  TextButton.icon(
+                    onPressed: onReceive,
+                    icon: const Icon(Icons.payments_outlined, size: 20),
+                    label: const Text('Mark Received'),
+                  ),
+                TextButton.icon(
+                  onPressed: onChangeDate,
+                  icon: const Icon(Icons.event_outlined, size: 20),
+                  label: Text(
+                    group == ReminderGroup.noDate ? 'Set Date' : 'Change Date',
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
-        const Divider(height: 1),
-      ],
+      ),
     );
   }
 }
@@ -304,36 +330,27 @@ class _NotificationsOffBanner extends StatelessWidget {
         top: AppSpacing.lg,
         end: AppSpacing.lg,
       ),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          border: Border.all(color: AppColors.border),
-          borderRadius: BorderRadius.circular(AppRadius.control),
-        ),
-        child: Padding(
-          padding: const EdgeInsetsDirectional.all(AppSpacing.lg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Phone notifications are off',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.primaryDark,
-                ),
+      child: App3DCard(
+        glass: true,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Phone notifications are off',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
               ),
-              const SizedBox(height: AppSpacing.xs),
-              const Text(
-                'Turn them on to get a reminder on the day a payment is due, at the time set in Settings. This list always works without them.',
-                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-              ),
-              TextButton(
-                onPressed: onTurnOn,
-                child: const Text('Turn On Notifications'),
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            const Text(
+              'Turn them on to get a reminder on the day a payment is due, at the time set in Settings. This list always works without them.',
+              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            PrimaryButton(label: 'Turn On Notifications', onPressed: onTurnOn),
+          ],
         ),
       ),
     );

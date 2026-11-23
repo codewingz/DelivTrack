@@ -265,10 +265,25 @@ service cloud.firestore {
                 && (resource.data.get('isArchived', false)
                     || (resource.data.parcelStatus == 'draft'
                         && resource.data.receivedPaisa == 0))))
+        // A returned parcel is checked on its own: it only takes notes, or the completion of its payment
+        // review. Everything else on it is frozen by the list of fields that may change, so the checks for
+        // parcels that are not returned are skipped. (This also keeps the rule inside Firestore's limit of
+        // 1,000 expressions per request: with every check a review on a parcel that had a payment, notes
+        // and a return reason was refused.)
+        && (resource.data.parcelStatus == 'returned'
+          ? (request.resource.data.parcelStatus == 'returned'
+              && (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['notes', 'isArchived', 'updatedAt'])
+                // completing the payment review: only the review fields change, once, and only the money flag clears
+                || (resource.data.get('paymentReviewRequired', false) == true
+                    && !('paymentReviewResolvedAt' in resource.data)
+                    && request.resource.data.paymentReviewResolvedAt == request.time
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['paymentReviewRequired', 'paymentReviewReason',
+                        'paymentReviewNote', 'paymentReviewDateLocal', 'paymentReviewResolvedAt', 'updatedAt']))))
+          : (
         // Owner's rules for a handed-over parcel: it never goes back to Draft, and its customer, parcel
         // type, product lines and expected amount are locked (only the handover details, notes, the Pay
         // Later date, payments and the return can still change).
-        && (resource.data.parcelStatus == 'draft'
+           (resource.data.parcelStatus == 'draft'
             || (request.resource.data.parcelStatus != 'draft'
                 && request.resource.data.items == resource.data.items
                 && request.resource.data.customerId == resource.data.customerId
@@ -299,18 +314,8 @@ service cloud.firestore {
                 && request.resource.data.get('lastPaymentId', '') != ''
                 && existsAfter(paymentAt(uid, parcelId, request.resource.data.lastPaymentId))
                 && !exists(paymentAt(uid, parcelId, request.resource.data.lastPaymentId))))
-        // A returned parcel only takes notes; Sent -> Returned changes nothing but the return fields.
-        && (resource.data.parcelStatus != 'returned'
-            || (request.resource.data.parcelStatus == 'returned'
-                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['notes', 'isArchived', 'updatedAt']))
-            // completing the payment review: only the review fields change, once, and only the money flag clears
-            || (request.resource.data.parcelStatus == 'returned'
-                && resource.data.get('paymentReviewRequired', false) == true
-                && !('paymentReviewResolvedAt' in resource.data)
-                && request.resource.data.paymentReviewResolvedAt == request.time
-                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['paymentReviewRequired', 'paymentReviewReason',
-                    'paymentReviewNote', 'paymentReviewDateLocal', 'paymentReviewResolvedAt', 'updatedAt'])))
-        && (request.resource.data.parcelStatus != 'returned' || resource.data.parcelStatus == 'returned'
+        // Sent -> Returned changes nothing but the return fields.
+        && (request.resource.data.parcelStatus != 'returned'
             // Owner's rule: a parcel paid in full is finished and cannot be returned.
             || (resource.data.parcelStatus == 'sent'
                 && resource.data.paymentStatus != 'received'
@@ -318,7 +323,7 @@ service cloud.firestore {
         // A changed Pay Later date must be today or later.
         && (!('estimatedPaymentDateLocal' in request.resource.data)
             || ('estimatedPaymentDateLocal' in resource.data && resource.data.estimatedPaymentDateLocal == request.resource.data.estimatedPaymentDateLocal)
-            || request.resource.data.estimatedPaymentDateLocal >= pakistanDate(request.time));
+            || request.resource.data.estimatedPaymentDateLocal >= pakistanDate(request.time))));
       // A draft parcel (not yet handed over) that received no money can be deleted by its owner. Paid,
       // sent and returned parcels are locked audit records and can never be deleted.
       allow delete: if isOwner(uid)

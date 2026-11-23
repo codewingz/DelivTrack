@@ -2402,6 +2402,42 @@ void main() {
         skip: skip,
       );
 
+      test('a parcel with a payment, notes, a return reason and a packed weight can have its review completed (within the 1,000-expression limit)', () async {
+        final s = await setup();
+        const paid = <String, Object?>{
+          'receivedPaisa': 100000,
+          'outstandingPaisa': 400000,
+          'paymentStatus': 'partial',
+          'lastPaymentId': 'pay1',
+        };
+        const rich = <String, Object?>{
+          ...paid,
+          'notes': 'Customer asked for delivery after 5 pm',
+          'actualPackedWeightGrams': 1500,
+        };
+        expect(await _payOn(emu, s.user, s.pid, s.created, 100000), 200);
+        expect(await replace(s, _parcel(seq: 1, overrides: rich)), 200);
+        const reason = {'returnReason': 'Refused at the door'};
+        expect(
+          await replace(
+            s,
+            _parcel(
+              seq: 1,
+              overrides: {
+                ...rich,
+                ..._returned(extra: reason),
+              },
+            ),
+          ),
+          200,
+        );
+        expect(
+          await resolve(s, done(extra: reason), parcelExtra: rich),
+          200,
+          reason: 'the usual case: money was received before the return',
+        );
+      }, skip: skip);
+
       test('reason, note and date are required and checked; the time is the server\'s', () async {
         final s = await returnedParcel();
         expect(

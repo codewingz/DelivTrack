@@ -58,6 +58,47 @@ ParcelInput _input({
   status: status,
 );
 
+/// A parcel as the app first saves it: a Draft with no slip details yet.
+ParcelInput _draft({
+  CollectionMethod method = CollectionMethod.postalCollection,
+  String? payDate,
+  List<ParcelItem>? items,
+}) => _input(
+  status: ParcelStatus.draft,
+  reference: '',
+  charge: null,
+  method: method,
+  payDate: payDate,
+  items: items,
+);
+
+/// The owner's flow to a Sent parcel: saved as a Draft, then handed over to the post office.
+Future<String> createSent(
+  ParcelRepository repo, {
+  String reference = 'VPP 12345',
+  CollectionMethod method = CollectionMethod.postalCollection,
+}) async {
+  final id = await repo.create(_draft(method: method));
+  await repo.saveHandover(
+    id,
+    ParcelHandover(postalReference: reference, deliveryChargePaisa: 15000),
+  );
+  return id;
+}
+
+/// The action is refused with exactly this message.
+Matcher refusedWith(String message) =>
+    throwsA(isA<AppFailure>().having((e) => e.message, 'message', message));
+
+const _lockedAfterHandover =
+    "A parcel can't be edited after it was handed over.";
+const _handOverFirst =
+    'Hand over the parcel before recording a payment. If the customer paid first, change the parcel type to Advance paid.';
+const _notArchivable =
+    "A parcel that was handed over or received money can't be archived.";
+const _paidInFullNoCorrection =
+    "A parcel paid in full can't have its payments corrected.";
+
 Future<void> signUpNewUser(String tag) async {
   await FirebaseAuth.instance.signOut();
   await FirebaseAuth.instance.createUserWithEmailAndPassword(
@@ -311,13 +352,12 @@ void main() {
       throwsA(isA<AppFailure>()),
     );
 
+    // Two saves went through ('VPP 12345' and 'ABC 123'); the five refused ones used no number.
     final all = await repo
         .watchAll()
-        .firstWhere((l) => l.length == 4)
+        .firstWhere((l) => l.length == 2)
         .timeout(const Duration(seconds: 10));
     expect(all.map((p) => p.orderSequence), [
-      4,
-      3,
       2,
       1,
     ], reason: 'refused saves must not use up order numbers');
@@ -541,15 +581,21 @@ void main() {
     );
 
     testWidgets(
-      'changing the reference frees the old one and reserves the new one; a taken reference is refused and changes nothing',
+      'changing a draft\'s reference frees the old one and reserves the new one; a taken reference is refused and changes nothing; after the handover the edit is refused',
       (t) async {
         await signUpNewUser('eref');
-        final a = await repo.create(_input(reference: 'VPP 11111'));
-        final b = await repo.create(_input(reference: 'VPP 22222'));
+        ParcelInput draft({required String reference, int? charge = 15000}) =>
+            _input(
+              status: ParcelStatus.draft,
+              reference: reference,
+              charge: charge,
+            );
+        final a = await repo.create(draft(reference: 'VPP 11111'));
+        final b = await createSent(repo, reference: 'VPP 22222');
         final bNumber = (await read(repo, b)).orderNumber;
 
         await expectLater(
-          repo.update(a, _input(reference: 'VPP22222')),
+          repo.update(a, draft(reference: 'VPP22222')),
           throwsA(
             isA<AppFailure>().having(
               (e) => e.message,
@@ -564,12 +610,12 @@ void main() {
           reason: 'a refused edit changes nothing',
         );
         expect(
-          await auditEntries(),
+          (await auditEntries()).where((e) => e['entityId'] == a),
           isEmpty,
           reason: 'and writes no audit entry',
         );
 
-        await repo.update(a, _input(reference: 'VPP 33333'));
+        await repo.update(a, draft(reference: 'VPP 33333'));
         await waitFor(a, (p) => p.postalReference == 'VPP 33333');
         // the old reference can be used again, the new one cannot
         await repo.create(_input(reference: 'VPP 11111'));
@@ -578,27 +624,41 @@ void main() {
           throwsA(isA<AppFailure>()),
         );
         // keeping its own reference while editing something else is not a conflict
-        await repo.update(a, _input(reference: 'VPP 33333', charge: 999));
-        expect(
-          (await waitFor(
-            a,
-            (p) => p.deliveryChargePaisa == 999,
-          )).postalReference,
-          'VPP 33333',
+        await repo.update(a, draft(reference: 'VPP 33333', charge: 999));
+        final kept = await waitFor(a, (p) => p.deliveryChargePaisa == 999);
+        expect(kept.postalReference, 'VPP 33333');
+        expect(kept.status, ParcelStatus.draft);
+
+        // Owner's rule: once handed over, the edit form can no longer move the reference.
+        await repo.saveHandover(
+          a,
+          const ParcelHandover(
+            postalReference: 'VPP 33333',
+            deliveryChargePaisa: 999,
+          ),
         );
+        await waitFor(a, (p) => p.status == ParcelStatus.sent);
+        final auditBefore = (await auditEntries()).length;
+        await expectLater(
+          repo.update(a, _input(reference: 'VPP 44444', charge: 999)),
+          refusedWith(_lockedAfterHandover),
+        );
+        expect((await rawParcel(a))['postalReference'], 'VPP 33333');
+        expect(await auditEntries(), hasLength(auditBefore));
+        await repo.create(draft(reference: 'VPP 44444'));
       },
     );
 
     testWidgets(
-      'changed products recalculate the totals; Gift / Free expects nothing; payment status follows',
+      'changed products on a draft recalculate the totals; Gift / Free expects nothing; payment status follows; after the handover products and type are locked',
       (t) async {
         await signUpNewUser('etotals');
-        final id = await repo.create(_input());
+        final id = await repo.create(_draft());
         expect((await read(repo, id)).expectedPaisa, 500000);
 
         await repo.update(
           id,
-          _input(
+          _draft(
             items: [
               ParcelItem.pieces(
                 productId: 'p1',
@@ -620,19 +680,17 @@ void main() {
         expect(bigger.outstandingPaisa, 400000);
         expect(bigger.paymentStatus, PaymentStatus.pending);
 
+        final giftItems = [
+          ParcelItem.pieces(
+            productId: 'p1',
+            productName: 'Mango Box',
+            quantity: 3,
+            unitPricePaisa: 0,
+          ),
+        ];
         await repo.update(
           id,
-          _input(
-            method: CollectionMethod.giftFree,
-            items: [
-              ParcelItem.pieces(
-                productId: 'p1',
-                productName: 'Mango Box',
-                quantity: 3,
-                unitPricePaisa: 0,
-              ),
-            ],
-          ),
+          _draft(method: CollectionMethod.giftFree, items: giftItems),
         );
         final gift = await waitFor(
           id,
@@ -641,15 +699,44 @@ void main() {
         expect(gift.expectedPaisa, 0);
         expect(gift.outstandingPaisa, 0);
         expect(gift.paymentStatus, PaymentStatus.notRequired);
+        expect(gift.status, ParcelStatus.draft);
+
+        // Owner's rule: after the handover neither the products nor the parcel type can change.
+        await repo.saveHandover(
+          id,
+          const ParcelHandover(
+            postalReference: 'VPP 12345',
+            deliveryChargePaisa: 15000,
+          ),
+        );
+        await waitFor(id, (p) => p.status == ParcelStatus.sent);
+        await expectLater(
+          repo.update(id, _input()),
+          refusedWith(_lockedAfterHandover),
+          reason: 'products, price and type',
+        );
+        await expectLater(
+          repo.update(
+            id,
+            _input(method: CollectionMethod.giftFree, items: giftItems),
+          ),
+          refusedWith(_lockedAfterHandover),
+          reason: 'even an edit that changes nothing',
+        );
+        final locked = await rawParcel(id);
+        expect(locked['collectionMethod'], 'free_gift');
+        expect(locked['productAmountExpectedPaisa'], 0);
+        expect(locked['parcelStatus'], 'sent');
       },
     );
 
     testWidgets(
-      'optional fields can be removed again (charge, packed weight, payment date)',
+      'a draft\'s optional fields can be removed again (charge, packed weight, payment date); a handed-over parcel never goes back to Draft',
       (t) async {
         await signUpNewUser('eopt');
         final id = await repo.create(
           _input(
+            status: ParcelStatus.draft,
             method: CollectionMethod.payLater,
             reference: 'ABC 12345',
             packedGrams: 1500,
@@ -666,7 +753,7 @@ void main() {
             charge: null,
           ),
         );
-        await waitFor(id, (p) => p.status == ParcelStatus.draft);
+        await waitFor(id, (p) => p.postalReference.isEmpty);
         final raw = await rawParcel(id);
         for (final removed in [
           'deliveryChargePaisa',
@@ -680,16 +767,39 @@ void main() {
           );
         }
         expect(raw['postalReferenceNormalized'], '');
+        expect(raw.containsKey('postalGuardId'), isFalse);
         // clearing the reference released it
-        await repo.create(_input(reference: 'ABC 12345'));
+        final sent = await createSent(
+          repo,
+          reference: 'ABC 12345',
+          method: CollectionMethod.payLater,
+        );
+
+        // Owner's rule: a handed-over parcel is never made a Draft again.
+        await expectLater(
+          repo.update(
+            sent,
+            _input(
+              status: ParcelStatus.draft,
+              method: CollectionMethod.payLater,
+              reference: '',
+              charge: null,
+            ),
+          ),
+          refusedWith(_lockedAfterHandover),
+        );
+        final still = await rawParcel(sent);
+        expect(still['parcelStatus'], 'sent');
+        expect(still['postalReference'], 'ABC 12345');
+        expect(still['deliveryChargePaisa'], 15000);
       },
     );
 
     testWidgets('an edit that changes nothing writes nothing', (t) async {
       await signUpNewUser('enoop');
-      final id = await repo.create(_input());
+      final id = await repo.create(_draft());
       final before = await rawParcel(id);
-      await repo.update(id, _input());
+      await repo.update(id, _draft());
       final after = await rawParcel(id);
       expect(after['updatedAt'], before['updatedAt']);
       expect(await auditEntries(), isEmpty);
@@ -778,14 +888,45 @@ void main() {
         .then((p) => p!);
 
     testWidgets(
-      'partial then final payment move the parcel to received; history is newest first',
+      'no payment before the handover; then partial and final payment move the parcel to received; the type follows the parcel type; history is newest first',
       (t) async {
         await signUpNewUser('pay');
-        final id = await repo.create(_input());
+        final id = await repo.create(_draft());
+        // Owner's rule: a draft takes no money (only an Advance-paid parcel does).
+        await expectLater(
+          repo.recordPayment(
+            id,
+            amountPaisa: 200000,
+            type: PaymentType.postOfficeRemittance,
+          ),
+          refusedWith(_handOverFirst),
+        );
+        await repo.saveHandover(
+          id,
+          const ParcelHandover(
+            postalReference: 'VPP 12345',
+            deliveryChargePaisa: 15000,
+          ),
+        );
+        // Owner's rule: the payment type follows the parcel type.
+        for (final wrong in [
+          PaymentType.advance,
+          PaymentType.customerPayment,
+        ]) {
+          await expectLater(
+            repo.recordPayment(id, amountPaisa: 200000, type: wrong),
+            refusedWith(
+              'A Post office collection parcel takes a Post office remittance payment.',
+            ),
+          );
+        }
+        expect(await repo.watchPayments(id).first, isEmpty);
+        expect((await read(repo, id)).receivedPaisa, 0);
+
         await repo.recordPayment(
           id,
           amountPaisa: 200000,
-          type: PaymentType.advance,
+          type: PaymentType.postOfficeRemittance,
           note: '  first   part ',
         );
         var parcel = await waitFor(id, (p) => p.receivedPaisa == 200000);
@@ -811,7 +952,9 @@ void main() {
         ], reason: 'newest first');
         expect(history.last.note, 'first part');
         expect(history.first.note, isNull);
-        expect(history.last.type, PaymentType.advance);
+        expect(history.map((p) => p.type).toSet(), {
+          PaymentType.postOfficeRemittance,
+        });
       },
     );
 
@@ -819,34 +962,36 @@ void main() {
       'overpaying, zero, a long note, a gift parcel and a missing parcel are refused',
       (t) async {
         await signUpNewUser('payneg');
-        final id = await repo.create(_input());
+        final id = await createSent(repo);
         await expectLater(
           repo.recordPayment(
             id,
             amountPaisa: 500100,
-            type: PaymentType.customerPayment,
+            type: PaymentType.postOfficeRemittance,
           ),
-          throwsA(isA<AppFailure>()),
+          refusedWith('Cannot exceed outstanding Rs. 5,000.'),
         );
         await expectLater(
           repo.recordPayment(
             id,
             amountPaisa: 0,
-            type: PaymentType.customerPayment,
+            type: PaymentType.postOfficeRemittance,
           ),
-          throwsA(isA<AppFailure>()),
+          refusedWith('Enter an amount.'),
         );
         await expectLater(
           repo.recordPayment(
             id,
             amountPaisa: 100,
-            type: PaymentType.customerPayment,
+            type: PaymentType.postOfficeRemittance,
             note: 'x' * 201,
           ),
-          throwsA(isA<AppFailure>()),
+          refusedWith('Use at most 200 characters.'),
         );
-        final gift = await repo.create(
-          _input(reference: 'VPL 99999', method: CollectionMethod.giftFree),
+        final gift = await createSent(
+          repo,
+          reference: 'VPL 99999',
+          method: CollectionMethod.giftFree,
         );
         await expectLater(
           repo.recordPayment(
@@ -854,7 +999,7 @@ void main() {
             amountPaisa: 100,
             type: PaymentType.customerPayment,
           ),
-          throwsA(isA<AppFailure>()),
+          refusedWith('A Gift / Free parcel has no payment to receive.'),
         );
         await expectLater(
           repo.recordPayment(
@@ -862,7 +1007,7 @@ void main() {
             amountPaisa: 100,
             type: PaymentType.customerPayment,
           ),
-          throwsA(isA<AppFailure>()),
+          refusedWith('This parcel no longer exists.'),
         );
         expect(
           (await read(repo, id)).receivedPaisa,
@@ -877,13 +1022,13 @@ void main() {
       'two payments at the same moment: both counted once, never above the order total',
       (t) async {
         await signUpNewUser('paypar');
-        final id = await repo.create(_input());
+        final id = await createSent(repo);
         await Future.wait([
           for (var i = 0; i < 3; i++)
             repo.recordPayment(
               id,
               amountPaisa: 100000,
-              type: PaymentType.customerPayment,
+              type: PaymentType.postOfficeRemittance,
             ),
         ]);
         final parcel = await waitFor(id, (p) => p.receivedPaisa == 300000);
@@ -902,14 +1047,14 @@ void main() {
       'overlapping payments that together exceed the total: the last one is refused, nothing is lost',
       (t) async {
         await signUpNewUser('payover');
-        final id = await repo.create(_input());
+        final id = await createSent(repo);
         final results = await Future.wait([
           for (var i = 0; i < 3; i++)
             repo
                 .recordPayment(
                   id,
                   amountPaisa: 200000,
-                  type: PaymentType.customerPayment,
+                  type: PaymentType.postOfficeRemittance,
                 )
                 .then((_) => true, onError: (_) => false),
         ]);
@@ -924,31 +1069,74 @@ void main() {
     );
 
     testWidgets(
-      'editing a parcel keeps what was received and recalculates the balance',
+      'editing an Advance-paid draft keeps what was received and takes the new balance as advance; a handed-over parcel with money cannot be edited',
       (t) async {
         await signUpNewUser('payedit');
-        final id = await repo.create(_input());
-        await repo.recordPayment(
-          id,
-          amountPaisa: 200000,
-          type: PaymentType.advance,
+        final threeBoxes = [
+          ParcelItem.pieces(
+            productId: 'p1',
+            productName: 'Mango Box',
+            quantity: 3,
+            unitPricePaisa: 250000,
+          ),
+        ];
+        // The one payment a draft takes: the advance, recorded in full when the parcel is saved.
+        final id = await repo.create(_draft(method: CollectionMethod.advance));
+        var parcel = await waitFor(id, (p) => p.receivedPaisa == 500000);
+        expect(parcel.status, ParcelStatus.draft);
+        expect(parcel.paymentStatus, PaymentStatus.received);
+        final advance = (await repo.watchPayments(id).first).single;
+        expect(advance.type, PaymentType.advance);
+        expect(advance.note, 'Advance paid');
+        await expectLater(
+          repo.recordPayment(id, amountPaisa: 100, type: PaymentType.advance),
+          refusedWith('Cannot exceed outstanding Rs. 0.'),
+        );
+
+        await expectLater(
+          repo.update(
+            id,
+            _draft(method: CollectionMethod.giftFree, items: threeBoxes),
+          ),
+          refusedWith(
+            "The parcel type can't change between Gift / Free and a paid type after a payment was received.",
+          ),
         );
         await repo.update(
           id,
-          _input(
-            items: [
-              ParcelItem.pieces(
-                productId: 'p1',
-                productName: 'Mango Box',
-                quantity: 3,
-                unitPricePaisa: 250000,
-              ),
-            ],
-          ),
+          _draft(method: CollectionMethod.advance, items: threeBoxes),
         );
-        final parcel = await waitFor(id, (p) => p.expectedPaisa == 750000);
+        parcel = await waitFor(
+          id,
+          (p) => p.expectedPaisa == 750000 && p.receivedPaisa == 750000,
+        );
+        expect(parcel.outstandingPaisa, 0);
+        expect(parcel.paymentStatus, PaymentStatus.received);
+        final history = await repo
+            .watchPayments(id)
+            .firstWhere((l) => l.length == 2)
+            .timeout(const Duration(seconds: 10));
+        expect(history.map((p) => p.amountPaisa).toSet(), {
+          500000,
+          250000,
+        }, reason: 'the first advance is kept, the new balance is added');
+
+        // Owner's rule: after the handover the products and price are locked, paid or not.
+        final sent = await createSent(repo);
+        await repo.recordPayment(
+          sent,
+          amountPaisa: 200000,
+          type: PaymentType.postOfficeRemittance,
+        );
+        await waitFor(sent, (p) => p.receivedPaisa == 200000);
+        await expectLater(
+          repo.update(sent, _input(items: threeBoxes)),
+          refusedWith(_lockedAfterHandover),
+        );
+        parcel = await read(repo, sent);
+        expect(parcel.expectedPaisa, 500000);
         expect(parcel.receivedPaisa, 200000);
-        expect(parcel.outstandingPaisa, 550000);
+        expect(parcel.outstandingPaisa, 300000);
       },
     );
   });
@@ -1054,7 +1242,7 @@ void main() {
       'notes: saved, trimmed, kept through edits, removed when emptied, still editable after a return',
       (t) async {
         await signUpNewUser('notes');
-        final id = await repo.create(_input());
+        final id = await repo.create(_draft());
         await repo.setNotes(id, '  Call before delivery ');
         expect(
           (await waitFor(id, (p) => p.notes != null)).notes,
@@ -1064,11 +1252,30 @@ void main() {
           repo.setNotes(id, 'x' * 501),
           throwsA(isA<AppFailure>()),
         );
-        await repo.update(id, _input(charge: 20000));
+        // through an edit of the draft, the handover and "Edit handover"
+        await repo.update(
+          id,
+          _input(status: ParcelStatus.draft, reference: '', charge: 20000),
+        );
         expect(
           (await waitFor(id, (p) => p.deliveryChargePaisa == 20000)).notes,
           'Call before delivery',
         );
+        for (final charge in [21000, 22000]) {
+          await repo.saveHandover(
+            id,
+            ParcelHandover(
+              postalReference: 'VPP 12345',
+              deliveryChargePaisa: charge,
+            ),
+          );
+          final sent = await waitFor(
+            id,
+            (p) => p.deliveryChargePaisa == charge,
+          );
+          expect(sent.status, ParcelStatus.sent);
+          expect(sent.notes, 'Call before delivery');
+        }
         await repo.markReturned(id, date: today());
         await repo.setNotes(id, 'Returned by the customer');
         expect(
@@ -1140,12 +1347,12 @@ void main() {
       '"received on": today is accepted; a future date or a date before the sending date is refused',
       (t) async {
         await signUpNewUser('recon');
-        final id = await repo.create(_input());
+        final id = await createSent(repo);
         await expectLater(
           repo.recordPayment(
             id,
             amountPaisa: 100,
-            type: PaymentType.advance,
+            type: PaymentType.postOfficeRemittance,
             receivedOn: '2999-01-01',
           ),
           throwsA(isA<AppFailure>()),
@@ -1154,7 +1361,7 @@ void main() {
           repo.recordPayment(
             id,
             amountPaisa: 100,
-            type: PaymentType.advance,
+            type: PaymentType.postOfficeRemittance,
             receivedOn: '2000-01-01',
           ),
           throwsA(isA<AppFailure>()),
@@ -1162,7 +1369,7 @@ void main() {
         await repo.recordPayment(
           id,
           amountPaisa: 100000,
-          type: PaymentType.advance,
+          type: PaymentType.postOfficeRemittance,
           receivedOn: today(),
         );
         expect(
@@ -1175,14 +1382,14 @@ void main() {
     );
 
     testWidgets(
-      'correcting a payment: reversal + replacement keep the history; totals follow; a payment is corrected once',
+      'correcting a payment: reversal + replacement keep the history; totals follow; a payment is corrected once; none once the parcel is paid in full',
       (t) async {
         await signUpNewUser('cor');
-        final id = await repo.create(_input());
+        final id = await createSent(repo);
         await repo.recordPayment(
           id,
           amountPaisa: 200000,
-          type: PaymentType.advance,
+          type: PaymentType.postOfficeRemittance,
           note: 'first',
         );
         final original = await firstPaymentId(id);
@@ -1265,6 +1472,33 @@ void main() {
           throwsA(isA<AppFailure>()),
           reason: 'reversals are final',
         );
+
+        // Owner's rule: once the parcel is paid in full its payments are final.
+        await repo.recordPayment(
+          id,
+          amountPaisa: 200000,
+          type: PaymentType.postOfficeRemittance,
+          note: 'rest',
+        );
+        await waitFor(id, (p) => p.paymentStatus == PaymentStatus.received);
+        final paid = await repo
+            .watchPayments(id)
+            .firstWhere((l) => l.length == 4)
+            .timeout(const Duration(seconds: 10));
+        final rest = paid.singleWhere((p) => p.note == 'rest');
+        for (final amount in [100000, 0]) {
+          await expectLater(
+            repo.correctPayment(
+              id,
+              rest.id,
+              correctedAmountPaisa: amount,
+              reason: 'Wrong amount entered',
+            ),
+            refusedWith(_paidInFullNoCorrection),
+          );
+        }
+        expect((await read(repo, id)).receivedPaisa, 500000);
+        expect(await repo.watchPayments(id).first, hasLength(4));
       },
     );
 
@@ -1272,11 +1506,11 @@ void main() {
       'a correction to 0 only cancels the payment; two corrections at once: one wins',
       (t) async {
         await signUpNewUser('corzero');
-        final id = await repo.create(_input());
+        final id = await createSent(repo);
         await repo.recordPayment(
           id,
           amountPaisa: 200000,
-          type: PaymentType.advance,
+          type: PaymentType.postOfficeRemittance,
         );
         final original = await firstPaymentId(id);
         final results = await Future.wait([
@@ -1309,11 +1543,11 @@ void main() {
       "another user cannot return, annotate or correct this user's parcel",
       (t) async {
         await signUpNewUser('own');
-        final id = await repo.create(_input());
+        final id = await createSent(repo);
         await repo.recordPayment(
           id,
           amountPaisa: 100000,
-          type: PaymentType.advance,
+          type: PaymentType.postOfficeRemittance,
         );
         final payment = await firstPaymentId(id);
         await signUpNewUser('intruder');
@@ -1344,7 +1578,7 @@ void main() {
       (t) async {
         await signUpNewUser('datefix');
         final uid = FirebaseAuth.instance.currentUser!.uid;
-        final id = await repo.create(_input(reference: 'VPP 40001'));
+        final id = await createSent(repo, reference: 'VPP 40001');
         final now = DateTime.now().toUtc();
         final twoDaysAgo = pakistanDate(now.subtract(const Duration(days: 2)));
         final yesterday = pakistanDate(now.subtract(const Duration(days: 1)));
@@ -1363,7 +1597,7 @@ void main() {
         await repo.recordPayment(
           id,
           amountPaisa: 200000,
-          type: PaymentType.customerPayment,
+          type: PaymentType.postOfficeRemittance,
         );
         final original = (await repo.watchPayments(id).first).single;
 
@@ -1495,11 +1729,11 @@ void main() {
       (t) async {
         await signUpNewUser('swa');
         final emailA = FirebaseAuth.instance.currentUser!.email!;
-        final a = await repo.create(_input(reference: 'VPP 60001'));
+        final a = await createSent(repo, reference: 'VPP 60001');
         await repo.recordPayment(
           a,
           amountPaisa: 100000,
-          type: PaymentType.advance,
+          type: PaymentType.postOfficeRemittance,
         );
         await repo.archive(
           await repo.create(
@@ -1544,7 +1778,11 @@ void main() {
         );
         final denied = Stopwatch()..start();
         await expectLater(
-          repo.recordPayment(a, amountPaisa: 1000, type: PaymentType.advance),
+          repo.recordPayment(
+            a,
+            amountPaisa: 1000,
+            type: PaymentType.postOfficeRemittance,
+          ),
           throwsA(isA<AppFailure>()),
           reason: 'B cannot write to a parcel id of A',
         );
@@ -1597,7 +1835,7 @@ void main() {
           if (paid) {
             docs['users/$uid/parcels/load$i/payments/pay1'] = {
               'amountPaisa': 100000,
-              'paymentType': 'customer_payment',
+              'paymentType': 'post_office_remittance',
               'receivedAt': DateTime.now().toUtc(),
               'recordedAt': DateTime.now().toUtc(),
             };
@@ -1652,7 +1890,7 @@ void main() {
         await repo.recordPayment(
           target.id,
           amountPaisa: 50000,
-          type: PaymentType.customerPayment,
+          type: PaymentType.postOfficeRemittance,
         );
         await repo
             .watchAll()
@@ -1701,16 +1939,37 @@ void main() {
 
   group('archived parcels keep their money (DT-010)', () {
     testWidgets(
-      'watchAll(includeArchived) still carries an archived paid parcel; restoring does not duplicate it',
+      'a paid parcel cannot be archived; one archived before that rule is still carried by watchAll(includeArchived), and restoring does not duplicate it',
       (t) async {
         await signUpNewUser('arcmoney');
-        final id = await repo.create(_input(reference: 'VPP 30001'));
+        final uid = FirebaseAuth.instance.currentUser!.uid;
+        final id = await createSent(repo, reference: 'VPP 30001');
         await repo.recordPayment(
           id,
           amountPaisa: 500000,
-          type: PaymentType.customerPayment,
+          type: PaymentType.postOfficeRemittance,
         );
-        await repo.archive(id);
+        // Owner's rule: a parcel that was handed over or paid stays on the lists.
+        await expectLater(repo.archive(id), refusedWith(_notArchivable));
+        expect(
+          (await repo
+                  .watchAll()
+                  .firstWhere((l) => l.any((p) => p.receivedPaisa == 500000))
+                  .timeout(const Duration(seconds: 10)))
+              .single
+              .isArchived,
+          isFalse,
+        );
+        expect(await repo.watchArchived().first, isEmpty);
+
+        // A paid parcel archived before the rule existed (set with the admin token, as old data would be).
+        await writeRaw(
+          'users/$uid/parcels/$id',
+          {
+            'isArchived': {'booleanValue': true},
+          },
+          mask: ['isArchived'],
+        );
         final all = await repo
             .watchAll(includeArchived: true)
             .firstWhere((l) => l.any((p) => p.isArchived))
@@ -1718,7 +1977,10 @@ void main() {
         expect(all.map((p) => p.id), [id]);
         expect(all.single.receivedPaisa, 500000);
         expect(
-          await repo.watchAll().first,
+          await repo
+              .watchAll()
+              .firstWhere((l) => l.isEmpty)
+              .timeout(const Duration(seconds: 10)),
           isEmpty,
           reason: 'active lists do not include it',
         );
@@ -1734,6 +1996,11 @@ void main() {
             .timeout(const Duration(seconds: 10));
         expect(restored.length, 1, reason: 'one parcel, not two');
         expect(restored.single.receivedPaisa, 500000);
+        await expectLater(
+          repo.archive(id),
+          refusedWith(_notArchivable),
+          reason: 'once restored it cannot be archived again',
+        );
       },
     );
   });
@@ -1744,12 +2011,19 @@ void main() {
       (t) async {
         await signUpNewUser('dmg');
         final uid = FirebaseAuth.instance.currentUser!.uid;
-        final good1 = await repo.create(_input(reference: 'VPP 10001'));
-        final good2 = await repo.create(_input(reference: 'VPP 10002'));
+        final good1 = await repo.create(_draft());
+        final good2 = await repo.create(_draft());
+        await repo.saveHandover(
+          good1,
+          const ParcelHandover(
+            postalReference: 'VPP 10001',
+            deliveryChargePaisa: 15000,
+          ),
+        );
         await repo.recordPayment(
           good1,
           amountPaisa: 100000,
-          type: PaymentType.advance,
+          type: PaymentType.postOfficeRemittance,
         );
         await writeRaw('users/$uid/parcels/damaged1', {
           'orderNumber': {'stringValue': 'ADT-000099'},
@@ -1788,7 +2062,7 @@ void main() {
 
   group('postal reference guards (DT-006)', () {
     testWidgets(
-      'three saves of the same reference at once: exactly one parcel; moving the reference releases the old one',
+      'three saves of the same reference at once: exactly one parcel; moving the reference with Edit handover releases the old one',
       (t) async {
         await signUpNewUser('refrace');
         final results = await Future.wait([
@@ -1805,17 +2079,33 @@ void main() {
           throwsA(isA<AppFailure>()),
           reason: 'normalised duplicate',
         );
-        // move the parcel to another reference: the old one becomes free again
+        // The edit form cannot move a handed-over parcel's reference (owner's rule)...
         final current = await read(repo, id);
-        await repo.update(
+        await expectLater(
+          repo.update(
+            id,
+            ParcelInput(
+              customer: _customer,
+              items: current.items,
+              method: current.method,
+              postalReference: 'VPP 13579',
+              deliveryChargePaisa: current.deliveryChargePaisa,
+              status: ParcelStatus.sent,
+            ),
+          ),
+          refusedWith(_lockedAfterHandover),
+        );
+        await expectLater(
+          repo.create(_input(reference: 'VPP 24680')),
+          throwsA(isA<AppFailure>()),
+          reason: 'the refused edit released nothing',
+        );
+        // ...but "Edit handover" can: the old reference becomes free again
+        await repo.saveHandover(
           id,
-          ParcelInput(
-            customer: _customer,
-            items: current.items,
-            method: current.method,
+          ParcelHandover(
             postalReference: 'VPP 13579',
             deliveryChargePaisa: current.deliveryChargePaisa,
-            status: ParcelStatus.sent,
           ),
         );
         final reused = await repo.create(_input(reference: 'VPP 24680'));
@@ -1844,6 +2134,7 @@ void main() {
         final other = await repo.create(
           _input(reference: '', charge: null, status: ParcelStatus.draft),
         );
+        final draftNumber = (await read(repo, draft)).orderNumber;
         expect((await read(repo, draft)).status, ParcelStatus.draft);
 
         // validation happens before anything is written
@@ -1882,7 +2173,7 @@ void main() {
               deliveryChargePaisa: 100,
             ),
           ),
-          throwsA(isA<AppFailure>()),
+          refusedWith('This tracking number is already used on $draftNumber.'),
           reason: 'spaces and case do not make a new reference',
         );
         expect(
@@ -1891,13 +2182,31 @@ void main() {
           reason: 'nothing changed on the refused parcel',
         );
 
-        // another service may use the same number
+        // there is no service any more: the exact same number is refused too; another number is fine
+        await expectLater(
+          repo.saveHandover(
+            other,
+            const ParcelHandover(
+              postalReference: 'VPP 70001',
+              deliveryChargePaisa: 100,
+            ),
+          ),
+          refusedWith('This tracking number is already used on $draftNumber.'),
+        );
         await repo.saveHandover(
           other,
           const ParcelHandover(
-            postalReference: 'VPP 70001',
+            postalReference: 'VPP 70009',
             deliveryChargePaisa: 100,
           ),
+        );
+        expect(
+          (await repo
+                  .watch(other)
+                  .firstWhere((p) => p?.status == ParcelStatus.sent)
+                  .timeout(const Duration(seconds: 10)))!
+              .postalReference,
+          'VPP 70009',
         );
 
         // Edit handover: a new reference releases the old one, which another parcel can then use
@@ -1931,7 +2240,7 @@ void main() {
         );
 
         // a returned parcel cannot be handed over
-        final returned = await repo.create(_input(reference: 'VPP 70003'));
+        final returned = await createSent(repo, reference: 'VPP 70003');
         await repo.markReturned(
           returned,
           date: pakistanDate(DateTime.now().toUtc()),
@@ -1944,7 +2253,7 @@ void main() {
               deliveryChargePaisa: 1,
             ),
           ),
-          throwsA(isA<AppFailure>()),
+          refusedWith("A returned parcel can't be handed over."),
         );
 
         // another user cannot hand over this parcel
@@ -1996,21 +2305,27 @@ void main() {
         .then((p) => p!);
 
     testWidgets(
-      'completing the review records the decision, keeps the money and payments, and allows archiving',
+      'completing the review records the decision and keeps the money and payments; a handed-over parcel is not archived before or after it',
       (t) async {
         await signUpNewUser('rev');
-        final id = await repo.create(_input(reference: 'VPP 66666'));
+        final id = await createSent(repo, reference: 'VPP 66666');
         await repo.recordPayment(
           id,
           amountPaisa: 100000,
-          type: PaymentType.advance,
+          type: PaymentType.postOfficeRemittance,
         );
         final today = pakistanDate(DateTime.now().toUtc());
         await repo.markReturned(id, date: today);
-        await waitFor(id, (p) => p.status == ParcelStatus.returned);
+        expect(
+          (await waitFor(
+            id,
+            (p) => p.status == ParcelStatus.returned,
+          )).paymentReviewRequired,
+          isTrue,
+        );
         await expectLater(
           repo.archive(id),
-          throwsA(isA<AppFailure>()),
+          refusedWith(_notArchivable),
           reason: 'review still open',
         );
 
@@ -2063,15 +2378,10 @@ void main() {
           reason: 'only once',
         );
 
-        await repo.archive(id);
-        expect(
-          (await repo
-                  .watchArchived()
-                  .firstWhere((l) => l.isNotEmpty)
-                  .timeout(const Duration(seconds: 10)))
-              .map((p) => p.id),
-          [id],
-        );
+        // Owner's rule: the completed review does not make a handed-over, paid parcel archivable.
+        await expectLater(repo.archive(id), refusedWith(_notArchivable));
+        expect((await read(repo, id)).isArchived, isFalse);
+        expect(await repo.watchArchived().first, isEmpty);
 
         await signUpNewUser('revintruder');
         await expectLater(
@@ -2095,32 +2405,47 @@ void main() {
         .then((p) => p!);
 
     testWidgets(
-      'only a parcel with nothing to chase is archived; it leaves the list, stays readable, is locked, and restores',
+      'only a draft that received no money is archived; it leaves the list, stays readable, is locked, and restores',
       (t) async {
         await signUpNewUser('arch');
-        final owing = await repo.create(_input(reference: 'VPP 11111'));
-        final paid = await repo.create(_input(reference: 'VPP 22222'));
+        final owing = await createSent(repo, reference: 'VPP 11111');
+        final paid = await createSent(repo, reference: 'VPP 22222');
         await repo.recordPayment(
           paid,
           amountPaisa: 500000,
-          type: PaymentType.customerPayment,
+          type: PaymentType.postOfficeRemittance,
         );
         await waitFor(paid, (p) => p.paymentStatus == PaymentStatus.received);
-
-        await expectLater(
-          repo.archive(owing),
-          throwsA(isA<AppFailure>()),
-          reason: 'Rs. 5,000 still owed',
+        // an Advance-paid draft: not handed over, but it received money
+        final advance = await repo.create(
+          _draft(method: CollectionMethod.advance),
         );
-        await repo.archive(paid);
-        await waitFor(paid, (p) => p.isArchived);
+        await waitFor(advance, (p) => p.receivedPaisa == 500000);
+        final draft = await repo.create(_draft());
+
+        for (final (id, why) in [
+          (owing, 'handed over, Rs. 5,000 still owed'),
+          (paid, 'handed over and paid in full'),
+          (advance, 'a draft that received money'),
+        ]) {
+          await expectLater(
+            repo.archive(id),
+            refusedWith(_notArchivable),
+            reason: why,
+          );
+          expect((await read(repo, id)).isArchived, isFalse, reason: why);
+        }
+        expect((await read(repo, draft)).canArchive, isTrue);
+        await repo.archive(draft);
+        await waitFor(draft, (p) => p.isArchived);
         expect(
           (await repo
                   .watchAll()
-                  .firstWhere((l) => l.length == 1)
+                  .firstWhere((l) => l.length == 3)
                   .timeout(const Duration(seconds: 10)))
-              .map((p) => p.id),
-          [owing],
+              .map((p) => p.id)
+              .toSet(),
+          {owing, paid, advance},
           reason: 'gone from the lists',
         );
         expect(
@@ -2129,92 +2454,154 @@ void main() {
                   .firstWhere((l) => l.isNotEmpty)
                   .timeout(const Duration(seconds: 10)))
               .map((p) => p.id),
-          [paid],
+          [draft],
         );
         expect(
-          (await repo.watch(paid).first)!.orderNumber,
-          'ADT-000002',
+          (await repo.watch(draft).first)!.orderNumber,
+          'ADT-000004',
           reason: 'still readable by its address',
         );
 
+        const archived = 'This parcel is archived. Restore it first.';
         await expectLater(
-          repo.update(paid, _input(reference: 'VPP 22222', charge: 20000)),
-          throwsA(isA<AppFailure>()),
+          repo.update(
+            draft,
+            _input(status: ParcelStatus.draft, reference: '', charge: 20000),
+          ),
+          refusedWith(archived),
           reason: 'locked: edit',
         );
         await expectLater(
-          repo.setNotes(paid, 'x'),
-          throwsA(isA<AppFailure>()),
+          repo.setNotes(draft, 'x'),
+          refusedWith(archived),
           reason: 'locked: notes',
         );
         await expectLater(
-          repo.markReturned(paid, date: pakistanDate(DateTime.now().toUtc())),
-          throwsA(isA<AppFailure>()),
+          repo.saveHandover(
+            draft,
+            const ParcelHandover(
+              postalReference: 'VPP 44444',
+              deliveryChargePaisa: 15000,
+            ),
+          ),
+          refusedWith(archived),
+          reason: 'locked: handover',
+        );
+        await expectLater(
+          repo.markReturned(draft, date: pakistanDate(DateTime.now().toUtc())),
+          refusedWith(archived),
           reason: 'locked: return',
         );
 
         final next = await repo.create(_input(reference: 'VPP 33333'));
         expect(
           (await repo.watch(next).first)!.orderNumber,
-          'ADT-000003',
+          'ADT-000005',
           reason: 'an archived number is never reused (AT-03)',
         );
 
-        await repo.restore(paid);
-        await waitFor(paid, (p) => !p.isArchived);
+        await repo.restore(draft);
+        await waitFor(draft, (p) => !p.isArchived);
         expect(
           (await repo
                   .watchAll()
-                  .firstWhere((l) => l.length == 3)
+                  .firstWhere((l) => l.length == 5)
                   .timeout(const Duration(seconds: 10)))
               .map((p) => p.id)
               .toSet(),
-          {owing, paid, next},
+          {owing, paid, advance, draft, next},
         );
-        await repo.setNotes(paid, 'editable again');
+        await repo.setNotes(draft, 'editable again');
         expect(
-          (await waitFor(paid, (p) => p.notes != null)).notes,
+          (await waitFor(draft, (p) => p.notes != null)).notes,
           'editable again',
         );
       },
     );
 
     testWidgets(
-      'a draft and a returned parcel can be archived; another user cannot archive or restore it',
+      'a draft can be archived, a returned parcel cannot; only a draft without money can be deleted; another user cannot archive or restore it',
       (t) async {
         await signUpNewUser('arch2');
         final draft = await repo.create(
           _input(reference: '', charge: null, status: ParcelStatus.draft),
         );
-        final sent = await repo.create(_input(reference: 'VPP 44444'));
+        final sent = await createSent(repo, reference: 'VPP 44444');
         await repo.markReturned(
           sent,
           date: pakistanDate(DateTime.now().toUtc()),
         );
         await waitFor(sent, (p) => p.status == ParcelStatus.returned);
         await repo.archive(draft);
-        // DT-003: this returned parcel still owes money, so its payment review is open and it cannot be archived
-        await expectLater(repo.archive(sent), throwsA(isA<AppFailure>()));
+        // Owner's rule: a parcel that was handed over is never archived, returned or not
+        // (this one also still owes money, so its payment review is open: DT-003)
+        await expectLater(repo.archive(sent), refusedWith(_notArchivable));
         expect((await read(repo, sent)).isArchived, isFalse);
-        // a returned Gift / Free parcel has nothing to review and can be archived
-        final gift = await repo.create(
-          _input(reference: 'VPP 55555', method: CollectionMethod.giftFree),
+        // not even a returned Gift / Free parcel, which has nothing to review
+        final gift = await createSent(
+          repo,
+          reference: 'VPP 55555',
+          method: CollectionMethod.giftFree,
         );
         await repo.markReturned(
           gift,
           date: pakistanDate(DateTime.now().toUtc()),
         );
-        await repo.archive(gift);
+        expect(
+          (await waitFor(
+            gift,
+            (p) => p.status == ParcelStatus.returned,
+          )).paymentReviewRequired,
+          isFalse,
+        );
+        await expectLater(repo.archive(gift), refusedWith(_notArchivable));
         expect(
           (await repo
                   .watchArchived()
-                  .firstWhere((l) => l.length == 2)
+                  .firstWhere((l) => l.isNotEmpty)
+                  .timeout(const Duration(seconds: 10)))
+              .map((p) => p.id),
+          [draft],
+        );
+
+        // Deleting follows the same rule: only a draft that received no money.
+        final handedOver = await createSent(repo, reference: 'VPP 66666');
+        for (final id in [handedOver, sent]) {
+          await expectLater(
+            repo.deleteDraft(id),
+            refusedWith('Only draft parcels can be deleted.'),
+          );
+        }
+        final advance = await repo.create(
+          _draft(method: CollectionMethod.advance),
+        );
+        await waitFor(advance, (p) => p.receivedPaisa == 500000);
+        await expectLater(
+          repo.deleteDraft(advance),
+          refusedWith("A parcel that received money can't be deleted."),
+        );
+        final unwanted = await repo.create(_draft());
+        await repo.deleteDraft(unwanted);
+        expect(
+          await repo
+              .watch(unwanted)
+              .firstWhere((p) => p == null)
+              .timeout(const Duration(seconds: 10)),
+          isNull,
+        );
+        expect(
+          (await repo
+                  .watchAll()
+                  .firstWhere((l) => l.length == 4)
                   .timeout(const Duration(seconds: 10)))
               .map((p) => p.id)
               .toSet(),
-          {draft, gift},
+          {sent, gift, handedOver, advance},
+          reason: 'everything that was refused is still there',
         );
+
         await signUpNewUser('intruder2');
+        await expectLater(repo.archive(sent), throwsA(isA<AppFailure>()));
         await expectLater(repo.restore(draft), throwsA(isA<AppFailure>()));
         expect(
           await repo.watchArchived().first,

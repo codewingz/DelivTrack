@@ -666,6 +666,25 @@ void main() {
       },
     );
 
+    testWidgets('a parcel paid in full offers no Correct on its payments', (
+      t,
+    ) async {
+      final repo =
+          FakeParcelRepository(initial: [testParcel(id: 'a', received: 500000)])
+            ..payments['a'] = [
+              Payment(
+                id: 'pay-1',
+                amountPaisa: 500000,
+                type: PaymentType.postOfficeRemittance,
+                note: null,
+                receivedAt: DateTime.utc(2026, 11, 8, 6),
+              ),
+            ];
+      await _open(t, repo, 'a');
+      expect(find.text('PAYMENT HISTORY'), findsOneWidget);
+      expect(find.text('Correct'), findsNothing);
+    });
+
     testWidgets(
       'a payment can be corrected: the row is marked Corrected and a Reversal row appears',
       (t) async {
@@ -901,12 +920,13 @@ void main() {
     Finder button(String label) => find.widgetWithText(OutlinedButton, label);
 
     testWidgets(
-      'a parcel that still owes money offers no Archive; a paid one, a draft, a returned one and a Gift / Free one do',
+      'a parcel that still owes money, or is paid in full, offers no Archive; a draft, a returned one and a Gift / Free one do',
       (t) async {
         for (final (parcel, canArchive) in [
           (testParcel(id: 'a'), false),
           (testParcel(id: 'a', received: 100000), false),
-          (testParcel(id: 'a', received: 500000), true),
+          // Owner's rule: a parcel paid in full is finished.
+          (testParcel(id: 'a', received: 500000), false),
           (
             testParcel(
               id: 'a',
@@ -939,10 +959,35 @@ void main() {
     );
 
     testWidgets(
+      'a sent parcel paid in full offers no Mark Returned; one that still owes money does',
+      (t) async {
+        for (final (received, offered) in [
+          (0, true),
+          (100000, true),
+          (500000, false),
+        ]) {
+          await _open(
+            t,
+            FakeParcelRepository(
+              initial: [testParcel(id: 'a', received: received)],
+            ),
+            'a',
+          );
+          expect(
+            button('Mark Returned'),
+            offered ? findsOneWidget : findsNothing,
+            reason: 'received $received',
+          );
+          await t.pumpWidget(const SizedBox());
+        }
+      },
+    );
+
+    testWidgets(
       'Archive asks first; Cancel keeps the parcel; Archive hides it and shows the Restore banner',
       (t) async {
         final repo = FakeParcelRepository(
-          initial: [testParcel(id: 'a', received: 500000)],
+          initial: [testParcel(id: 'a', method: CollectionMethod.giftFree)],
         );
         await _open(t, repo, 'a');
         await t.ensureVisible(button('Archive Parcel'));

@@ -356,6 +356,9 @@ class _ParcelView extends StatelessWidget {
         !isReturned &&
         !parcel.isArchived &&
         parcel.outstandingPaisa > 0;
+    // Owner's rule: a parcel paid in full is finished, so it offers neither
+    // Mark Returned nor Archive Parcel.
+    final isPaidInFull = parcel.paymentStatus == PaymentStatus.received;
     // Room for two or three things side by side: not with large text or on a
     // narrow screen.
     final roomy =
@@ -750,7 +753,7 @@ class _ParcelView extends StatelessWidget {
                         ),
                         child: const Text('Change Pay Later Date'),
                       ),
-                    if (parcel.status == ParcelStatus.sent)
+                    if (parcel.status == ParcelStatus.sent && !isPaidInFull)
                       OutlinedButton(
                         style: _actionStyle(tint: AppColors.pending),
                         onPressed: () => onAction(
@@ -768,7 +771,7 @@ class _ParcelView extends StatelessWidget {
                         ),
                         child: const Text('Mark Review Completed'),
                       ),
-                    if (parcel.canArchive)
+                    if (parcel.canArchive && !isPaidInFull)
                       OutlinedButton(
                         style: _actionStyle(),
                         onPressed: () => onAction(() async {
@@ -1069,8 +1072,11 @@ class _PaymentHistoryState extends State<_PaymentHistory> {
                         corrected: reversed.contains(payment.id),
                       ),
                     ),
+                    // Owner's rule: once a parcel is paid in full its
+                    // payments are final (no Correct).
                     if (payment.amountPaisa > 0 &&
                         !reversed.contains(payment.id) &&
+                        parcel.paymentStatus != PaymentStatus.received &&
                         parcel.status != ParcelStatus.returned &&
                         !parcel.isArchived)
                       TextButton(

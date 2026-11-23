@@ -125,7 +125,9 @@ class _ParcelDetailsScreenState extends State<ParcelDetailsScreen> {
         SnackBar(
           content: Text(isDraft ? 'Parcel handed over.' : 'Handover saved.'),
           duration: const Duration(seconds: 4),
-          behavior: SnackBarBehavior.floating,
+          // A message with a button stays until dismissed by default; this
+          // one must leave after its 4 seconds like any other.
+          persist: false,
           action: SnackBarAction(
             label: 'WhatsApp',
             onPressed: () => _sendTrackingWhatsApp(

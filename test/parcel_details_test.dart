@@ -506,6 +506,11 @@ void main() {
         await t.ensureVisible(outlined('Edit handover'));
         expect(outlined('Edit handover'), findsOneWidget);
         expect(repo.handovers.single.handover.deliveryChargePaisa, 12000);
+        // Regression: the message has a WhatsApp button, and a message with
+        // a button used to stay on screen until dismissed.
+        await t.pump(const Duration(seconds: 5));
+        await t.pumpAndSettle();
+        expect(find.text('Parcel handed over.'), findsNothing);
       },
     );
 

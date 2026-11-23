@@ -481,14 +481,13 @@ service cloud.firestore {
     // changed app cannot store anything else here.
     function validAppSettings(data) {
       return data.keys().hasOnly(['remindersEnabled', 'reminderMinutes', 'showOverdueAlerts',
-          'promptWhatsAppTracking', 'payLaterDueDays', 'defaultMethod', 'updatedAt'])
+          'promptWhatsAppTracking', 'defaultMethod', 'updatedAt'])
         && data.keys().hasAll(['remindersEnabled', 'reminderMinutes', 'showOverdueAlerts',
           'promptWhatsAppTracking', 'updatedAt'])
         && data.remindersEnabled is bool
         && data.showOverdueAlerts is bool
         && data.promptWhatsAppTracking is bool
         && data.reminderMinutes is int && data.reminderMinutes >= 0 && data.reminderMinutes <= 1439
-        && (!('payLaterDueDays' in data) || data.payLaterDueDays in [7, 14, 30])
         && (!('defaultMethod' in data)
             || data.defaultMethod in ['postal_collection', 'advance', 'credit', 'free_gift'])
         && data.updatedAt == request.time;

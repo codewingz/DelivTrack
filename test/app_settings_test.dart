@@ -33,7 +33,6 @@ void main() {
       expect(settings.reminderTimeLabel, '9:00 AM');
       expect(settings.showOverdueAlerts, isTrue);
       expect(settings.promptWhatsAppTracking, isTrue);
-      expect(settings.payLaterDueDays, isNull);
       expect(settings.defaultMethod, isNull);
     });
 
@@ -42,7 +41,6 @@ void main() {
         remindersEnabled: false,
         reminderMinutes: 18 * 60 + 5,
         showOverdueAlerts: false,
-        payLaterDueDays: 14,
         defaultMethod: CollectionMethod.payLater,
         promptWhatsAppTracking: false,
       );
@@ -51,19 +49,15 @@ void main() {
         AppSettings.fromMap(const AppSettings().toMap()),
         const AppSettings(),
       );
-      expect(
-        const AppSettings().toMap().containsKey('payLaterDueDays'),
-        isFalse,
-      );
       expect(const AppSettings().toMap().containsKey('defaultMethod'), isFalse);
     });
 
-    test('a missing or unusable value falls back to its default', () {
+    test('a missing or unusable value falls back to its default; a removed setting is ignored', () {
       expect(AppSettings.fromMap(const {}), const AppSettings());
       expect(
         AppSettings.fromMap(const {
           'reminderMinutes': 5000,
-          'payLaterDueDays': 3,
+          'payLaterDueDays': 14,
           'defaultMethod': 'something_new',
           'remindersEnabled': 'yes',
         }),
@@ -71,18 +65,16 @@ void main() {
       );
     });
 
-    test('copyWith can set the optional values back to none', () {
-      const settings = AppSettings(
-        payLaterDueDays: 7,
-        defaultMethod: CollectionMethod.advance,
+    test('copyWith can set the default parcel type back to none', () {
+      const settings = AppSettings(defaultMethod: CollectionMethod.advance);
+      expect(
+        settings.copyWith(reminderMinutes: 60).defaultMethod,
+        CollectionMethod.advance,
       );
-      expect(settings.copyWith(reminderMinutes: 60).payLaterDueDays, 7);
-      final cleared = settings.copyWith(
-        payLaterDueDays: () => null,
-        defaultMethod: () => null,
+      expect(
+        settings.copyWith(defaultMethod: () => null).defaultMethod,
+        isNull,
       );
-      expect(cleared.payLaterDueDays, isNull);
-      expect(cleared.defaultMethod, isNull);
     });
 
     test('times read as a 12-hour clock', () {
@@ -146,44 +138,26 @@ void main() {
       () {
         final form = ParcelFormViewModel(
           defaultMethod: CollectionMethod.postalCollection,
-          payLaterDueDays: 14,
-          today: '2026-11-10',
         );
         expect(form.method, CollectionMethod.postalCollection);
-        expect(form.payDate, isNull, reason: 'only Pay Later has a date');
         expect(form.isDirty, isFalse);
       },
     );
 
     test(
-      'a Pay Later parcel gets today plus the chosen days, across a month end',
+      'the Pay Later date is never pre-filled; leaving Pay Later clears it',
       () {
         final form = ParcelFormViewModel(
           defaultMethod: CollectionMethod.payLater,
-          payLaterDueDays: 30,
-          today: '2026-11-10',
         );
-        expect(form.payDate, '2026-12-10');
-        expect(form.isDirty, isFalse);
+        expect(form.payDate, isNull);
+        form.setPayDate('2026-12-01');
+        form.setMethod(CollectionMethod.payLater);
+        expect(form.payDate, '2026-12-01', reason: 'not overwritten');
+        form.setMethod(CollectionMethod.advance);
+        expect(form.payDate, isNull);
       },
     );
-
-    test('choosing Pay Later later fills the date; leaving it clears it; a typed date is kept', () {
-      final form = ParcelFormViewModel(payLaterDueDays: 7, today: '2026-11-10');
-      form.setMethod(CollectionMethod.payLater);
-      expect(form.payDate, '2026-11-17');
-      form.setPayDate('2026-12-01');
-      form.setMethod(CollectionMethod.payLater);
-      expect(form.payDate, '2026-12-01', reason: 'not overwritten');
-      form.setMethod(CollectionMethod.advance);
-      expect(form.payDate, isNull);
-    });
-
-    test('with no default days the Pay Later date stays empty', () {
-      final form = ParcelFormViewModel(today: '2026-11-10');
-      form.setMethod(CollectionMethod.payLater);
-      expect(form.payDate, isNull);
-    });
   });
 
   group('Home follows the settings', () {

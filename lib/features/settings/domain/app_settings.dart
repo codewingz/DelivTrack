@@ -7,16 +7,12 @@ class AppSettings {
     this.remindersEnabled = true,
     this.reminderMinutes = defaultReminderMinutes,
     this.showOverdueAlerts = true,
-    this.payLaterDueDays,
     this.defaultMethod,
     this.promptWhatsAppTracking = true,
   });
 
   /// 9:00 AM, in minutes after midnight (Pakistan time).
   static const defaultReminderMinutes = 9 * 60;
-
-  /// The choices offered for [payLaterDueDays].
-  static const payLaterDueDayOptions = [7, 14, 30];
 
   /// Phone notifications for Pay Later payments.
   final bool remindersEnabled;
@@ -27,10 +23,6 @@ class AppSettings {
 
   /// Whether overdue Pay Later payments are listed under "Needs attention".
   final bool showOverdueAlerts;
-
-  /// Days from today pre-filled as the payment date of a new Pay Later
-  /// parcel; null leaves the date empty.
-  final int? payLaterDueDays;
 
   /// Parcel type pre-selected on Add parcel; null asks every time.
   final CollectionMethod? defaultMethod;
@@ -46,15 +38,14 @@ class AppSettings {
     'reminderMinutes': reminderMinutes,
     'showOverdueAlerts': showOverdueAlerts,
     'promptWhatsAppTracking': promptWhatsAppTracking,
-    'payLaterDueDays': ?payLaterDueDays,
     'defaultMethod': ?defaultMethod?.value,
   };
 
-  /// Unknown or out-of-range values fall back to the defaults, so a document
-  /// written by a newer app version never breaks this one.
+  /// Unknown or out-of-range values fall back to the defaults and unknown
+  /// fields are ignored, so a document written by another app version never
+  /// breaks this one.
   factory AppSettings.fromMap(Map<String, dynamic> map) {
     final minutes = map['reminderMinutes'];
-    final days = map['payLaterDueDays'];
     return AppSettings(
       remindersEnabled: map['remindersEnabled'] != false,
       reminderMinutes: minutes is int && minutes >= 0 && minutes < 24 * 60
@@ -62,31 +53,24 @@ class AppSettings {
           : defaultReminderMinutes,
       showOverdueAlerts: map['showOverdueAlerts'] != false,
       promptWhatsAppTracking: map['promptWhatsAppTracking'] != false,
-      payLaterDueDays: payLaterDueDayOptions.contains(days)
-          ? days as int
-          : null,
       defaultMethod: CollectionMethod.values
           .where((method) => method.value == map['defaultMethod'])
           .firstOrNull,
     );
   }
 
-  /// A copy with some values changed. [payLaterDueDays] and [defaultMethod]
-  /// take a function so they can also be set back to "none".
+  /// A copy with some values changed. [defaultMethod] takes a function so it
+  /// can also be set back to "none".
   AppSettings copyWith({
     bool? remindersEnabled,
     int? reminderMinutes,
     bool? showOverdueAlerts,
-    int? Function()? payLaterDueDays,
     CollectionMethod? Function()? defaultMethod,
     bool? promptWhatsAppTracking,
   }) => AppSettings(
     remindersEnabled: remindersEnabled ?? this.remindersEnabled,
     reminderMinutes: reminderMinutes ?? this.reminderMinutes,
     showOverdueAlerts: showOverdueAlerts ?? this.showOverdueAlerts,
-    payLaterDueDays: payLaterDueDays == null
-        ? this.payLaterDueDays
-        : payLaterDueDays(),
     defaultMethod: defaultMethod == null ? this.defaultMethod : defaultMethod(),
     promptWhatsAppTracking:
         promptWhatsAppTracking ?? this.promptWhatsAppTracking,
@@ -98,7 +82,6 @@ class AppSettings {
       remindersEnabled == other.remindersEnabled &&
       reminderMinutes == other.reminderMinutes &&
       showOverdueAlerts == other.showOverdueAlerts &&
-      payLaterDueDays == other.payLaterDueDays &&
       defaultMethod == other.defaultMethod &&
       promptWhatsAppTracking == other.promptWhatsAppTracking;
 
@@ -107,7 +90,6 @@ class AppSettings {
     remindersEnabled,
     reminderMinutes,
     showOverdueAlerts,
-    payLaterDueDays,
     defaultMethod,
     promptWhatsAppTracking,
   );

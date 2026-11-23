@@ -3,6 +3,8 @@ import 'package:deliv_track/features/parcels/domain/parcel_enums.dart';
 import 'package:deliv_track/features/parcels/domain/parcel_input.dart';
 import 'package:deliv_track/features/parcels/domain/parcel_item.dart';
 import 'package:deliv_track/features/reminders/views/reminders_screen.dart';
+import 'package:deliv_track/features/settings/data/settings_repository.dart';
+import 'package:deliv_track/features/settings/domain/app_settings.dart';
 import 'package:deliv_track/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,8 +19,9 @@ Future<void> _launch(
   WidgetTester t,
   FakeAuthRepository auth,
   FakeParcelRepository parcels,
-  FakeReminderScheduler scheduler,
-) async {
+  FakeReminderScheduler scheduler, {
+  SettingsRepository settings = const NoSettingsRepository(),
+}) async {
   t.view.physicalSize = const Size(393, 852);
   t.view.devicePixelRatio = 1;
   addTearDown(t.view.reset);
@@ -29,6 +32,7 @@ Future<void> _launch(
       customerRepository: FakeCustomerRepository(),
       parcelRepository: parcels,
       reminderScheduler: scheduler,
+      settingsRepository: settings,
     ),
   );
   await t.pump(const Duration(milliseconds: 2000));
@@ -60,7 +64,7 @@ ParcelInput _payLater(String date, {String reference = 'VPL 99999'}) =>
 
 void main() {
   testWidgets(
-    'the first load schedules every dated Pay Later parcel and does not ask for permission at launch',
+    'opening the app schedules every dated Pay Later parcel and asks for the phone permission once, without our own dialog',
     (t) async {
       final scheduler = FakeReminderScheduler(enabled: false);
       final parcels = FakeParcelRepository();
@@ -73,14 +77,42 @@ void main() {
       );
       expect(scheduler.lastPlanned.single.title, 'Payment due: ADT-000001');
       expect(find.text('Get payment reminders?'), findsNothing);
-      expect(scheduler.permissionRequests, 0);
+      expect(scheduler.permissionRequests, 1);
+      expect(scheduler.enabled, isTrue);
     },
   );
 
   testWidgets(
-    'adding a reminder while using the app explains and asks once; later additions do not ask again',
+    'opening the app does not ask when notifications are already allowed or reminders are switched off',
     (t) async {
-      final scheduler = FakeReminderScheduler(enabled: false);
+      final allowed = FakeReminderScheduler();
+      await _launch(
+        t,
+        FakeAuthRepository(signedIn: true, name: 'Ali'),
+        FakeParcelRepository(),
+        allowed,
+      );
+      expect(allowed.permissionRequests, 0);
+
+      final off = FakeReminderScheduler(enabled: false);
+      await _launch(
+        t,
+        FakeAuthRepository(signedIn: true, name: 'Ali'),
+        FakeParcelRepository(),
+        off,
+        settings: MemorySettingsRepository(
+          const AppSettings(remindersEnabled: false),
+        ),
+      );
+      expect(off.permissionRequests, 0);
+    },
+  );
+
+  testWidgets(
+    'refused at opening: adding a reminder explains and asks once more; later additions do not ask again',
+    (t) async {
+      final scheduler = FakeReminderScheduler(enabled: false)
+        ..allowWhenAsked = false;
       final parcels = FakeParcelRepository();
       await _launch(
         t,
@@ -89,6 +121,8 @@ void main() {
         scheduler,
       );
       expect(find.text('Get payment reminders?'), findsNothing);
+      expect(scheduler.permissionRequests, 1);
+      scheduler.allowWhenAsked = true;
 
       await parcels.create(_payLater('2999-01-01'));
       await t.pumpAndSettle();
@@ -96,7 +130,7 @@ void main() {
       expect(find.textContaining('9:00 AM'), findsOneWidget);
       await t.tap(find.widgetWithText(TextButton, 'Allow'));
       await t.pumpAndSettle();
-      expect(scheduler.permissionRequests, 1);
+      expect(scheduler.permissionRequests, 2);
 
       scheduler.enabled = false;
       await parcels.create(_payLater('2999-02-02', reference: 'VPL 88888'));
@@ -113,7 +147,8 @@ void main() {
   testWidgets('declining the explanation does not request the permission', (
     t,
   ) async {
-    final scheduler = FakeReminderScheduler(enabled: false);
+    final scheduler = FakeReminderScheduler(enabled: false)
+      ..allowWhenAsked = false;
     final parcels = FakeParcelRepository();
     await _launch(
       t,
@@ -125,7 +160,7 @@ void main() {
     await t.pumpAndSettle();
     await t.tap(find.widgetWithText(TextButton, 'Cancel'));
     await t.pumpAndSettle();
-    expect(scheduler.permissionRequests, 0);
+    expect(scheduler.permissionRequests, 1, reason: 'only the one at opening');
   });
 
   testWidgets('no prompt when notifications are already allowed', (t) async {

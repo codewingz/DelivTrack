@@ -4399,12 +4399,9 @@ void main() {
         expect(await save(alice.token, valid()), 200);
         expect(await emu.get(alice.token, path), 200);
         expect(
-          await save(
-            alice.token,
-            valid(extra: {'payLaterDueDays': 14, 'defaultMethod': 'credit'}),
-          ),
+          await save(alice.token, valid(extra: {'defaultMethod': 'credit'})),
           200,
-          reason: 'with the optional defaults',
+          reason: 'with the optional default',
         );
         expect(await emu.get(bob.token, path), 403);
         expect(await save(bob.token, valid()), 403);
@@ -4431,7 +4428,7 @@ void main() {
           ({'remindersEnabled': 'yes'}, 'not a yes/no value'),
           ({'showOverdueAlerts': 1}, 'not a yes/no value'),
           ({'promptWhatsAppTracking': 'no'}, 'not a yes/no value'),
-          ({'payLaterDueDays': 10}, 'not one of 7, 14, 30'),
+          ({'payLaterDueDays': 14}, 'a setting that was removed'),
           ({'defaultMethod': 'cash'}, 'unknown parcel type'),
           ({'orderPrefix': 'XYZ-'}, 'a field that is not a setting'),
         ]) {

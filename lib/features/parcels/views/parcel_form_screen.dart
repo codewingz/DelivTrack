@@ -61,11 +61,7 @@ class ParcelFormScreen extends StatefulWidget {
 class _ParcelFormScreenState extends State<ParcelFormScreen> {
   final _formKey = GlobalKey<FormState>();
   late final _form = widget.parcel == null
-      ? ParcelFormViewModel(
-          defaultMethod: widget.settings.defaultMethod,
-          payLaterDueDays: widget.settings.payLaterDueDays,
-          today: pakistanDate(widget.clock.nowUtc()),
-        )
+      ? ParcelFormViewModel(defaultMethod: widget.settings.defaultMethod)
       : ParcelFormViewModel.fromParcel(widget.parcel!);
   final _action = ActionViewModel();
   bool _saved = false;

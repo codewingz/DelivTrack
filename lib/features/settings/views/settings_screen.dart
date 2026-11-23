@@ -228,24 +228,6 @@ class _SettingsScreenState extends State<SettingsScreen>
                     _Group(
                       padded: true,
                       children: [
-                        // 0 stands for "no default date".
-                        AppDropdownField<int>(
-                          label: 'Pay Later due',
-                          hint: 'No default date',
-                          value: settings.payLaterDueDays ?? 0,
-                          options: [
-                            (value: 0, label: 'No default date'),
-                            for (final days
-                                in AppSettings.payLaterDueDayOptions)
-                              (value: days, label: '$days days'),
-                          ],
-                          onChanged: (days) => _save(
-                            settings.copyWith(
-                              payLaterDueDays: () => days == 0 ? null : days,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.lg),
                         // An empty value stands for "Ask every time".
                         AppDropdownField<String>(
                           label: 'Default parcel type',

@@ -69,6 +69,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   );
   Set<int>? _plannedIds;
   bool _askedForPermission = false;
+  bool _askedAtOpen = false;
 
   // The owner's preferences, live: a change in Settings re-plans the phone's
   // reminders and redraws Home straight away.
@@ -80,7 +81,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.initState();
     _parcels.addListener(_keepPhoneInStep);
     _settingsChanges = widget.settingsRepository.watch().listen((settings) {
-      if (!mounted || settings == _settings) return;
+      if (!mounted) return;
+      // The owner's saved choice is known now: with reminders on, the phone's
+      // own permission question is shown once each time the app is opened.
+      if (!_askedAtOpen) {
+        _askedAtOpen = true;
+        if (settings.remindersEnabled) unawaited(_askAtOpen());
+      }
+      if (settings == _settings) return;
       setState(() => _settings = settings);
       _keepPhoneInStep();
       // A failure to load keeps the settings already in use.
@@ -119,9 +127,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final ids = {for (final reminder in planned) reminder.id};
     final before = _plannedIds;
     _plannedIds = ids;
-    // Ask for permission when a reminder is added while using the app, never at launch.
+    // Notifications still off when a reminder is added: explain and ask again.
     if (before != null && ids.difference(before).isNotEmpty) {
       unawaited(_offerNotifications());
+    }
+  }
+
+  /// Android shows its dialog only while it still may (not after the owner
+  /// refused it for good), so calling this on every start is safe.
+  Future<void> _askAtOpen() async {
+    final reminders = widget.reminderScheduler;
+    if (!await reminders.areNotificationsEnabled()) {
+      await reminders.requestPermission();
     }
   }
 

@@ -73,7 +73,7 @@ void main() {
         true,
       );
       expect(find.text('9:00 AM'), findsOneWidget);
-      expect(find.text('No default date'), findsOneWidget);
+      expect(find.text('No default date'), findsNothing);
       expect(find.text('Ask every time'), findsOneWidget);
       expect(find.text('ali@codewingz.com'), findsOneWidget);
       expect(find.text('App version'), findsNothing);
@@ -109,24 +109,20 @@ void main() {
     expect(repo.current.promptWhatsAppTracking, isFalse);
     // the others are untouched
     expect(repo.current.reminderMinutes, AppSettings.defaultReminderMinutes);
-    expect(repo.current.payLaterDueDays, isNull);
     expect(repo.current.defaultMethod, isNull);
   });
 
   testWidgets(
-    'the dropdowns save the Pay Later due days and the default parcel type, and can be cleared',
+    'the dropdown saves the default parcel type and can be cleared; there is no Pay Later due setting',
     (t) async {
       final repo = await _open(
         t,
         FakeAuthRepository(signedIn: true),
         FakeReminderScheduler(),
       );
-      await chooseOption(t, 'Pay Later due', '14 days');
-      expect(repo.current.payLaterDueDays, 14);
+      expect(find.text('Pay Later due'), findsNothing);
       await chooseOption(t, 'Default parcel type', 'Pay Later');
       expect(repo.current.defaultMethod, CollectionMethod.payLater);
-      await chooseOption(t, 'Pay Later due', 'No default date');
-      expect(repo.current.payLaterDueDays, isNull);
       await chooseOption(t, 'Default parcel type', 'Ask every time');
       expect(repo.current.defaultMethod, isNull);
     },

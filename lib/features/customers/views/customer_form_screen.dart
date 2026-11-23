@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../common_widgets/liquid_glass.dart';
 import '../../../common_widgets/app_3d_decorations.dart';
 import '../../../common_widgets/app_text_field.dart';
 import '../../../common_widgets/confirm_dialog.dart';
@@ -191,97 +192,114 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
             if (!didPop) _confirmDiscard();
           },
           child: Scaffold(
+            // The backdrop continues behind the header's curve.
+            extendBodyBehindAppBar: true,
             appBar: appCurvedAppBar(
-              title: Text(_isEditing ? 'Edit customer' : 'Add customer'),
+              toolbarHeight: AppBarTitle.heightFor(context),
+              title: AppBarTitle(
+                _isEditing ? 'Edit customer' : 'Add customer',
+                subtitle: 'Save contact & delivery address',
+              ),
             ),
-            body: SafeArea(
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 560),
-                  child: SingleChildScrollView(
-                    keyboardDismissBehavior:
-                        ScrollViewKeyboardDismissBehavior.onDrag,
-                    padding: const EdgeInsetsDirectional.all(AppSpacing.xxl),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          AppTextField.name(
-                            controller: _name,
-                            label: 'Customer name',
-                            hint: 'Enter customer name',
-                            enabled: !busy,
-                          ),
-                          const SizedBox(height: AppSpacing.lg),
-                          AppTextField.phone(
-                            controller: _phone,
-                            label: 'Phone number',
-                            enabled: !busy,
-                            onPickContact: () =>
-                                _pickContact(_phone, fillName: true),
-                          ),
-                          const SizedBox(height: AppSpacing.lg),
-                          AppTextField.phone(
-                            controller: _phone2,
-                            label: 'Second phone number (optional)',
-                            hint: 'Enter second phone number',
-                            isRequired: false,
-                            enabled: !busy,
-                            onPickContact: () => _pickContact(_phone2),
-                            validator: (value) =>
-                                (value ?? '').trim().isNotEmpty &&
-                                    normalizePhone(value!) ==
-                                        normalizePhone(_phone.text)
-                                ? 'This is the same as the first number'
-                                : null,
-                          ),
-                          const SizedBox(height: AppSpacing.lg),
-                          AppTextField.multiline(
-                            controller: _address,
-                            label: 'Full address',
-                            hint: 'Enter full address',
-                            isRequired: true,
-                            maxLength: 200,
-                            enabled: !busy,
-                            validator: (value) => AppValidators.address(
-                              value,
-                              fieldName: 'Full address',
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.lg),
-                          AppTextField.multiline(
-                            controller: _details,
-                            label: 'Business details (optional)',
-                            hint: 'Enter business details',
-                            minLines: 2,
-                            maxLength: 200,
-                            enabled: !busy,
-                          ),
-                          if (_viewModel.errorMessage != null) ...[
-                            const SizedBox(height: AppSpacing.lg),
-                            Semantics(
-                              liveRegion: true,
-                              child: Text(
-                                _viewModel.errorMessage!,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.error,
-                                ),
+            body: LiquidBackground(
+              child: SafeArea(
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 560),
+                    child: SingleChildScrollView(
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
+                      padding: const EdgeInsetsDirectional.all(AppSpacing.lg),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            App3DCard(
+                              glass: true,
+                              padding: const EdgeInsets.all(AppSpacing.lg),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  AppTextField.name(
+                                    controller: _name,
+                                    label: 'Customer name',
+                                    hint: 'Enter customer name',
+                                    enabled: !busy,
+                                  ),
+                                  const SizedBox(height: AppSpacing.lg),
+                                  AppTextField.phone(
+                                    controller: _phone,
+                                    label: 'Phone number',
+                                    enabled: !busy,
+                                    onPickContact: () =>
+                                        _pickContact(_phone, fillName: true),
+                                  ),
+                                  const SizedBox(height: AppSpacing.lg),
+                                  AppTextField.phone(
+                                    controller: _phone2,
+                                    label: 'Second phone number (optional)',
+                                    hint: 'Enter second phone number',
+                                    isRequired: false,
+                                    enabled: !busy,
+                                    onPickContact: () => _pickContact(_phone2),
+                                    validator: (value) =>
+                                        (value ?? '').trim().isNotEmpty &&
+                                            normalizePhone(value!) ==
+                                                normalizePhone(_phone.text)
+                                        ? 'This is the same as the first number'
+                                        : null,
+                                  ),
+                                  const SizedBox(height: AppSpacing.lg),
+                                  AppTextField.multiline(
+                                    controller: _address,
+                                    label: 'Full address',
+                                    hint: 'Enter full address',
+                                    isRequired: true,
+                                    maxLength: 200,
+                                    enabled: !busy,
+                                    validator: (value) => AppValidators.address(
+                                      value,
+                                      fieldName: 'Full address',
+                                    ),
+                                  ),
+                                  const SizedBox(height: AppSpacing.lg),
+                                  AppTextField.multiline(
+                                    controller: _details,
+                                    label: 'Business details (optional)',
+                                    hint: 'Enter business details',
+                                    minLines: 2,
+                                    maxLength: 200,
+                                    enabled: !busy,
+                                  ),
+                                ],
                               ),
                             ),
+                            if (_viewModel.errorMessage != null) ...[
+                              const SizedBox(height: AppSpacing.lg),
+                              Semantics(
+                                liveRegion: true,
+                                child: Text(
+                                  _viewModel.errorMessage!,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.error,
+                                  ),
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: AppSpacing.lg),
+                            PrimaryButton(
+                              label: _isEditing
+                                  ? 'Save Changes'
+                                  : 'Save Customer',
+                              isLoading: busy,
+                              onPressed: _save,
+                            ),
                           ],
-                          const SizedBox(height: AppSpacing.xxl),
-                          PrimaryButton(
-                            label: _isEditing
-                                ? 'Save Changes'
-                                : 'Save Customer',
-                            isLoading: busy,
-                            onPressed: _save,
-                          ),
-                        ],
+                        ),
                       ),
                     ),
                   ),

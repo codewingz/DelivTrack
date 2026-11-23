@@ -17,16 +17,6 @@ abstract class ParcelDocumentService {
     required SenderProfile sender,
   });
 
-  Future<bool> openWhatsApp({
-    required Parcel parcel,
-    required SenderProfile sender,
-  });
-
-  Future<bool> printInvoice({
-    required Parcel parcel,
-    required SenderProfile sender,
-  });
-
   Future<bool> printShippingLabel({
     required Parcel parcel,
     required SenderProfile sender,
@@ -132,68 +122,14 @@ class PrintingParcelDocumentService implements ParcelDocumentService {
   }
 
   @override
-  Future<bool> openWhatsApp({
-    required Parcel parcel,
-    required SenderProfile sender,
-  }) async {
-    final rawPhone = parcel.customerPhone;
-    final digits = normalizePhone(rawPhone);
-    final waPhone = digits.startsWith('03') && digits.length == 11
-        ? '92${digits.substring(1)}'
-        : digits;
-    final message = buildInvoiceMessage(parcel: parcel, sender: sender);
-
-    try {
-      final ok = await _channel.invokeMethod<bool>('openWhatsAppChat', {
-        'phone': waPhone,
-        'message': message,
-      });
-      if (ok == true) return true;
-    } catch (_) {
-      // Fallback to url scheme
-    }
-
-    final nativeUrl = Uri.parse(
-      'whatsapp://send?phone=$waPhone&text=${Uri.encodeComponent(message)}',
-    );
-    try {
-      if (await canLaunchUrl(nativeUrl)) {
-        return await launchUrl(nativeUrl, mode: LaunchMode.externalApplication);
-      }
-      final webUrl = Uri.parse(
-        'https://wa.me/$waPhone?text=${Uri.encodeComponent(message)}',
-      );
-      return await launchUrl(webUrl, mode: LaunchMode.externalApplication);
-    } catch (_) {
-      return false;
-    }
-  }
-
-  @override
-  Future<bool> printInvoice({
-    required Parcel parcel,
-    required SenderProfile sender,
-  }) async {
-    return Printing.layoutPdf(
-      name: 'Invoice_${parcel.orderNumber}',
-      onLayout: (format) async => invoiceBuilder.build(
-        parcel: parcel,
-        sender: sender,
-      ),
-    );
-  }
-
-  @override
   Future<bool> printShippingLabel({
     required Parcel parcel,
     required SenderProfile sender,
   }) async {
     return Printing.layoutPdf(
       name: 'Label_${parcel.orderNumber}',
-      onLayout: (format) async => labelBuilder.build(
-        parcel: parcel,
-        sender: sender,
-      ),
+      onLayout: (format) async =>
+          labelBuilder.build(parcel: parcel, sender: sender),
     );
   }
 
@@ -266,18 +202,6 @@ class NoParcelDocumentService implements ParcelDocumentService {
 
   @override
   Future<bool> shareInvoice({
-    required Parcel parcel,
-    required SenderProfile sender,
-  }) async => true;
-
-  @override
-  Future<bool> openWhatsApp({
-    required Parcel parcel,
-    required SenderProfile sender,
-  }) async => true;
-
-  @override
-  Future<bool> printInvoice({
     required Parcel parcel,
     required SenderProfile sender,
   }) async => true;

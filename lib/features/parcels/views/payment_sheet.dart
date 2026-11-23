@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../common_widgets/app_dropdown_field.dart';
 import '../../../common_widgets/app_date_field.dart';
 import '../../../common_widgets/app_form_sheet.dart';
 import '../../../common_widgets/app_text_field.dart';
@@ -39,6 +38,7 @@ class PaymentSheet extends StatefulWidget {
   State<PaymentSheet> createState() => _PaymentSheetState();
 }
 
+/// How a payment on a parcel of [method] is recorded: the owner does not pick.
 PaymentType defaultPaymentTypeFor(CollectionMethod method) {
   switch (method) {
     case CollectionMethod.postalCollection:
@@ -57,7 +57,6 @@ class _PaymentSheetState extends State<PaymentSheet> {
     text: plainRupees(widget.parcel.outstandingPaisa),
   );
   final _note = TextEditingController();
-  late PaymentType _type = defaultPaymentTypeFor(widget.parcel.method);
   bool _enteredLate = false;
   String? _receivedOn;
 
@@ -84,7 +83,7 @@ class _PaymentSheetState extends State<PaymentSheet> {
         return widget.repository.recordPayment(
           widget.parcel.id,
           amountPaisa: parseRupeesToPaisa(_amount.text)!,
-          type: _type,
+          type: defaultPaymentTypeFor(widget.parcel.method),
           note: _note.text,
           receivedOn: _enteredLate ? _receivedOn : null,
         );
@@ -102,19 +101,15 @@ class _PaymentSheetState extends State<PaymentSheet> {
                 : null;
           },
         ),
-        AppDropdownField<PaymentType>(
-          label: 'Payment type',
-          hint: 'Select payment type',
-          isRequired: true,
-          enabled: !busy,
-          value: _type,
-          options: [
-            for (final type in PaymentType.values)
-              (value: type, label: type.label),
-          ],
-          onChanged: (type) => setState(() => _type = type),
-          validator: (type) => type == null ? 'Select a payment type' : null,
-        ),
+        // The type follows the parcel type; an advance needs no line.
+        if (widget.parcel.method != CollectionMethod.advance &&
+            widget.parcel.method != CollectionMethod.giftFree)
+          AppTextField(
+            label: 'Payment type',
+            initialValue: widget.parcel.method.label,
+            readOnly: true,
+            enabled: false,
+          ),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: const Text('Entered late?'),

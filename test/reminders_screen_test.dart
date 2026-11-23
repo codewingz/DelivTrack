@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'helpers/fake_parcel_repository.dart';
-import 'helpers/dropdown_finders.dart';
 
 class _Clock extends Clock {
   const _Clock();
@@ -160,7 +159,6 @@ void main() {
       await _open(t, repo);
       await t.tap(find.text('Mark Received'));
       await t.pumpAndSettle();
-      await chooseOption(t, 'Payment type', 'Customer payment');
       await t.pump();
       await t.tap(find.widgetWithText(FilledButton, 'Confirm Payment'));
       await t.pumpAndSettle();

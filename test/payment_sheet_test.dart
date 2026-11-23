@@ -8,7 +8,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'helpers/fake_parcel_repository.dart';
-import 'helpers/dropdown_finders.dart';
 
 // Order total Rs. 5,000.
 Parcel _parcel({int received = 0}) => testParcel(id: 'a', received: received);
@@ -54,18 +53,16 @@ Finder get _amountField => find.byType(TextFormField).first;
 
 void main() {
   testWidgets(
-    'opens with outstanding balance filled in and payment type auto-selected',
+    'opens with outstanding balance filled in and the payment type shown from the parcel type',
     (t) async {
       await _open(t, received: 200000);
       expect(find.text('ADT-000001 · Outstanding Rs. 3,000'), findsOneWidget);
       expect(find.text('3000'), findsOneWidget);
-      expect(find.text('Post office remittance'), findsOneWidget);
+      // The type follows the parcel type and cannot be changed.
+      expect(find.text('Payment type'), findsOneWidget);
+      expect(find.text('Post office collection'), findsOneWidget);
       expect(find.byType(ChoiceChip), findsNothing);
-      await t.tap(dropdownButton('Payment type'));
-      await t.pumpAndSettle();
-      for (final type in PaymentType.values) {
-        expect(find.text(type.label), findsAtLeastNWidgets(1));
-      }
+      expect(find.text('Post office remittance'), findsNothing);
     },
   );
 
@@ -84,7 +81,6 @@ void main() {
     'amount: empty, zero and above the outstanding balance are refused',
     (t) async {
       final env = await _open(t);
-      await chooseOption(t, 'Payment type', 'Advance');
       await t.pump();
       for (final entry in {
         '': 'Amount received is required',
@@ -103,7 +99,6 @@ void main() {
 
   testWidgets('a note longer than 200 characters is refused', (t) async {
     final env = await _open(t);
-    await chooseOption(t, 'Payment type', 'Advance');
     await t.enterText(find.byType(TextFormField).last, 'x' * 201);
     await t.pump();
     await t.tap(_confirm);
@@ -116,7 +111,6 @@ void main() {
     'a valid payment is recorded once and the sheet closes with true',
     (t) async {
       final env = await _open(t);
-      await chooseOption(t, 'Payment type', 'Post office remittance');
       await t.enterText(_amountField, '1500.50');
       await t.enterText(find.byType(TextFormField).last, '  first  part ');
       await t.pump();
@@ -136,7 +130,6 @@ void main() {
     final repo = FakeParcelRepository(initial: [_parcel()])
       ..gate = Completer<void>();
     await _open(t, repo: repo);
-    await chooseOption(t, 'Payment type', 'Advance');
     await t.pump();
     await t.tap(_confirm);
     await t.pump();
@@ -156,7 +149,6 @@ void main() {
         failure: const AppFailure('No internet connection.'),
       );
       final env = await _open(t, repo: repo);
-      await chooseOption(t, 'Payment type', 'Advance');
       await t.pump();
       await t.tap(_confirm);
       await t.pumpAndSettle();
@@ -174,7 +166,6 @@ void main() {
       await t.tap(find.byType(Switch));
       await t.pump();
       expect(find.text('Received on'), findsOneWidget);
-      await chooseOption(t, 'Payment type', 'Advance');
       await t.pump();
       await t.ensureVisible(_confirm);
       await t.tap(_confirm);

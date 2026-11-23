@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 
 import '../constants/app_colors.dart';
@@ -6,18 +8,57 @@ import '../design_system/foundations/radius/app_radius.dart';
 import '../design_system/foundations/spacing/app_spacing.dart';
 import 'primary_button.dart';
 
-/// Opens [builder]'s sheet (normally an [AppFormSheet]). Returns true when it was submitted.
+/// Opens [builder]'s sheet (normally an [AppFormSheet]) on a blurred glass
+/// panel. Returns true when it was submitted.
 Future<bool> showFormSheet(BuildContext context, WidgetBuilder builder) async {
   final submitted = await showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    showDragHandle: true,
-    backgroundColor: AppColors.surface,
+    // The glass panel below is the sheet's surface.
+    backgroundColor: Colors.transparent,
+    elevation: 0,
     constraints: const BoxConstraints(maxWidth: 560),
-    builder: builder,
+    builder: (context) => _GlassSheet(child: builder(context)),
   );
   return submitted ?? false;
+}
+
+/// The see-through, blurred surface of a bottom sheet, with its drag handle.
+class _GlassSheet extends StatelessWidget {
+  const _GlassSheet({required this.child});
+  final Widget child;
+
+  static const _radius = BorderRadius.vertical(top: Radius.circular(28));
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: _radius,
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        // A Material, so list tiles and ink effects inside still paint.
+        child: Material(
+          color: AppColors.glassSheetFill,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: AppColors.sheetHandle,
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                ),
+              ),
+              Flexible(child: child),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// The frame every small action sheet shares: title with a Close button, optional subtitle, the

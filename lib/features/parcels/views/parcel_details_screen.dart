@@ -19,7 +19,6 @@ import '../domain/parcel_enums.dart';
 import '../domain/parcel_handover.dart';
 import '../domain/payment.dart';
 import '../../pdf/parcel_document_service.dart';
-import '../../pdf/parcel_document_sheet.dart';
 import '../../settings/data/sender_profile_repository.dart';
 import '../../settings/domain/sender_profile.dart';
 import 'parcel_action_sheets.dart';
@@ -140,8 +139,9 @@ class _ParcelDetailsScreenState extends State<ParcelDetailsScreen> {
       final sendNow = await showConfirmDialog(
         context,
         title: 'Send tracking update?',
+        icon: Icons.send_rounded,
         message:
-            'Open WhatsApp with ${parcel.customerName} (${parcel.customerPhone}) to send Pakistan Post tracking details?',
+            'Open WhatsApp with ${parcel.customerName} (${parcel.customerPhone}) to send Pakistan Post tracking details${savedHandover == null ? '' : ' (${savedHandover!.postalReference})'}?',
         confirmLabel: 'Open WhatsApp',
       );
       if (sendNow && mounted) {
@@ -234,17 +234,6 @@ class _ParcelDetailsScreenState extends State<ParcelDetailsScreen> {
                         '${parcel.sendingDateLabel} · ${parcel.method.label}',
                   ),
             actions: [
-              if (parcel != null && !parcel.isArchived)
-                IconButton(
-                  tooltip: 'Customer invoice & slips',
-                  icon: const Icon(Icons.receipt_long_outlined),
-                  onPressed: () => showParcelDocumentSheet(
-                    context: context,
-                    parcel: parcel,
-                    senderRepo: widget.senderProfileRepository,
-                    service: widget.documentService,
-                  ),
-                ),
               if (parcel != null &&
                   parcel.status == ParcelStatus.draft &&
                   !parcel.isArchived)

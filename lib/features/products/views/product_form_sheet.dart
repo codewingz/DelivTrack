@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../common_widgets/app_form_sheet.dart';
+
 import '../../../common_widgets/app_dropdown_field.dart';
 import '../../../common_widgets/app_text_field.dart';
 import '../../../common_widgets/primary_button.dart';
@@ -14,17 +16,10 @@ Future<bool> showProductFormSheet(
   BuildContext context,
   ProductRepository repository, {
   Product? product,
-}) async {
-  final saved = await showModalBottomSheet<bool>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    showDragHandle: true,
-    constraints: const BoxConstraints(maxWidth: 560),
-    builder: (_) => ProductFormSheet(repository: repository, product: product),
-  );
-  return saved ?? false;
-}
+}) => showFormSheet(
+  context,
+  (_) => ProductFormSheet(repository: repository, product: product),
+);
 
 class ProductFormSheet extends StatefulWidget {
   const ProductFormSheet({super.key, required this.repository, this.product});

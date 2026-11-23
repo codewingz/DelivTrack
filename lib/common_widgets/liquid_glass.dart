@@ -72,6 +72,7 @@ class GlassSurface extends StatelessWidget {
     this.blurSigma = 0,
     this.ledgeColor = AppColors.cardBevel,
     this.ledgeHeight = 4,
+    this.fill = AppColors.glassFill,
   });
 
   final Widget child;
@@ -80,12 +81,16 @@ class GlassSurface extends StatelessWidget {
   final Color ledgeColor;
   final double ledgeHeight;
 
+  /// The see-through white; more opaque where text must stay readable over
+  /// anything (a dialog).
+  final Color fill;
+
   @override
   Widget build(BuildContext context) {
     final borderRadius = BorderRadius.circular(radius);
     Widget panel = DecoratedBox(
       decoration: BoxDecoration(
-        color: AppColors.glassFill,
+        color: fill,
         borderRadius: borderRadius,
         border: Border.all(color: AppColors.glassEdge),
       ),

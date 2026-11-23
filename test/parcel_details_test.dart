@@ -399,7 +399,6 @@ void main() {
         await t.ensureVisible(receive);
         await t.tap(receive);
         await t.pumpAndSettle();
-        await chooseOption(t, 'Payment type', 'Advance');
         await t.enterText(find.byType(TextFormField).first, '2000');
         await t.pump();
         await t.tap(find.widgetWithText(FilledButton, 'Confirm Payment'));
@@ -1128,19 +1127,14 @@ void main() {
       expect(find.text('Network failure.'), findsOneWidget);
     });
 
-    testWidgets('AppBar receipt icon opens the document sheet', (t) async {
-      final repo = FakeParcelRepository(initial: [testParcel(id: 'p1')]);
-      await _open(t, repo, 'p1');
-
-      final btn = find.byTooltip('Customer invoice & slips');
-      expect(btn, findsOneWidget);
-      await t.tap(btn);
-      await t.pumpAndSettle();
-
-      expect(find.text('Invoice & Slips'), findsOneWidget);
-      expect(find.text('Send Invoice via WhatsApp'), findsOneWidget);
-      expect(find.text('Open WhatsApp Chat'), findsOneWidget);
-    });
+    testWidgets(
+      'the AppBar has no invoice & slips button: Print, Share Invoice and Send Tracking are on the screen',
+      (t) async {
+        final repo = FakeParcelRepository(initial: [testParcel(id: 'p1')]);
+        await _open(t, repo, 'p1');
+        expect(find.byTooltip('Customer invoice & slips'), findsNothing);
+      },
+    );
 
     testWidgets(
       'Print and Share Invoice buttons trigger document service directly',

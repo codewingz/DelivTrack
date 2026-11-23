@@ -51,6 +51,10 @@ class CustomerListViewModel extends LiveListViewModel<Customer> {
   CustomerFigures figuresOf(String customerId) =>
       _figures[customerId] ?? (parcels: 0, outstandingPaisa: 0);
 
+  /// What all customers together still owe.
+  int get totalOutstandingPaisa =>
+      _figures.values.fold(0, (sum, f) => sum + f.outstandingPaisa);
+
   @override
   void dispose() {
     _parcels?.cancel();

@@ -148,7 +148,10 @@ class _ParcelsScreenState extends State<ParcelsScreen> {
             if (MediaQuery.widthOf(context) /
                     MediaQuery.textScalerOf(context).scale(1) >=
                 360)
-              _OutstandingPill(paisa: _outstandingPaisa()),
+              AppBarStatPill(
+                label: 'Total outstanding',
+                value: formatRupees(_outstandingPaisa()),
+              ),
           ],
           searchTrailing: _FiltersButton(
             activeCount: _viewModel.filters.activeCount,
@@ -314,56 +317,6 @@ class _FiltersButton extends StatelessWidget {
         label: const Text(
           'Filters',
           style: TextStyle(fontWeight: FontWeight.w700),
-        ),
-      ),
-    );
-  }
-}
-
-/// "Outstanding Rs. X" in the header.
-class _OutstandingPill extends StatelessWidget {
-  const _OutstandingPill({required this.paisa});
-  final int paisa;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsetsDirectional.only(end: AppSpacing.lg),
-      child: Semantics(
-        label: 'Total outstanding: ${formatRupees(paisa)}',
-        excludeSemantics: true,
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.xs,
-          ),
-          decoration: BoxDecoration(
-            color: AppColors.primaryDark,
-            borderRadius: BorderRadius.circular(AppRadius.card),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'OUTSTANDING',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1,
-                  color: AppColors.mint,
-                ),
-              ),
-              Text(
-                formatRupees(paisa),
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );

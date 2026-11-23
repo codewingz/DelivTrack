@@ -211,6 +211,59 @@ class AppBarTitle extends StatelessWidget {
   }
 }
 
+/// A small two-line figure at the end of a curved app bar (e.g. "OUTSTANDING
+/// Rs. 2,000"). Use it in `actions`.
+class AppBarStatPill extends StatelessWidget {
+  const AppBarStatPill({super.key, required this.label, required this.value});
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(end: AppSpacing.lg),
+      child: Semantics(
+        label: '$label: $value',
+        excludeSemantics: true,
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.xs,
+          ),
+          decoration: BoxDecoration(
+            color: AppColors.primaryDark,
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                label.toUpperCase(),
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1,
+                  color: AppColors.mint,
+                ),
+              ),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// 3D Mint Floating Action Button (+ Add Parcel / + Add Customer / + Add Product).
 class MintFabButton extends StatelessWidget {
   const MintFabButton({

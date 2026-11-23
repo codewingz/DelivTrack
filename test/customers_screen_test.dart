@@ -1,3 +1,4 @@
+import 'package:deliv_track/common_widgets/initial_avatar.dart';
 import 'package:deliv_track/common_widgets/list_skeleton.dart';
 import 'package:deliv_track/core/errors/app_failure.dart';
 import 'package:deliv_track/features/customers/domain/customer.dart';
@@ -85,8 +86,8 @@ void main() {
         await t.pump();
         expect(find.byType(ListSkeleton), findsNothing);
         final names = t
-            .widgetList<ListTile>(find.byType(ListTile))
-            .map((l) => (l.title as Text).data)
+            .widgetList<InitialAvatar>(find.byType(InitialAvatar))
+            .map((a) => a.name)
             .toList();
         expect(names, ['Ali Raza', 'Zara Khan']);
         expect(find.textContaining('+92 301 2222222'), findsOneWidget);
@@ -228,19 +229,20 @@ void main() {
           parcels: parcels,
         );
         expect(
-          find.textContaining('2 parcels · Outstanding Rs. 8,000'),
-          findsOneWidget,
+          find.text('2 parcels'),
+          findsNWidgets(2),
           reason: 'the archived parcel is not counted',
         );
         expect(
-          find.textContaining('2 parcels · Outstanding Rs. 0'),
-          findsOneWidget,
-          reason: 'Gift / Free and returned owe nothing',
+          find.text('Rs. 8,000'),
+          findsNWidgets(2),
+          reason:
+              'on the one customer who owes money and as the total due: '
+              'Gift / Free and returned owe nothing',
         );
-        expect(
-          find.textContaining('0 parcels · Outstanding Rs. 0'),
-          findsOneWidget,
-        );
+        expect(find.text('0 parcels'), findsOneWidget);
+        expect(find.text('3 customers'), findsOneWidget);
+        expect(find.text('TOTAL DUE'), findsOneWidget);
       },
     );
 

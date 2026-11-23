@@ -45,7 +45,9 @@ class AuthScaffold extends StatelessWidget {
           final content = _content();
           // Too short to keep the header fixed (a landscape phone, or the
           // keyboard with large text): let it scroll away with the content.
-          if (constraints.maxHeight < _minHeightForFixedHeader) {
+          if (constraints.maxHeight <
+              _minHeightForFixedHeader *
+                  MediaQuery.textScalerOf(context).scale(1)) {
             return SingleChildScrollView(
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               child: Column(

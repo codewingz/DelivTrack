@@ -194,8 +194,8 @@ class FakeParcelRepository implements ParcelRepository {
         payment: isAdvance && expected > 0
             ? PaymentStatus.received
             : (input.method == CollectionMethod.giftFree
-                ? PaymentStatus.notRequired
-                : PaymentStatus.pending),
+                  ? PaymentStatus.notRequired
+                  : PaymentStatus.pending),
       ),
     );
     if (isAdvance && expected > 0) {

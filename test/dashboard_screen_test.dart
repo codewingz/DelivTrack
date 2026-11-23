@@ -163,7 +163,7 @@ void main() {
           reason: '$label = $value',
         );
       }
-      expect(find.text('Recent parcels'), findsOneWidget);
+      expect(find.text('RECENT PARCELS'), findsOneWidget);
       expect(find.text('ADT-000005'), findsOneWidget);
       expect(
         find.textContaining('Reminders due today'),
@@ -333,10 +333,10 @@ void main() {
           top(greetingWith('Ali')),
           top(find.bySemanticsLabel(RegExp('^Total outstanding: '))),
           top(find.widgetWithText(FilledButton, 'Add Parcel')),
-          top(find.text('Needs attention')),
-          top(find.text('Parcels')),
-          top(find.text('Money')),
-          top(find.text('Recent parcels')),
+          top(find.text('NEEDS ATTENTION')),
+          top(find.text('PARCELS OVERVIEW')),
+          top(find.text('MONEY')),
+          top(find.text('RECENT PARCELS')),
         ];
         expect(order, [...order]..sort(), reason: 'top to bottom: $order');
         expect(find.text('Outstanding to collect'), findsOneWidget);
@@ -351,7 +351,7 @@ void main() {
     );
 
     testWidgets(
-      'the greeting follows the Pakistan time of day and uses the first name',
+      'the greeting follows the Pakistan time of day and uses the name',
       (t) async {
         for (final (utc, text) in [
           (DateTime.utc(2026, 11, 8, 2, 0), 'Good morning, Ali'), // 07:00 PKT
@@ -363,7 +363,12 @@ void main() {
           ), // 00:30 PKT the next day
         ]) {
           await _pump(t, FakeParcelRepository(), clock: _FixedClock(utc));
-          expect(find.text(text), findsOneWidget, reason: '$utc');
+          // At phone width the name is on its own line.
+          expect(
+            find.text(text.replaceFirst(', ', ',\n')),
+            findsOneWidget,
+            reason: '$utc',
+          );
           await t.pumpWidget(const SizedBox());
         }
         await _pump(
@@ -371,7 +376,7 @@ void main() {
           FakeParcelRepository(),
           clock: _FixedClock(DateTime.utc(2026, 11, 8, 8)),
         );
-        expect(find.text('Sun, 8 Nov'), findsOneWidget);
+        expect(find.text('Sun, 8 Nov 2026'), findsOneWidget);
       },
     );
 

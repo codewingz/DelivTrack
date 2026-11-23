@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../../common_widgets/app_3d_decorations.dart';
+import '../../../common_widgets/app_hero_header.dart';
 import '../../../common_widgets/confirm_dialog.dart';
 import '../../../common_widgets/count_badge.dart';
 import '../../../common_widgets/empty_state.dart';
@@ -12,6 +12,7 @@ import '../../../core/money/money.dart';
 import '../../../core/time/pakistan_time.dart';
 import '../../../design_system/foundations/radius/app_radius.dart';
 import '../../../design_system/foundations/spacing/app_spacing.dart';
+import '../../../utils/text.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../more/views/more_screen.dart';
 import '../../parcels/data/parcel_repository.dart';
@@ -115,90 +116,161 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (allow) await widget.reminderScheduler.requestPermission();
   }
 
+  /// Below this height the header and hero scroll with the page instead of
+  /// staying fixed, so a short screen keeps room for the content.
+  static const double _minHeightForFixedTop = 600;
+  static const double _heroOverlap = AppSpacing.x3l;
+
   @override
   Widget build(BuildContext context) {
-    final repository = widget.repository;
     return Scaffold(
-      appBar: appCurvedAppBar(
-        title: const Text(
-          'DelivTrack',
-          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 20),
-        ),
-        actions: [
-          ListenableBuilder(
-            listenable: _parcels,
-            builder: (context, _) {
-              final due = _parcels.reminders.dueCount;
-              return IconButton(
-                tooltip: due == 0 ? 'Reminders' : 'Reminders, $due due',
-                icon: CountBadge(
-                  count: due,
-                  child: const Icon(Icons.notifications_none_rounded),
-                ),
-                onPressed: widget.onOpenReminders,
+      body: ListenableBuilder(
+        listenable: _parcels,
+        builder: (context, _) => LayoutBuilder(
+          builder: (context, constraints) {
+            final failed = _parcels.errorMessage != null;
+            final stats = failed || _parcels.isLoading
+                ? null
+                : DashboardStats.from(_parcels.all, _parcels.today);
+            final top = _top(stats);
+            if (failed) {
+              return Column(
+                children: [
+                  top,
+                  Expanded(
+                    child: EmptyState(
+                      icon: Icons.error_outline_rounded,
+                      title: "Couldn't load your figures",
+                      message: _parcels.errorMessage,
+                      actionLabel: 'Retry',
+                      onAction: _parcels.retry,
+                    ),
+                  ),
+                ],
               );
-            },
-          ),
-          IconButton(
-            tooltip: 'Log out',
-            icon: const Icon(Icons.logout_rounded),
-            onPressed: () => confirmLogout(context, repository),
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 960),
-            child: ListenableBuilder(
-              listenable: _parcels,
-              builder: (context, _) => _body(),
-            ),
-          ),
+            }
+            final content = _content(stats);
+            // Larger text makes the fixed top taller, so it needs more room.
+            final textScale = MediaQuery.textScalerOf(context).scale(1);
+            if (constraints.maxHeight < _minHeightForFixedTop * textScale) {
+              return _scroll(Column(children: [top, content]));
+            }
+            // Drawn bottom-up so the fixed top paints over the content.
+            return Column(
+              verticalDirection: VerticalDirection.up,
+              children: [
+                Expanded(child: _scroll(content)),
+                top,
+              ],
+            );
+          },
         ),
       ),
     );
   }
 
-  Widget _body() {
-    if (_parcels.errorMessage != null) {
-      return EmptyState(
-        icon: Icons.error_outline_rounded,
-        title: "Couldn't load your figures",
-        message: _parcels.errorMessage,
-        actionLabel: 'Retry',
-        onAction: _parcels.retry,
-      );
-    }
+  Widget _scroll(Widget child) {
     return RefreshIndicator(
       onRefresh: () async => _parcels.retry(),
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsetsDirectional.all(AppSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            StreamBuilder<String?>(
-              stream: widget.repository.displayNameChanges,
-              initialData: widget.repository.displayName,
-              builder: (context, snapshot) {
-                final name = (snapshot.data?.trim() ?? '').split(' ').first;
-                return DashboardGreeting(
-                  name: name,
-                  pakistanNow: widget.clock.nowUtc().add(
-                    const Duration(hours: 5),
+        child: child,
+      ),
+    );
+  }
+
+  /// Greeting header with the hero card overlapping its bottom edge.
+  Widget _top(DashboardStats? stats) {
+    final repository = widget.repository;
+    final due = _parcels.reminders.dueCount;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        StreamBuilder<String?>(
+          stream: repository.displayNameChanges,
+          initialData: repository.displayName,
+          builder: (context, snapshot) {
+            final name = collapseSpaces(snapshot.data ?? '');
+            final now = widget.clock.nowUtc().add(const Duration(hours: 5));
+            final greeting = greetingForHour(now.hour);
+            return AppHeroHeader(
+              // A phone shows the name on its own line; wider screens
+              // have room for one line.
+              title: name.isEmpty
+                  ? greeting
+                  : MediaQuery.widthOf(context) < 600
+                  ? '$greeting,\n$name'
+                  : '$greeting, $name',
+              subtitle: shortDateLine(now),
+              icon: Icons.inventory_2_rounded,
+              maxContentWidth: _maxWidth - 2 * AppSpacing.lg,
+              bottomPadding: stats == null
+                  ? AppSpacing.xl
+                  : _heroOverlap + AppSpacing.md,
+              actions: [
+                AppHeroHeader.action(
+                  tooltip: due == 0 ? 'Reminders' : 'Reminders, $due due',
+                  icon: CountBadge(
+                    count: due,
+                    child: const Icon(Icons.notifications_none_rounded),
                   ),
-                );
-              },
+                  onPressed: widget.onOpenReminders,
+                ),
+                AppHeroHeader.action(
+                  tooltip: 'Log out',
+                  icon: const Icon(Icons.logout_rounded),
+                  onPressed: () => confirmLogout(context, repository),
+                ),
+              ],
+            );
+          },
+        ),
+        if (stats != null)
+          OverlapUp(
+            overlap: _heroOverlap,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: _maxWidth),
+                child: Padding(
+                  padding: const EdgeInsetsDirectional.symmetric(
+                    horizontal: AppSpacing.lg,
+                  ),
+                  child: DashboardHero(
+                    outstandingPaisa: stats.totalOutstandingPaisa,
+                    owingParcels: stats.owingParcels,
+                    receivedPaisa: stats.totalReceivedPaisa,
+                    onTap: widget.onOpenPayments,
+                  ),
+                ),
+              ),
             ),
-            _UnreadableNotice(repository: widget.parcelRepository),
-            const SizedBox(height: AppSpacing.lg),
-            if (_parcels.isLoading)
-              const ListSkeleton()
-            else
-              ..._sections(DashboardStats.from(_parcels.all, _parcels.today)),
-          ],
+          ),
+      ],
+    );
+  }
+
+  static const double _maxWidth = 960;
+
+  Widget _content(DashboardStats? stats) {
+    return SafeArea(
+      top: false,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: _maxWidth),
+          child: Padding(
+            padding: const EdgeInsetsDirectional.all(AppSpacing.lg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _UnreadableNotice(repository: widget.parcelRepository),
+                if (stats == null)
+                  const ListSkeleton()
+                else
+                  ..._sections(stats),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -206,13 +278,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   List<Widget> _sections(DashboardStats stats) {
     return [
-      DashboardHero(
-        outstandingPaisa: stats.totalOutstandingPaisa,
-        owingParcels: stats.owingParcels,
-        receivedPaisa: stats.totalReceivedPaisa,
-        onTap: widget.onOpenPayments,
-      ),
-      const SizedBox(height: AppSpacing.lg),
       DashboardQuickActions(
         onAddParcel: widget.onAddParcel,
         onSearch: () => widget.onOpenParcels(ParcelFilters.none),
@@ -258,7 +323,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       const SizedBox(height: AppSpacing.xl),
       StatSection(
-        title: 'Parcels',
+        title: 'Parcels overview',
         tiles: [
           StatTile(
             label: 'Total parcels',
@@ -290,6 +355,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           StatTile(
             label: 'Parcels with payment received',
+            caption: 'Payment received',
+            valueColor: AppColors.success,
             value: '${stats.paymentReceived}',
             icon: Icons.check_circle_outline_rounded,
             color: AppColors.success,
@@ -297,6 +364,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           StatTile(
             label: 'Parcels pending payment',
+            caption: 'Pending payment',
+            valueColor: AppColors.pending,
             value: '${stats.pendingPayment}',
             icon: Icons.hourglass_bottom_rounded,
             color: AppColors.pending,
@@ -305,14 +374,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ],
       ),
       const SizedBox(height: AppSpacing.xl),
-      StatSection(
-        title: 'Money',
-        tiles: [
+      const SectionTitle('Money'),
+      const SizedBox(height: AppSpacing.sm),
+      MoneyCard(
+        top: [
           StatTile(
             label: 'Total received',
             value: formatRupees(stats.totalReceivedPaisa),
             icon: Icons.payments_outlined,
             color: AppColors.success,
+            valueColor: AppColors.primary,
             onTap: widget.onOpenPayments,
           ),
           StatTile(
@@ -322,14 +393,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
             color: AppColors.credit,
             onTap: widget.onOpenPayments,
           ),
-          StatTile(
-            label: 'Advance amount',
-            value: formatRupees(stats.advancePaisa),
-            icon: Icons.savings_outlined,
-            color: AppColors.advance,
-            onTap: widget.onOpenPayments,
-          ),
         ],
+        bottom: StatTile(
+          label: 'Advance amount',
+          value: formatRupees(stats.advancePaisa),
+          icon: Icons.savings_outlined,
+          color: AppColors.advance,
+          valueColor: AppColors.primary,
+          onTap: widget.onOpenPayments,
+        ),
       ),
       const SizedBox(height: AppSpacing.sm),
       const Text(
@@ -414,7 +486,7 @@ class _Recent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SectionTitle(
           'Recent parcels',
@@ -432,6 +504,7 @@ class _Recent extends StatelessWidget {
           )
         else
           Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               for (final parcel in stats.recent)
                 ParcelTile(

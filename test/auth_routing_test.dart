@@ -40,7 +40,7 @@ void main() {
       final repo = FakeAuthRepository(signedIn: true, name: 'Muhammad Afzaal');
       await _launch(t, repo);
       expect(_onDashboard, findsOneWidget);
-      expect(greetingWith('Muhammad'), findsOneWidget);
+      expect(greetingWith('Muhammad Afzaal'), findsOneWidget);
       expect(_onLogin, findsNothing);
     },
   );
@@ -80,7 +80,7 @@ void main() {
       await t.pump();
       await t.pump();
       expect(_onDashboard, findsOneWidget);
-      expect(greetingWith('Muhammad'), findsOneWidget);
+      expect(greetingWith('Muhammad Afzaal'), findsOneWidget);
     },
   );
 
@@ -93,7 +93,7 @@ void main() {
       repo.emitName('Ali Khan');
       await t.pump();
       await t.pump();
-      expect(greetingWith('Ali'), findsOneWidget);
+      expect(greetingWith('Ali Khan'), findsOneWidget);
     },
   );
 

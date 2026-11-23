@@ -35,8 +35,10 @@ class FailingSenderProfileRepository implements SenderProfileRepository {
   Future<SenderProfile?> getProfile() async => throw Exception('Network error');
 
   @override
-  Stream<SenderProfile?> watchProfile() => Stream.error(Exception('Network error'));
+  Stream<SenderProfile?> watchProfile() =>
+      Stream.error(Exception('Network error'));
 
   @override
-  Future<void> saveProfile(SenderProfile profile) async => throw Exception('Network error');
+  Future<void> saveProfile(SenderProfile profile) async =>
+      throw Exception('Network error');
 }

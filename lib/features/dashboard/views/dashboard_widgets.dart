@@ -1,4 +1,9 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+
+import '../../../common_widgets/app_3d_decorations.dart';
 
 import '../../../constants/app_colors.dart';
 import '../../../core/money/money.dart';
@@ -31,54 +36,62 @@ String greetingForHour(int hour) => hour < 12
     ? 'Good afternoon'
     : 'Good evening';
 
-/// "Sun, 8 Nov" for the Pakistan calendar date of [pakistanNow] (a UTC+5 instant expressed as UTC).
+/// "Sun, 8 Nov 2026" for the Pakistan calendar date of [pakistanNow] (a UTC+5 instant expressed as UTC).
 String shortDateLine(DateTime pakistanNow) =>
-    '${_weekdays[pakistanNow.weekday - 1]}, ${pakistanNow.day} ${_months[pakistanNow.month - 1]}';
+    '${_weekdays[pakistanNow.weekday - 1]}, ${pakistanNow.day} ${_months[pakistanNow.month - 1]} ${pakistanNow.year}';
 
 /// Number of columns for a grid of tiles: tiles keep a readable width and fall back to a single column as
 /// the text size grows (nothing is clipped or scaled down).
-int tileColumns(BuildContext context, double width, {double minTile = 150}) {
+int tileColumns(
+  BuildContext context,
+  double width, {
+  double minTile = 150,
+  int maxColumns = 4,
+}) {
   final scale = MediaQuery.textScalerOf(context).scale(1);
-  return (width / (minTile * scale)).floor().clamp(1, 4);
+  return (width / (minTile * scale)).floor().clamp(1, maxColumns);
 }
 
-class DashboardGreeting extends StatelessWidget {
-  const DashboardGreeting({
-    super.key,
-    required this.name,
-    required this.pakistanNow,
-  });
-  final String name;
-
-  /// The current Pakistan time, expressed as a UTC [DateTime] (UTC + 5 hours).
-  final DateTime pakistanNow;
+/// Draws its child [overlap] higher, over whatever is above it, and takes
+/// that much less room (a negative top margin). Taps still reach the child.
+class OverlapUp extends SingleChildRenderObjectWidget {
+  const OverlapUp({super.key, required this.overlap, required super.child});
+  final double overlap;
 
   @override
-  Widget build(BuildContext context) {
-    final greeting = greetingForHour(pakistanNow.hour);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          shortDateLine(pakistanNow),
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: AppColors.label,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          name.isEmpty ? greeting : '$greeting, $name',
-          style: const TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w800,
-            color: AppColors.primaryDark,
-          ),
-        ),
-      ],
-    );
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderOverlapUp(overlap);
+
+  @override
+  void updateRenderObject(BuildContext context, RenderObject renderObject) {
+    (renderObject as _RenderOverlapUp).overlap = overlap;
   }
+}
+
+class _RenderOverlapUp extends RenderShiftedBox {
+  _RenderOverlapUp(this._overlap) : super(null);
+
+  double _overlap;
+  set overlap(double value) {
+    if (value == _overlap) return;
+    _overlap = value;
+    markNeedsLayout();
+  }
+
+  @override
+  void performLayout() {
+    final child = this.child!;
+    child.layout(constraints.loosen(), parentUsesSize: true);
+    size = constraints.constrain(
+      Size(child.size.width, math.max(0, child.size.height - _overlap)),
+    );
+    (child.parentData! as BoxParentData).offset = Offset(0, -_overlap);
+  }
+
+  // The child sticks out above this box, so do not limit taps to the box.
+  @override
+  bool hitTest(BoxHitTestResult result, {required Offset position}) =>
+      hitTestChildren(result, position: position);
 }
 
 /// The one hero: what is still to be collected, with how much was already received beside it.
@@ -118,10 +131,7 @@ class DashboardHero extends StatelessWidget {
               blurRadius: 28,
               offset: Offset(0, 14),
             ),
-            BoxShadow(
-              color: Color(0xFF06291E),
-              offset: Offset(0, 5),
-            ),
+            BoxShadow(color: Color(0xFF06291E), offset: Offset(0, 5)),
           ],
         ),
         child: Material(
@@ -160,14 +170,14 @@ class DashboardHero extends StatelessWidget {
                         ),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.16),
-                          borderRadius: BorderRadius.circular(AppRadius.control),
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
                         ),
                         child: Text(
                           '$percentage%',
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
-                            color: Colors.white,
+                            color: AppColors.mint,
                           ),
                         ),
                       ),
@@ -212,21 +222,39 @@ class DashboardHero extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: AppSpacing.sm),
-                    Row(
-                      children: [
-                        const _LegendDot(color: AppColors.mint),
-                        const SizedBox(width: AppSpacing.xs),
-                        Expanded(
-                          child: Text(
-                            'Received ${formatRupees(receivedPaisa)}',
+                    SizedBox(
+                      width: double.infinity,
+                      child: Wrap(
+                        alignment: WrapAlignment.spaceBetween,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: AppSpacing.sm,
+                        children: [
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const _LegendDot(color: AppColors.mint),
+                              const SizedBox(width: AppSpacing.xs),
+                              Flexible(
+                                child: Text(
+                                  'Received ${formatRupees(receivedPaisa)}',
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          Text(
+                            'of ${formatRupees(billed)}',
                             style: const TextStyle(
                               fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
+                              color: AppColors.brand100,
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ],
                 ],
@@ -333,11 +361,12 @@ class SectionTitle extends StatelessWidget {
         child: Semantics(
           header: true,
           child: Text(
-            text,
+            text.toUpperCase(),
             style: const TextStyle(
-              fontSize: 16,
+              fontSize: 13,
               fontWeight: FontWeight.w800,
-              color: AppColors.primaryDark,
+              letterSpacing: 1,
+              color: AppColors.label,
             ),
           ),
         ),
@@ -398,10 +427,7 @@ class AttentionCard extends StatelessWidget {
             blurRadius: 18,
             offset: Offset(0, 8),
           ),
-          BoxShadow(
-            color: AppColors.cardBevel,
-            offset: Offset(0, 4),
-          ),
+          BoxShadow(color: AppColors.cardBevel, offset: Offset(0, 4)),
         ],
       ),
       child: Material(
@@ -420,7 +446,11 @@ class AttentionCard extends StatelessWidget {
                         color: AppColors.brand50,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.check_circle_rounded, color: AppColors.brand800, size: 20),
+                      child: const Icon(
+                        Icons.check_circle_rounded,
+                        color: AppColors.brand800,
+                        size: 20,
+                      ),
                     ),
                     const SizedBox(width: AppSpacing.md),
                     const Expanded(
@@ -440,7 +470,8 @@ class AttentionCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   for (var i = 0; i < shown.length; i++) ...[
-                    if (i > 0) const Divider(height: 1, color: Color(0xFFEEF3F0)),
+                    if (i > 0)
+                      const Divider(height: 1, color: Color(0xFFEEF3F0)),
                     _AttentionRow(item: shown[i]),
                   ],
                 ],
@@ -533,15 +564,24 @@ class StatTile {
     required this.icon,
     required this.color,
     required this.onTap,
+    this.caption,
+    this.valueColor = AppColors.textPrimary,
   });
+
+  /// Full name of the figure, read by screen readers.
   final String label;
+
+  /// Shorter text shown on the tile; [label] when null.
+  final String? caption;
   final String value;
   final IconData icon;
   final Color color;
+  final Color valueColor;
   final VoidCallback onTap;
 }
 
-/// A titled group of figures in a grid (a last odd tile takes the full width).
+/// A titled group of figures in a grid: three across on a phone, up to six on
+/// wide screens, fewer as the text size grows.
 class StatSection extends StatelessWidget {
   const StatSection({super.key, required this.title, required this.tiles});
   final String title;
@@ -556,21 +596,21 @@ class StatSection extends StatelessWidget {
         const SizedBox(height: AppSpacing.sm),
         LayoutBuilder(
           builder: (context, constraints) {
-            final columns = tileColumns(context, constraints.maxWidth);
+            final columns = tileColumns(
+              context,
+              constraints.maxWidth,
+              minTile: 104,
+              maxColumns: 6,
+            );
             final gap = AppSpacing.md * (columns - 1);
             final width = (constraints.maxWidth - gap) / columns;
             return Wrap(
               spacing: AppSpacing.md,
               runSpacing: AppSpacing.md,
               children: [
-                for (final (index, tile) in tiles.indexed)
+                for (final tile in tiles)
                   SizedBox(
-                    width:
-                        columns == 2 &&
-                            index == tiles.length - 1 &&
-                            tiles.length.isOdd
-                        ? constraints.maxWidth
-                        : width,
+                    width: width,
                     child: _StatTileView(tile: tile),
                   ),
               ],
@@ -604,43 +644,25 @@ class _StatTileView extends StatelessWidget {
         child: InkWell(
           onTap: tile.onTap,
           child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 88),
+            constraints: const BoxConstraints(minHeight: 112),
             child: Padding(
               padding: const EdgeInsetsDirectional.all(AppSpacing.md),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: tile.color.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(
-                            AppRadius.control,
-                          ),
-                        ),
-                        child: SizedBox(
-                          width: AppSpacing.x3l,
-                          height: AppSpacing.x3l,
-                          child: Icon(tile.icon, color: tile.color, size: 20),
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(
-                        child: Text(
-                          tile.value,
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
+                  _IconChip(icon: tile.icon, color: tile.color),
+                  const SizedBox(height: AppSpacing.sm),
                   Text(
-                    tile.label,
+                    tile.value,
+                    style: TextStyle(
+                      fontSize: 22,
+                      height: 1.2,
+                      fontWeight: FontWeight.w800,
+                      color: tile.valueColor,
+                    ),
+                  ),
+                  Text(
+                    tile.caption ?? tile.label,
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -649,6 +671,129 @@ class _StatTileView extends StatelessWidget {
                   ),
                 ],
               ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _IconChip extends StatelessWidget {
+  const _IconChip({required this.icon, required this.color, this.size = 32});
+  final IconData icon;
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(AppRadius.control),
+    ),
+    child: SizedBox(
+      width: size,
+      height: size,
+      child: Icon(icon, color: color, size: 20),
+    ),
+  );
+}
+
+/// The money figures in one card: [top] side by side (stacked when there is no
+/// room), then [bottom] on its own row with the amount at the end.
+class MoneyCard extends StatelessWidget {
+  const MoneyCard({super.key, required this.top, required this.bottom});
+  final List<StatTile> top;
+  final StatTile bottom;
+
+  @override
+  Widget build(BuildContext context) {
+    return App3DCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final sideBySide =
+                  tileColumns(context, constraints.maxWidth) >= top.length;
+              final items = [for (final tile in top) _MoneyItem(tile: tile)];
+              return sideBySide
+                  ? Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (final item in items) Expanded(child: item),
+                      ],
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: items,
+                    );
+            },
+          ),
+          const Divider(
+            height: 1,
+            color: AppColors.border,
+            indent: AppSpacing.lg,
+            endIndent: AppSpacing.lg,
+          ),
+          _MoneyItem(tile: bottom, amountAtEnd: true),
+        ],
+      ),
+    );
+  }
+}
+
+class _MoneyItem extends StatelessWidget {
+  const _MoneyItem({required this.tile, this.amountAtEnd = false});
+  final StatTile tile;
+  final bool amountAtEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    final amount = Text(
+      tile.value,
+      style: TextStyle(
+        fontSize: 17,
+        fontWeight: FontWeight.w800,
+        color: tile.valueColor,
+      ),
+    );
+    final label = Text(
+      tile.label,
+      style: TextStyle(
+        fontSize: amountAtEnd ? 14 : 12,
+        fontWeight: FontWeight.w600,
+        color: AppColors.label,
+      ),
+    );
+    return Semantics(
+      button: true,
+      label: '${tile.label}: ${tile.value}',
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: tile.onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 64),
+          child: Padding(
+            padding: const EdgeInsetsDirectional.all(AppSpacing.lg),
+            child: Row(
+              children: [
+                _IconChip(icon: tile.icon, color: tile.color, size: 40),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: amountAtEnd
+                      ? label
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [amount, label],
+                        ),
+                ),
+                if (amountAtEnd) ...[
+                  const SizedBox(width: AppSpacing.sm),
+                  amount,
+                ],
+              ],
             ),
           ),
         ),

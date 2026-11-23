@@ -5,21 +5,48 @@ import '../design_system/foundations/radius/app_radius.dart';
 import '../design_system/foundations/spacing/app_spacing.dart';
 
 /// Tall green curved header: icon tile, "DELIVTRACK" eyebrow, [title] and an
-/// optional [subtitle]. Same gradient and curve as [appCurvedAppBar]; use it
-/// at the top of a scrolling page that has no toolbar. Covers the status bar.
+/// optional [subtitle], with optional round [actions] at the end. Same
+/// gradient and curve as [appCurvedAppBar]; use it at the top of a page that
+/// has no toolbar. Covers the status bar.
 class AppHeroHeader extends StatelessWidget {
   const AppHeroHeader({
     super.key,
     required this.title,
     this.subtitle,
     this.icon = Icons.local_shipping_outlined,
+    this.actions = const [],
+    this.bottomPadding = AppSpacing.x4l,
     this.maxContentWidth = 480,
   });
 
   final String title;
   final String? subtitle;
   final IconData icon;
+
+  /// Buttons at the end of the title row; build them with [action].
+  final List<Widget> actions;
+
+  /// Space under the text; make it larger when a card overlaps the header.
+  final double bottomPadding;
   final double maxContentWidth;
+
+  /// A round translucent button for [actions].
+  static Widget action({
+    required String tooltip,
+    required Widget icon,
+    required VoidCallback onPressed,
+  }) {
+    return IconButton(
+      tooltip: tooltip,
+      onPressed: onPressed,
+      style: IconButton.styleFrom(
+        backgroundColor: Colors.white.withValues(alpha: 0.12),
+        foregroundColor: Colors.white,
+        minimumSize: const Size(48, 48),
+      ),
+      icon: icon,
+    );
+  }
 
   static const _curve = BorderRadius.vertical(bottom: Radius.circular(28));
 
@@ -59,7 +86,7 @@ class AppHeroHeader extends StatelessWidget {
                 AppSpacing.xl,
                 MediaQuery.paddingOf(context).top + AppSpacing.xxl,
                 AppSpacing.xl,
-                AppSpacing.x4l,
+                bottomPadding,
               ),
               child: Center(
                 child: ConstrainedBox(
@@ -103,21 +130,33 @@ class AppHeroHeader extends StatelessWidget {
                                     color: AppColors.mint,
                                   ),
                                 ),
+                                // Owner's rule: the title is never cut or
+                                // wrapped on its own; a long line shrinks to
+                                // fit. Callers add a line break where wanted.
                                 Semantics(
                                   header: true,
-                                  child: Text(
-                                    title,
-                                    style: const TextStyle(
-                                      fontSize: 22,
-                                      height: 1.2,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.white,
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: AlignmentDirectional.centerStart,
+                                    child: Text(
+                                      title,
+                                      softWrap: false,
+                                      style: const TextStyle(
+                                        fontSize: 22,
+                                        height: 1.2,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.white,
+                                      ),
                                     ),
                                   ),
                                 ),
                               ],
                             ),
                           ),
+                          for (final action in actions) ...[
+                            const SizedBox(width: AppSpacing.sm),
+                            action,
+                          ],
                         ],
                       ),
                       if (subtitle != null) ...[

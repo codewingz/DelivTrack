@@ -238,6 +238,15 @@ class _PoweredByPill extends StatelessWidget {
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppRadius.pill),
         border: Border.all(color: AppColors.border),
+        // Same soft shadow + solid ledge as the 3D cards.
+        boxShadow: const [
+          BoxShadow(
+            color: AppColors.cardShadow,
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+          BoxShadow(color: AppColors.cardBevel, offset: Offset(0, 4)),
+        ],
       ),
       child: const Text.rich(
         TextSpan(

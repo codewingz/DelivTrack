@@ -27,6 +27,21 @@ class ProductListViewModel extends LiveListViewModel<Product> {
     ];
   }
 
+  /// How many products the search matches in [segment] (shown on its tab).
+  int countIn(ProductSegment segment) {
+    final needle = _query.trim().toLowerCase();
+    return all
+        .where(
+          (p) =>
+              p.isActive == (segment == ProductSegment.active) &&
+              (needle.isEmpty || p.name.toLowerCase().contains(needle)),
+        )
+        .length;
+  }
+
+  /// Every active product, whatever the search or the tab.
+  int get activeCount => all.where((p) => p.isActive).length;
+
   void setSegment(ProductSegment segment) {
     _segment = segment;
     notifyListeners();

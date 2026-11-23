@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:deliv_track/common_widgets/app_3d_decorations.dart';
 import 'package:deliv_track/common_widgets/list_skeleton.dart';
 import 'package:deliv_track/core/errors/app_failure.dart';
 import 'package:deliv_track/features/products/data/product_repository.dart';
@@ -50,10 +51,17 @@ Finder _sheetButton(String label) => find.descendant(
 );
 Finder get _search => find.byType(TextFormField).first;
 
+/// Taps the Archive / Restore button on [productName]'s card.
 Future<void> _openMenu(WidgetTester t, String productName, String item) async {
-  await t.tap(find.byTooltip('Options for $productName'));
-  await t.pumpAndSettle();
-  await t.tap(find.text(item).last);
+  await t.tap(
+    find.descendant(
+      of: find.ancestor(
+        of: find.text(productName),
+        matching: find.byType(App3DCard),
+      ),
+      matching: find.widgetWithText(OutlinedButton, item),
+    ),
+  );
   await t.pumpAndSettle();
 }
 
@@ -77,8 +85,8 @@ void main() {
         await t.pump();
         expect(find.byType(ListSkeleton), findsNothing);
         final names = t
-            .widgetList<ListTile>(find.byType(ListTile))
-            .map((l) => (l.title as Text).data)
+            .widgetList<Text>(find.byKey(const Key('product-name')))
+            .map((text) => text.data)
             .toList();
         expect(names, ['Apple', 'Mango']);
         expect(find.text('Per Kg'), findsOneWidget);
@@ -152,7 +160,7 @@ void main() {
           ),
         );
         expect(find.text('Old Item'), findsNothing);
-        await t.tap(find.widgetWithText(ChoiceChip, 'Archived'));
+        await t.tap(find.textContaining('Archived ('));
         await t.pump();
         expect(find.text('Old Item'), findsOneWidget);
         expect(find.text('Mango'), findsNothing);
@@ -161,7 +169,7 @@ void main() {
 
     testWidgets('no archived products shows a specific message', (t) async {
       await _pump(t, FakeProductRepository(initial: [_p('1', 'Mango')]));
-      await t.tap(find.widgetWithText(ChoiceChip, 'Archived'));
+      await t.tap(find.textContaining('Archived ('));
       await t.pump();
       expect(find.text('No archived products'), findsOneWidget);
     });
@@ -478,7 +486,7 @@ void main() {
         initial: [_p('1', 'Old', active: false)],
       );
       await _pump(t, repo);
-      await t.tap(find.widgetWithText(ChoiceChip, 'Archived'));
+      await t.tap(find.textContaining('Archived ('));
       await t.pump();
       await _openMenu(t, 'Old', 'Restore');
       expect(repo.items.single.isActive, isTrue);
@@ -544,10 +552,16 @@ void main() {
           (t) async {
             await _pump(t, FakeProductRepository(), size: size, scale: scale);
             expect(t.takeException(), isNull);
+            // On a short screen with large text the empty state starts below
+            // the fold: scroll to its button first.
             await t.ensureVisible(
-              find.widgetWithText(FilledButton, 'Add Product'),
+              find.widgetWithText(
+                FilledButton,
+                'Add Product',
+                skipOffstage: false,
+              ),
             );
-            await t.pump();
+            await t.pumpAndSettle();
             await t.tap(find.widgetWithText(FilledButton, 'Add Product'));
             await t.pumpAndSettle();
             expect(_sheet, findsOneWidget);

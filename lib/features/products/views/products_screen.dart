@@ -3,10 +3,11 @@ import '../../../common_widgets/app_snack_bar.dart';
 import 'package:flutter/material.dart';
 
 import '../../../common_widgets/app_3d_decorations.dart';
-import '../../../common_widgets/app_choice_field.dart';
+import '../../../common_widgets/app_segment_tabs.dart';
 import '../../../common_widgets/confirm_dialog.dart';
 import '../../../common_widgets/empty_state.dart';
 import '../../../common_widgets/searchable_list_page.dart';
+import '../../../common_widgets/status_chip.dart';
 import '../../../constants/app_colors.dart';
 import '../../../design_system/foundations/radius/app_radius.dart';
 import '../../../design_system/foundations/spacing/app_spacing.dart';
@@ -71,30 +72,43 @@ class _ProductsScreenState extends State<ProductsScreen> {
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: _viewModel,
-      builder: (context, _) => SearchableListPage<Product>(
-        title: 'Products',
-        viewModel: _viewModel,
-        visible: _viewModel.visible,
-        searchController: _search,
-        searchHint: 'Search products',
-        onQueryChanged: _viewModel.setQuery,
-        addLabel: 'Add Product',
-        onAdd: _openForm,
-        header: AppChoiceField<ProductSegment>(
-          initialValue: _viewModel.segment,
-          options: const [
-            (value: ProductSegment.active, label: 'Active'),
-            (value: ProductSegment.archived, label: 'Archived'),
-          ],
-          onChanged: _viewModel.setSegment,
-        ),
-        emptyBuilder: _emptyState,
-        itemBuilder: (context, product) => _ProductTile(
-          product: product,
-          onEdit: () => _openForm(product: product),
-          onToggleActive: () => _toggleActive(product),
-        ),
-      ),
+      builder: (context, _) {
+        final ready = !_viewModel.isLoading && _viewModel.errorMessage == null;
+        final active = _viewModel.activeCount;
+        return SearchableListPage<Product>(
+          title: 'Products',
+          subtitle: ready
+              ? '$active active ${active == 1 ? 'product' : 'products'}'
+              : null,
+          viewModel: _viewModel,
+          visible: _viewModel.visible,
+          searchController: _search,
+          searchHint: 'Search products',
+          onQueryChanged: _viewModel.setQuery,
+          addLabel: 'Add Product',
+          onAdd: _openForm,
+          header: AppSegmentTabs(
+            tabs: [
+              for (final (label, segment) in const [
+                ('Active', ProductSegment.active),
+                ('Archived', ProductSegment.archived),
+              ])
+                (
+                  label: label,
+                  count: _viewModel.countIn(segment),
+                  selected: _viewModel.segment == segment,
+                  onTap: () => _viewModel.setSegment(segment),
+                ),
+            ],
+          ),
+          emptyBuilder: _emptyState,
+          itemBuilder: (context, product) => _ProductTile(
+            product: product,
+            onEdit: () => _openForm(product: product),
+            onToggleActive: () => _toggleActive(product),
+          ),
+        );
+      },
     );
   }
 
@@ -123,6 +137,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
   }
 }
 
+/// One product: icon, name and selling unit, with Archive (or Restore) at the
+/// end. Tapping the card edits the product.
 class _ProductTile extends StatelessWidget {
   const _ProductTile({
     required this.product,
@@ -135,50 +151,84 @@ class _ProductTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return App3DCard(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-      onTap: onEdit,
-      child: ListTile(
-        minTileHeight: 64,
-        leading: Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            color: AppColors.brand50,
-            borderRadius: BorderRadius.circular(AppRadius.control),
-            border: Border.all(color: const Color(0xFFCDE5D8)),
-          ),
-          child: const Center(
-            child: Icon(
-              Icons.inventory_2_outlined,
-              color: AppColors.primary,
-              size: 20,
-            ),
-          ),
+    // Room for the button beside the name: not with large text or on a
+    // narrow screen.
+    final roomy =
+        MediaQuery.widthOf(context) /
+            MediaQuery.textScalerOf(context).scale(1) >=
+        360;
+    final toggle = OutlinedButton(
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size(48, 48),
+        foregroundColor: AppColors.label,
+        backgroundColor: AppColors.closeButton,
+        side: BorderSide.none,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.control),
         ),
-        title: Text(
+      ),
+      onPressed: onToggleActive,
+      child: Text(
+        product.isActive ? 'Archive' : 'Restore',
+        style: const TextStyle(fontWeight: FontWeight.w700),
+      ),
+    );
+    final details = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
           product.name,
+          key: const Key('product-name'),
           maxLines: 3,
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(
-            fontWeight: FontWeight.w700,
-            color: AppColors.primaryDark,
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary,
           ),
         ),
-        subtitle: Text(product.saleUnit.label),
-        trailing: PopupMenuButton<VoidCallback>(
-          tooltip: 'Options for ${product.name}',
-          onSelected: (action) => action(),
-          itemBuilder: (_) => [
-            PopupMenuItem(value: onEdit, child: const Text('Edit')),
-            PopupMenuItem(
-              value: onToggleActive,
-              child: Text(product.isActive ? 'Archive' : 'Restore'),
+        const SizedBox(height: AppSpacing.xs),
+        StatusChip(label: product.saleUnit.label, color: AppColors.primary),
+        if (!roomy) ...[const SizedBox(height: AppSpacing.sm), toggle],
+      ],
+    );
+    return App3DCard(
+      glass: true,
+      stripeColor: product.isActive ? AppColors.primary : AppColors.freeGift,
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+      padding: const EdgeInsetsDirectional.fromSTEB(
+        AppSpacing.lg,
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.md,
+      ),
+      onTap: onEdit,
+      child: Row(
+        children: [
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: AppColors.brand50,
+              borderRadius: BorderRadius.circular(AppRadius.control),
+              border: Border.all(color: AppColors.brand100),
             ),
-          ],
-          icon: const Icon(Icons.more_vert, color: AppColors.label),
-        ),
+            child: const SizedBox(
+              width: 44,
+              height: 44,
+              child: ExcludeSemantics(
+                child: Icon(
+                  Icons.inventory_2_outlined,
+                  color: AppColors.primary,
+                  size: 22,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(child: details),
+          if (roomy) ...[const SizedBox(width: AppSpacing.sm), toggle],
+        ],
       ),
     );
   }

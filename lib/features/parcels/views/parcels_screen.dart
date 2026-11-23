@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../common_widgets/app_3d_decorations.dart';
+import '../../../common_widgets/app_segment_tabs.dart';
 import '../../../common_widgets/count_badge.dart';
 import '../../../common_widgets/empty_state.dart';
 import '../../../common_widgets/liquid_glass.dart';
@@ -346,77 +347,19 @@ class _PaymentTabs extends StatelessWidget {
       ('Pending', _pending),
       ('Settled', _settled),
     ];
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.xs),
-      decoration: BoxDecoration(
-        color: AppColors.brand50,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          for (final (label, payments) in tabs)
-            Expanded(
-              child: _PaymentTab(
-                label: label,
-                count: viewModel
-                    .matchingWith(filters.copyWith(payments: payments))
-                    .length,
-                selected: _same(filters.payments, payments),
-                onTap: () =>
-                    viewModel.setFilters(filters.copyWith(payments: payments)),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PaymentTab extends StatelessWidget {
-  const _PaymentTab({
-    required this.label,
-    required this.count,
-    required this.selected,
-    required this.onTap,
-  });
-  final String label;
-  final int count;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      selected: selected,
-      child: Material(
-        color: selected ? AppColors.surface : Colors.transparent,
-        elevation: selected ? 1 : 0,
-        shadowColor: AppColors.cardBevel,
-        borderRadius: BorderRadius.circular(AppRadius.control),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 48),
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-                child: Text(
-                  '$label ($count)',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                    color: selected ? AppColors.primary : AppColors.label,
-                  ),
-                ),
-              ),
-            ),
+    return AppSegmentTabs(
+      tabs: [
+        for (final (label, payments) in tabs)
+          (
+            label: label,
+            count: viewModel
+                .matchingWith(filters.copyWith(payments: payments))
+                .length,
+            selected: _same(filters.payments, payments),
+            onTap: () =>
+                viewModel.setFilters(filters.copyWith(payments: payments)),
           ),
-        ),
-      ),
+      ],
     );
   }
 }

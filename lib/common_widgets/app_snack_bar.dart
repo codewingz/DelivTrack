@@ -21,49 +21,59 @@ SnackBar appSnackBar(
     padding: EdgeInsets.zero,
     duration: duration,
     persist: false,
-    content: GlassSurface(
-      radius: AppRadius.card,
-      blurSigma: 12,
-      child: Padding(
-        padding: const EdgeInsetsDirectional.fromSTEB(
-          AppSpacing.lg,
-          AppSpacing.xs,
-          AppSpacing.sm,
-          AppSpacing.xs,
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-                child: Text(
-                  message,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ),
-            ),
-            if (actionLabel != null && onAction != null)
-              Builder(
-                builder: (context) => TextButton(
-                  style: TextButton.styleFrom(
-                    minimumSize: const Size(48, 48),
-                    foregroundColor: AppColors.primaryDark,
-                  ),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                    onAction();
-                  },
+    // Room around the pill so its shadow is not cut off by the bar's edge.
+    content: Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.xs,
+        AppSpacing.xs,
+        AppSpacing.xs,
+        AppSpacing.lg,
+      ),
+      child: GlassSurface(
+        radius: AppRadius.card,
+        blurSigma: 12,
+        fill: AppColors.glassSnackFill,
+        child: Padding(
+          padding: const EdgeInsetsDirectional.fromSTEB(
+            AppSpacing.lg,
+            AppSpacing.xs,
+            AppSpacing.sm,
+            AppSpacing.xs,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
                   child: Text(
-                    actionLabel,
-                    style: const TextStyle(fontWeight: FontWeight.w800),
+                    message,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                    ),
                   ),
                 ),
               ),
-          ],
+              if (actionLabel != null && onAction != null)
+                Builder(
+                  builder: (context) => TextButton(
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size(48, 48),
+                      foregroundColor: AppColors.primaryDark,
+                    ),
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                      onAction();
+                    },
+                    child: Text(
+                      actionLabel,
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     ),

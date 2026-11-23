@@ -41,6 +41,7 @@ class AppColors {
   static const glassDialogFill = Color(0xD9FFFFFF);
   static const glassSheetFill = Color(0xD6F4F7F5);
   static const sheetHandle = Color(0xFFB4C6BC);
+  static const glassSnackFill = Color(0x66FFFFFF);
   static const errorBevel = Color(0xFF8E1B1B);
 
   // Status & Financial indicators

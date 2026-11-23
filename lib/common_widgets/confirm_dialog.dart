@@ -68,28 +68,38 @@ Future<bool> showConfirmDialog(
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xl),
-                Align(
-                  alignment: AlignmentDirectional.centerEnd,
-                  // The buttons go one under another when they do not fit.
-                  child: Wrap(
-                    alignment: WrapAlignment.end,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: AppSpacing.sm,
-                    runSpacing: AppSpacing.sm,
-                    children: [
-                      TextButton(
+                // Two buttons of the same size, side by side.
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
                         style: TextButton.styleFrom(
                           minimumSize: const Size(48, 48),
                           foregroundColor: AppColors.label,
+                          backgroundColor: AppColors.glassFill,
+                          side: const BorderSide(color: AppColors.glassEdge),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.sm,
+                            vertical: AppSpacing.md,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              AppRadius.control,
+                            ),
+                          ),
                         ),
                         onPressed: () => Navigator.of(context).pop(false),
                         child: const Text(
                           'Cancel',
+                          textAlign: TextAlign.center,
                           style: TextStyle(fontWeight: FontWeight.w700),
                         ),
                       ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
                       // A filled 3D button: gradient (or red) with a ledge.
-                      DecoratedBox(
+                      child: DecoratedBox(
                         decoration: BoxDecoration(
                           color: destructive ? AppColors.error : null,
                           gradient: destructive
@@ -112,7 +122,8 @@ Future<bool> showConfirmDialog(
                             minimumSize: const Size(48, 48),
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.xl,
+                              horizontal: AppSpacing.sm,
+                              vertical: AppSpacing.md,
                             ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(
@@ -123,12 +134,13 @@ Future<bool> showConfirmDialog(
                           onPressed: () => Navigator.of(context).pop(true),
                           child: Text(
                             confirmLabel,
+                            textAlign: TextAlign.center,
                             style: const TextStyle(fontWeight: FontWeight.w700),
                           ),
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ],
             ),

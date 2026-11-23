@@ -38,7 +38,7 @@ class AppColors {
   static const glassFill = Color(0xA8FFFFFF);
   static const glassEdge = Color(0xE0FFFFFF);
   static const dockLedge = Color(0xFFCEDED5);
-  static const glassDialogFill = Color(0xD9FFFFFF);
+  static const glassDialogFill = Color(0x8CFFFFFF);
   static const glassSheetFill = Color(0xD6F4F7F5);
   static const sheetHandle = Color(0xFFB4C6BC);
   static const glassSnackFill = Color(0x66FFFFFF);

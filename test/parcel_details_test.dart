@@ -1162,20 +1162,17 @@ void main() {
 
   group('delete draft parcel', () {
     testWidgets(
-      'draft parcel offers delete in Actions and AppBar; cancel keeps it; confirm deletes it',
+      'draft parcel offers delete in the AppBar only; cancel keeps it; confirm deletes it',
       (t) async {
         final repo = FakeParcelRepository(
           initial: [testParcel(id: 'd1', status: ParcelStatus.draft)],
         );
         await _open(t, repo, 'd1');
         expect(find.byTooltip('Delete draft'), findsOneWidget);
-        await t.ensureVisible(
-          find.widgetWithText(OutlinedButton, 'Delete Draft Parcel'),
-        );
-        expect(find.text('Delete Draft Parcel'), findsOneWidget);
+        expect(find.text('Delete Draft Parcel'), findsNothing);
 
         // Tap Cancel in confirm dialog
-        await t.tap(find.widgetWithText(OutlinedButton, 'Delete Draft Parcel'));
+        await t.tap(find.byTooltip('Delete draft'));
         await t.pumpAndSettle();
         expect(find.text('Delete this draft parcel?'), findsOneWidget);
         await t.tap(find.text('Cancel'));
@@ -1183,7 +1180,7 @@ void main() {
         expect(repo.watch('d1'), emits(isNotNull));
 
         // Tap Delete in confirm dialog
-        await t.tap(find.widgetWithText(OutlinedButton, 'Delete Draft Parcel'));
+        await t.tap(find.byTooltip('Delete draft'));
         await t.pumpAndSettle();
         await t.tap(find.text('Delete'));
         await t.pumpAndSettle();

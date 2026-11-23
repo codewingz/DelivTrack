@@ -764,41 +764,6 @@ class _ParcelView extends StatelessWidget {
                         }, 'Parcel archived.'),
                         child: const Text('Archive Parcel'),
                       ),
-                    if (parcel.canArchive)
-                      OutlinedButton.icon(
-                        icon: const Icon(
-                          Icons.delete_outline_rounded,
-                          color: AppColors.error,
-                        ),
-                        label: const Text(
-                          'Delete Draft Parcel',
-                          style: TextStyle(color: AppColors.error),
-                        ),
-                        style: _actionStyle(tint: AppColors.error),
-                        onPressed: () async {
-                          final messenger = ScaffoldMessenger.of(context);
-                          final confirmed = await showConfirmDialog(
-                            context,
-                            title: 'Delete this draft parcel?',
-                            message: 'This will permanently delete this draft order. This action cannot be undone.',
-                            confirmLabel: 'Delete',
-                            destructive: true,
-                          );
-                          if (!confirmed) return;
-                          try {
-                            await repository.deleteDraft(parcel.id);
-                            messenger.showSnackBar(
-                              appSnackBar('Draft parcel deleted.'),
-                            );
-                            if (context.mounted &&
-                                Navigator.of(context).canPop()) {
-                              Navigator.of(context).pop();
-                            }
-                          } on AppFailure catch (e) {
-                            messenger.showSnackBar(appSnackBar(e.message));
-                          }
-                        },
-                      ),
                   ],
                 ),
                 if (parcel.paymentReviewRequired)

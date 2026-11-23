@@ -734,8 +734,14 @@ void main() {
         200,
       );
       expect(
-        await emu.delete(alice.token, 'users/${alice.uid}/customers/$cid'),
+        await emu.delete(bob.token, 'users/${alice.uid}/customers/$cid'),
         403,
+        reason: 'another user cannot delete it',
+      );
+      expect(
+        await emu.delete(alice.token, 'users/${alice.uid}/customers/$cid'),
+        200,
+        reason: 'the owner can delete their customer',
       );
     }, skip: skip);
   });

@@ -1,3 +1,4 @@
+import 'package:deliv_track/core/errors/app_failure.dart';
 import 'package:deliv_track/features/customers/data/phone_dialer.dart';
 import 'package:deliv_track/features/customers/domain/customer.dart';
 import 'package:deliv_track/features/customers/views/customer_details_screen.dart';
@@ -227,6 +228,132 @@ void main() {
     await _open(t, FakeParcelRepository());
     expect(find.text('No parcels for this customer yet.'), findsOneWidget);
     expect(find.bySemanticsLabel('Outstanding: Rs. 0'), findsOneWidget);
+  });
+
+  group('Delete Customer', () {
+    final delete = find.widgetWithText(OutlinedButton, 'Delete Customer');
+
+    testWidgets('is offered with or without parcels', (t) async {
+      await _open(t, FakeParcelRepository());
+      expect(delete, findsOneWidget);
+      await t.pumpWidget(const SizedBox());
+      await _open(t, FakeParcelRepository(initial: [_p('a', 1)]));
+      await t.ensureVisible(delete);
+      expect(delete, findsOneWidget);
+    });
+
+    testWidgets(
+      "deleting keeps the customer's parcels and payments untouched",
+      (t) async {
+        t.view.physicalSize = const Size(393, 1600);
+        t.view.devicePixelRatio = 1;
+        addTearDown(t.view.reset);
+        final customers = FakeCustomerRepository(initial: [_ali]);
+        final parcels = FakeParcelRepository(
+          initial: [_p('a', 1, received: 100000), _p('b', 2)],
+        );
+        await t.pumpWidget(
+          MaterialApp(
+            home: CustomerDetailsScreen(
+              customerRepository: customers,
+              parcelRepository: parcels,
+              customerId: 'c1',
+              dialer: _Dialer(),
+              onEdit: (c) async => c.id,
+              onOpenParcel: (_) {},
+            ),
+          ),
+        );
+        await t.pump();
+        await t.pump();
+        await t.pump();
+        await t.ensureVisible(delete);
+        await t.pump();
+        await t.tap(delete);
+        await t.pumpAndSettle();
+        expect(
+          find.textContaining('parcels and payments stay'),
+          findsOneWidget,
+        );
+        await t.tap(find.widgetWithText(TextButton, 'Delete'));
+        await t.pumpAndSettle();
+        expect(customers.items, isEmpty);
+        final kept = await parcels.watchAll().first;
+        expect(kept.map((p) => p.id).toSet(), {'a', 'b'});
+        expect(
+          kept.firstWhere((p) => p.id == 'a').receivedPaisa,
+          100000,
+          reason: 'the money is untouched',
+        );
+        expect(kept.first.customerName, 'Ali Raza');
+      },
+    );
+
+    testWidgets('asks first; Cancel keeps the customer; Delete removes them', (
+      t,
+    ) async {
+      t.view.physicalSize = const Size(393, 1600);
+      t.view.devicePixelRatio = 1;
+      addTearDown(t.view.reset);
+      final customers = FakeCustomerRepository(initial: [_ali]);
+      await t.pumpWidget(
+        MaterialApp(
+          home: CustomerDetailsScreen(
+            customerRepository: customers,
+            parcelRepository: FakeParcelRepository(),
+            customerId: 'c1',
+            dialer: _Dialer(),
+            onEdit: (c) async => c.id,
+            onOpenParcel: (_) {},
+          ),
+        ),
+      );
+      await t.pump();
+      await t.pump();
+      await t.pump();
+      await t.tap(delete);
+      await t.pumpAndSettle();
+      expect(find.text('Delete Ali Raza?'), findsOneWidget);
+      await t.tap(find.widgetWithText(TextButton, 'Cancel'));
+      await t.pumpAndSettle();
+      expect(customers.deletedIds, isEmpty);
+
+      await t.tap(delete);
+      await t.pumpAndSettle();
+      await t.tap(find.widgetWithText(TextButton, 'Delete'));
+      await t.pumpAndSettle();
+      expect(customers.deletedIds, ['c1']);
+      expect(find.text('Customer deleted.'), findsOneWidget);
+    });
+
+    testWidgets('a failure is shown and the customer stays', (t) async {
+      t.view.physicalSize = const Size(393, 1600);
+      t.view.devicePixelRatio = 1;
+      addTearDown(t.view.reset);
+      final customers = FakeCustomerRepository(initial: [_ali]);
+      await t.pumpWidget(
+        MaterialApp(
+          home: CustomerDetailsScreen(
+            customerRepository: customers,
+            parcelRepository: FakeParcelRepository(),
+            customerId: 'c1',
+            dialer: _Dialer(),
+            onEdit: (c) async => c.id,
+            onOpenParcel: (_) {},
+          ),
+        ),
+      );
+      await t.pump();
+      await t.pump();
+      await t.pump();
+      customers.failure = const AppFailure('No internet connection.');
+      await t.tap(delete);
+      await t.pumpAndSettle();
+      await t.tap(find.widgetWithText(TextButton, 'Delete'));
+      await t.pumpAndSettle();
+      expect(find.text('No internet connection.'), findsOneWidget);
+      expect(customers.items, hasLength(1));
+    });
   });
 
   testWidgets('tapping the phone number dials it; a failure says so', (

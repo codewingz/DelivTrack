@@ -1,5 +1,9 @@
 import '../../../common_widgets/app_snack_bar.dart';
 
+import '../../../common_widgets/confirm_dialog.dart';
+import '../../../core/errors/app_failure.dart';
+import '../../../design_system/foundations/radius/app_radius.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../../common_widgets/app_3d_decorations.dart';
@@ -62,6 +66,28 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
     final messenger = ScaffoldMessenger.of(context);
     if (await widget.onEdit(customer) != null) {
       messenger.showSnackBar(appSnackBar('Customer updated.'));
+    }
+  }
+
+  Future<void> _delete(Customer customer) async {
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Delete ${customer.name}?',
+      message: 'Only the customer is deleted. Their parcels and payments stay in your records. This action cannot be undone.',
+      confirmLabel: 'Delete',
+      destructive: true,
+      icon: Icons.delete_outline_rounded,
+    );
+    if (!confirmed || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await widget.customerRepository.delete(customer.id);
+      messenger.showSnackBar(appSnackBar('Customer deleted.'));
+      if (mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+    } on AppFailure catch (e) {
+      messenger.showSnackBar(appSnackBar(e.message));
     }
   }
 
@@ -212,6 +238,38 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                     ),
                   ),
                 ),
+              // Deletes the customer only; their parcels and payments stay.
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsetsDirectional.all(AppSpacing.lg),
+                  child: Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(48, 48),
+                        foregroundColor: AppColors.error,
+                        backgroundColor: AppColors.error.withValues(
+                          alpha: 0.08,
+                        ),
+                        side: BorderSide(
+                          color: AppColors.error.withValues(alpha: 0.4),
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            AppRadius.control,
+                          ),
+                        ),
+                      ),
+                      onPressed: () => _delete(customer),
+                      icon: const Icon(Icons.delete_outline_rounded),
+                      label: const Text(
+                        'Delete Customer',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
               const SliverPadding(
                 padding: EdgeInsetsDirectional.only(bottom: AppSpacing.xxl),
               ),

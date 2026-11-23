@@ -32,6 +32,10 @@ abstract class CustomerRepository {
     String phone2 = '',
     String businessDetails = '',
   });
+
+  /// Deletes the customer only. Their parcels and payments stay as they are:
+  /// each parcel keeps its own copy of the name, phone and address.
+  Future<void> delete(String id);
 }
 
 /// Data lives under `users/{uid}/customers`; Firestore rules allow only that user.
@@ -160,6 +164,9 @@ class FirestoreCustomerRepository implements CustomerRepository {
       });
     }),
   );
+
+  @override
+  Future<void> delete(String id) => _run(() => _customers.doc(id).delete());
 
   Future<T> _run<T>(Future<T> Function() action) async {
     try {

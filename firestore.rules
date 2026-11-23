@@ -65,7 +65,8 @@ service cloud.firestore {
     }
 
     // Customers: name, phone and address are mandatory; a second phone and business details are optional.
-    // Never deleted.
+    // Deleted only by their owner. The customer's parcels and payments are not touched: every parcel
+    // keeps its own snapshot of the name, phone and address.
     match /users/{uid}/customers/{customerId} {
       allow read: if isOwner(uid);
       allow create: if isOwner(uid)
@@ -74,7 +75,7 @@ service cloud.firestore {
       allow update: if isOwner(uid)
         && validCustomer(request.resource.data)
         && request.resource.data.createdAt == resource.data.createdAt;
-      allow delete: if false;
+      allow delete: if isOwner(uid);
     }
 
     // ---- Parcels -------------------------------------------------------------------------

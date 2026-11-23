@@ -18,6 +18,7 @@ class FakeCustomerRepository implements CustomerRepository {
   int _nextId = 1;
   int adds = 0;
   int updates = 0;
+  final List<String> deletedIds = [];
 
   /// How many times a list screen subscribed to the live list.
   int subscriptions = 0;
@@ -44,6 +45,14 @@ class FakeCustomerRepository implements CustomerRepository {
   Future<void> _guardCall() async {
     await gate?.future;
     if (failure != null) throw failure!;
+  }
+
+  @override
+  Future<void> delete(String id) async {
+    await _guardCall();
+    _items.removeWhere((c) => c.id == id);
+    deletedIds.add(id);
+    _controller.add(_sorted());
   }
 
   @override

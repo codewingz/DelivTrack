@@ -114,7 +114,8 @@ void main() {
         ),
       );
       expect(find.text('Ali Raza'), findsWidgets);
-      expect(find.text('+92 300 1111111'), findsOneWidget);
+      // in the header and on the contact card
+      expect(find.text('+92 300 1111111'), findsNWidgets(2));
       expect(find.text('House 5, Street 2, Sahiwal'), findsOneWidget);
       expect(find.bySemanticsLabel('Parcels: 3'), findsOneWidget);
       expect(find.bySemanticsLabel('Outstanding: Rs. 10,000'), findsOneWidget);
@@ -191,7 +192,7 @@ void main() {
           ],
         ),
       );
-      expect(find.text('Pay Later reminders'), findsOneWidget);
+      expect(find.text('PAY LATER REMINDERS'), findsOneWidget);
       expect(find.text('ADT-000001 · Rs. 5,000 to collect'), findsOneWidget);
       expect(find.textContaining('Overdue by'), findsOneWidget);
       expect(find.text('ADT-000002 · Rs. 4,000 to collect'), findsOneWidget);
@@ -216,7 +217,7 @@ void main() {
     'no Pay Later section for a customer without open Pay Later parcels',
     (t) async {
       await _open(t, FakeParcelRepository(initial: [_p('a', 1)]));
-      expect(find.text('Pay Later reminders'), findsNothing);
+      expect(find.text('PAY LATER REMINDERS'), findsNothing);
     },
   );
 
@@ -232,14 +233,14 @@ void main() {
     t,
   ) async {
     final env = await _open(t, FakeParcelRepository());
-    await t.tap(find.text('+92 300 1111111'));
+    await t.tap(find.byKey(const Key('customer-call')));
     await t.pump();
     expect(env.dialer.dialed, ['+92 300 1111111']);
     expect(find.text("Couldn't open the phone app."), findsNothing);
 
     final failing = _Dialer(works: false);
     await _open(t, FakeParcelRepository(), dialer: failing);
-    await t.tap(find.text('+92 300 1111111'));
+    await t.tap(find.byKey(const Key('customer-call')));
     await t.pump();
     await t.pump();
     expect(find.text("Couldn't open the phone app."), findsOneWidget);
@@ -286,13 +287,13 @@ void main() {
       await t.pumpAndSettle();
       await t.tap(find.text('Ali Raza'));
       await t.pumpAndSettle();
-      expect(find.text('Parcel history'), findsOneWidget);
+      expect(find.text('PARCEL HISTORY'), findsOneWidget);
       await t.tap(find.text('ADT-000001'));
       await t.pumpAndSettle();
       expect(find.widgetWithText(AppBar, 'ADT-000001'), findsOneWidget);
       await t.pageBack();
       await t.pumpAndSettle();
-      expect(find.text('Parcel history'), findsOneWidget);
+      expect(find.text('PARCEL HISTORY'), findsOneWidget);
     });
   });
 

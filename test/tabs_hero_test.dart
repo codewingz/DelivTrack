@@ -47,7 +47,7 @@ void main() {
       await t.tap(find.text('Ali Raza'));
       await t.pumpAndSettle();
       expect(t.takeException(), isNull);
-      expect(find.text('Parcel history'), findsOneWidget);
+      expect(find.text('PARCEL HISTORY'), findsOneWidget);
       await t.pageBack();
       await t.pumpAndSettle();
       await t.tap(find.widgetWithText(FloatingActionButton, 'Add Customer'));

@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../../../common_widgets/app_3d_decorations.dart';
 import '../../../common_widgets/empty_state.dart';
+import '../../../common_widgets/initial_avatar.dart';
+import '../../../common_widgets/liquid_glass.dart';
 import '../../../common_widgets/list_skeleton.dart';
 import '../../../constants/app_colors.dart';
 import '../../../core/money/money.dart';
@@ -72,11 +74,15 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
             ?.where((c) => c.id == widget.customerId)
             .firstOrNull;
         return Scaffold(
+          // The backdrop continues behind the header's curve.
+          extendBodyBehindAppBar: true,
           appBar: appCurvedAppBar(
-            title: Text(
-              customer?.name ?? 'Customer',
-              overflow: TextOverflow.ellipsis,
-            ),
+            toolbarHeight: customer == null
+                ? kToolbarHeight
+                : AppBarTitle.heightFor(context),
+            title: customer == null
+                ? const Text('Customer')
+                : AppBarTitle(customer.name, subtitle: customer.phone),
             actions: [
               if (customer != null)
                 IconButton(
@@ -86,12 +92,14 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                 ),
             ],
           ),
-          body: SafeArea(
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 640),
-                child: _body(customerSnapshot, customer),
+          body: LiquidBackground(
+            child: SafeArea(
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 640),
+                  child: _body(customerSnapshot, customer),
+                ),
               ),
             ),
           ),
@@ -129,14 +137,19 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
           for (final parcel in parcels)
             if (!parcel.isArchived) parcel,
         ];
-        return CustomScrollView(
+        final contact = _Contact(
+          customer: customer,
+          onCall: () => _call(customer),
+        );
+        // The contact card stays in place while the rest scrolls; on a short
+        // screen or with large text it scrolls too, so the list keeps room.
+        final pinContact =
+            MediaQuery.heightOf(context) /
+                MediaQuery.textScalerOf(context).scale(1) >=
+            600;
+        final list = CustomScrollView(
           slivers: [
-            SliverToBoxAdapter(
-              child: _Contact(
-                customer: customer,
-                onCall: () => _call(customer),
-              ),
-            ),
+            if (!pinContact) SliverToBoxAdapter(child: contact),
             if (parcelSnapshot.hasError)
               const SliverToBoxAdapter(
                 child: Padding(
@@ -166,11 +179,12 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                     AppSpacing.sm,
                   ),
                   child: Text(
-                    'Parcel history',
+                    'PARCEL HISTORY',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 13,
                       fontWeight: FontWeight.w800,
-                      color: AppColors.primaryDark,
+                      letterSpacing: 1,
+                      color: AppColors.label,
                     ),
                   ),
                 ),
@@ -186,18 +200,29 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                   ),
                 )
               else
-                SliverList.separated(
-                  itemCount: active.length,
-                  separatorBuilder: (_, _) => const Divider(height: 1),
-                  itemBuilder: (context, index) => ParcelTile(
-                    parcel: active[index],
-                    onTap: () => widget.onOpenParcel(active[index]),
+                SliverPadding(
+                  padding: const EdgeInsetsDirectional.symmetric(
+                    horizontal: AppSpacing.lg,
+                  ),
+                  sliver: SliverList.builder(
+                    itemCount: active.length,
+                    itemBuilder: (context, index) => ParcelTile(
+                      parcel: active[index],
+                      onTap: () => widget.onOpenParcel(active[index]),
+                    ),
                   ),
                 ),
               const SliverPadding(
                 padding: EdgeInsetsDirectional.only(bottom: AppSpacing.xxl),
               ),
             ],
+          ],
+        );
+        if (!pinContact) return list;
+        return Column(
+          children: [
+            contact,
+            Expanded(child: list),
           ],
         );
       },
@@ -213,50 +238,72 @@ class _Contact extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsetsDirectional.all(AppSpacing.lg),
+      padding: const EdgeInsetsDirectional.fromSTEB(
+        AppSpacing.lg,
+        AppSpacing.md,
+        AppSpacing.lg,
+        AppSpacing.md,
+      ),
       child: App3DCard(
+        glass: true,
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              customer.name,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: AppColors.primaryDark,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            InkWell(
-              onTap: onCall,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: 48),
-                child: Row(
-                  children: [
-                    const Icon(Icons.call_outlined, color: AppColors.primary),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: Text(
-                        customer.phone,
+            Row(
+              children: [
+                InitialAvatar(name: customer.name),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        customer.name,
                         style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
                         ),
                       ),
-                    ),
-                  ],
+                      // Tap to call.
+                      InkWell(
+                        onTap: onCall,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(minHeight: 48),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.call_outlined,
+                                size: 18,
+                                color: AppColors.primary,
+                              ),
+                              const SizedBox(width: AppSpacing.sm),
+                              Flexible(
+                                child: Text(
+                                  customer.phone,
+                                  key: const Key('customer-call'),
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+              ],
             ),
-            const SizedBox(height: AppSpacing.sm),
+            const Divider(height: AppSpacing.lg, color: AppColors.border),
             Text(
               customer.address,
-              style: const TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-              ),
+              style: const TextStyle(fontSize: 14, color: AppColors.label),
             ),
           ],
         ),
@@ -277,68 +324,92 @@ class _Totals extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final totals = PaymentTotals.from(parcels);
+    final stats = [
+      _Stat(label: 'Parcels', value: '$parcelCount', color: AppColors.primary),
+      _Stat(
+        label: 'Outstanding',
+        value: formatRupees(totals.outstandingPaisa),
+        color: totals.outstandingPaisa > 0
+            ? AppColors.pending
+            : AppColors.primary,
+      ),
+      _Stat(
+        label: 'Pay Later balance',
+        value: formatRupees(totals.payLaterPaisa),
+        color: AppColors.textPrimary,
+      ),
+      _Stat(
+        label: 'Advance received',
+        value: formatRupees(totals.advancePaisa),
+        color: AppColors.primary,
+      ),
+    ];
     return Padding(
       padding: const EdgeInsetsDirectional.symmetric(horizontal: AppSpacing.lg),
-      child: Wrap(
-        spacing: AppSpacing.md,
-        runSpacing: AppSpacing.md,
-        children: [
-          _Stat(label: 'Parcels', value: '$parcelCount'),
-          _Stat(
-            label: 'Outstanding',
-            value: formatRupees(totals.outstandingPaisa),
-          ),
-          _Stat(
-            label: 'Pay Later balance',
-            value: formatRupees(totals.payLaterPaisa),
-          ),
-          _Stat(
-            label: 'Advance received',
-            value: formatRupees(totals.advancePaisa),
-          ),
-        ],
+      // Two across; one per row when large text leaves no room for two.
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final columns =
+              constraints.maxWidth /
+                      MediaQuery.textScalerOf(context).scale(1) >=
+                  300
+              ? 2
+              : 1;
+          final width =
+              (constraints.maxWidth - AppSpacing.md * (columns - 1)) / columns;
+          return Wrap(
+            spacing: AppSpacing.md,
+            runSpacing: AppSpacing.md,
+            children: [
+              for (final stat in stats) SizedBox(width: width, child: stat),
+            ],
+          );
+        },
       ),
     );
   }
 }
 
 class _Stat extends StatelessWidget {
-  const _Stat({required this.label, required this.value});
+  const _Stat({required this.label, required this.value, required this.color});
   final String label;
   final String value;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
       label: '$label: $value',
       excludeSemantics: true,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minWidth: 150),
-        child: App3DCard(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textSecondary,
-                ),
+      child: App3DCard(
+        glass: true,
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
               ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            // An amount is never wrapped or cut: a long one shrinks to fit.
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: AlignmentDirectional.centerStart,
+              child: Text(
                 value,
-                style: const TextStyle(
-                  fontSize: 17,
+                style: TextStyle(
+                  fontSize: 20,
                   fontWeight: FontWeight.w800,
-                  color: AppColors.primaryDark,
+                  color: color,
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -374,11 +445,12 @@ class _PayLaterReminders extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Pay Later reminders',
+            'PAY LATER REMINDERS',
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 13,
               fontWeight: FontWeight.w800,
-              color: AppColors.primaryDark,
+              letterSpacing: 1,
+              color: AppColors.label,
             ),
           ),
           const SizedBox(height: AppSpacing.sm),

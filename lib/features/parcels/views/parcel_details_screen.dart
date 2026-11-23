@@ -335,9 +335,12 @@ class _ParcelView extends StatelessWidget {
   Widget build(BuildContext context) {
     final isFree = parcel.method == CollectionMethod.giftFree;
     final isReturned = parcel.status == ParcelStatus.returned;
+    // Owner's rule: money is recorded only after the handover (a sent
+    // parcel). A payment that arrives before it is an advance: the parcel
+    // type is changed to Advance paid instead.
     final canReceive =
         !isFree &&
-        !isReturned &&
+        parcel.status == ParcelStatus.sent &&
         !parcel.isArchived &&
         parcel.outstandingPaisa > 0;
     final canChangeDate =

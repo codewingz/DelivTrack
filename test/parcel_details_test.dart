@@ -958,6 +958,38 @@ void main() {
     );
 
     testWidgets(
+      'a draft offers no Mark Payment Received; the same parcel once sent does',
+      (t) async {
+        final receive = find.widgetWithText(
+          FilledButton,
+          'Mark Payment Received',
+        );
+        await _open(
+          t,
+          FakeParcelRepository(
+            initial: [
+              testParcel(
+                id: 'a',
+                status: ParcelStatus.draft,
+                reference: '',
+                charge: null,
+              ),
+            ],
+          ),
+          'a',
+        );
+        expect(receive, findsNothing);
+        await t.pumpWidget(const SizedBox());
+        await _open(
+          t,
+          FakeParcelRepository(initial: [testParcel(id: 'a')]),
+          'a',
+        );
+        expect(receive, findsOneWidget);
+      },
+    );
+
+    testWidgets(
       'a sent parcel paid in full offers no Mark Returned; one that still owes money does',
       (t) async {
         for (final (received, offered) in [

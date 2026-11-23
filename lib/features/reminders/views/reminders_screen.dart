@@ -9,6 +9,7 @@ import '../../../design_system/foundations/radius/app_radius.dart';
 import '../../../design_system/foundations/spacing/app_spacing.dart';
 import '../../parcels/data/parcel_repository.dart';
 import '../../parcels/domain/parcel.dart';
+import '../../parcels/domain/parcel_enums.dart';
 import '../../parcels/views/parcel_action_sheets.dart';
 import '../../parcels/views/payment_sheet.dart';
 import '../data/reminder_scheduler.dart';
@@ -268,10 +269,12 @@ class _ReminderTile extends StatelessWidget {
           ),
           child: Wrap(
             children: [
-              TextButton(
-                onPressed: onReceive,
-                child: const Text('Mark Received'),
-              ),
+              // Not for a draft: money is recorded only after the handover.
+              if (parcel.status == ParcelStatus.sent)
+                TextButton(
+                  onPressed: onReceive,
+                  child: const Text('Mark Received'),
+                ),
               TextButton(
                 onPressed: onChangeDate,
                 child: Text(

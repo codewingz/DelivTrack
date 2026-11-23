@@ -422,8 +422,10 @@ class _PaymentTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Only a handed-over (sent) parcel can receive money; see the details
+    // screen.
     final canReceive =
-        parcel.status != ParcelStatus.returned && parcel.outstandingPaisa > 0;
+        parcel.status == ParcelStatus.sent && parcel.outstandingPaisa > 0;
     final date = parcel.estimatedPaymentDate;
     final isUnpaid = parcel.outstandingPaisa > 0;
     // Room for the balance beside the order number and the button beside the

@@ -9,7 +9,7 @@ import 'app_text_field.dart';
 class AppDateField extends StatelessWidget {
   const AppDateField({
     super.key,
-    required this.label,
+    this.label,
     required this.value,
     required this.onChanged,
     required this.firstDate,
@@ -18,7 +18,8 @@ class AppDateField extends StatelessWidget {
     this.enabled = true,
   });
 
-  final String label;
+  /// Shown above the field; leave out when the group already has a heading.
+  final String? label;
   final String? value;
   final ValueChanged<String?> onChanged;
 
